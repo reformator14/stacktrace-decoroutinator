@@ -77,7 +77,7 @@ publishing {
             pom {
                 name.set("Stacktrace-decoroutinator JVM agent.")
                 description.set("JVM agent for recovering stack trace in exceptions thrown in Kotlin coroutines.")
-                url.set("https://github.com/Anamorphosee/stacktrace-decoroutinator")
+                url.set("https://github.com/reformator14/stacktrace-decoroutinator")
                 licenses {
                     license {
                         name.set("The Apache License, Version 2.0")
@@ -92,9 +92,9 @@ publishing {
                     }
                 }
                 scm {
-                    connection.set("scm:git:git://github.com/Anamorphosee/stacktrace-decoroutinator.git")
-                    developerConnection.set("scm:git:ssh://github.com:Anamorphosee/stacktrace-decoroutinator.git")
-                    url.set("http://github.com/Anamorphosee/stacktrace-decoroutinator/tree/master")
+                    connection.set("scm:git:git://github.com/reformator14/stacktrace-decoroutinator.git")
+                    developerConnection.set("scm:git:ssh://github.com:reformator14/stacktrace-decoroutinator.git")
+                    url.set("http://github.com/reformator14/stacktrace-decoroutinator/tree/master")
                 }
             }
         }

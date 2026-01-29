@@ -203,10 +203,10 @@ android {
 See documentation on how to integrate [here](https://kotest.io/docs/extensions/decoroutinator.html).
 
 ### Problem with Shadow Gradle plugin
-There is [a bug](https://github.com/GradleUp/shadow/issues/882) in Shadow Gradle plugin which may lead to some build issues when both Decoroutinator as a Gradle plugin and Shadow are applied. But there are some [workarounds](https://github.com/GradleUp/shadow/issues/882#issuecomment-1715703146) for it. See more at https://github.com/Anamorphosee/stacktrace-decoroutinator/issues/46. 
+There is [a bug](https://github.com/GradleUp/shadow/issues/882) in Shadow Gradle plugin which may lead to some build issues when both Decoroutinator as a Gradle plugin and Shadow are applied. But there are some [workarounds](https://github.com/GradleUp/shadow/issues/882#issuecomment-1715703146) for it. See more at https://github.com/reformator14/stacktrace-decoroutinator/issues/46. 
 
 ### Problem with Jacoco
-Using Jacoco and Decoroutinator as a Java agent may lead to the loss of code coverage. It's [a common Jacoco Problem](https://www.eclemma.org/jacoco/trunk/doc/classids.html). In order not to lose coverage, make sure that the Jacoco agent comes before the Decoroutinator agent. See more at https://github.com/Anamorphosee/stacktrace-decoroutinator/issues/24.
+Using Jacoco and Decoroutinator as a Java agent may lead to the loss of code coverage. It's [a common Jacoco Problem](https://www.eclemma.org/jacoco/trunk/doc/classids.html). In order not to lose coverage, make sure that the Jacoco agent comes before the Decoroutinator agent. See more at https://github.com/reformator14/stacktrace-decoroutinator/issues/24.
 
 ### Usage with Robolectric
 [Robolectric](https://robolectric.org/) puts some Decoroutinator classes in different class loaders by default, which leads to an exception during the execution of tests. To fix this please add the following config to your `build.gradle.kts`:
@@ -227,4 +227,4 @@ android {
 You can call function `DecoroutinatorCommonApi.getStatus { it() }` at runtime to check if Decoroutinator has been successfully installed.
 
 ### Communication
-Feel free to ask any question at [Discussions](https://github.com/Anamorphosee/stacktrace-decoroutinator/discussions).
+Feel free to ask any question at [Discussions](https://github.com/reformator14/stacktrace-decoroutinator/discussions).

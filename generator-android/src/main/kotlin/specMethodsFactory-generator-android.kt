@@ -58,7 +58,7 @@ internal class AndroidSpecMethodsFactory: BaseSpecMethodsFactory() {
                     fileName = fileName,
                     lineNumbersByMethod = lineNumbersByMethod
                 )
-            // https://github.com/Anamorphosee/stacktrace-decoroutinator/issues/42#issuecomment-2508562491
+            // https://github.com/reformator14/stacktrace-decoroutinator/issues/42#issuecomment-2508562491
             } catch (e: IOException) {
                 Log.w(LOG_TAG, e)
                 return@repeat
@@ -66,7 +66,7 @@ internal class AndroidSpecMethodsFactory: BaseSpecMethodsFactory() {
             val clazz = try {
                 @Suppress("NewApi")
                 loader.findClass(className)
-            // https://github.com/Anamorphosee/stacktrace-decoroutinator/issues/42#issuecomment-2508562491
+            // https://github.com/reformator14/stacktrace-decoroutinator/issues/42#issuecomment-2508562491
             } catch (e: ClassNotFoundException) {
                 Log.w(LOG_TAG, e)
                 return@repeat
@@ -76,11 +76,11 @@ internal class AndroidSpecMethodsFactory: BaseSpecMethodsFactory() {
                 lineNumbersByMethod.mapValues { (methodName, _) ->
                     val handle = try {
                         @Suppress("NewApi") lookup.findStatic(clazz, methodName, specMethodType)
-                    // https://github.com/Anamorphosee/stacktrace-decoroutinator/issues/30#issuecomment-2346066638
+                    // https://github.com/reformator14/stacktrace-decoroutinator/issues/30#issuecomment-2346066638
                     } catch (e: NoSuchMethodException) {
                         Log.w(LOG_TAG, e)
                         return@repeat
-                    // https://github.com/Anamorphosee/stacktrace-decoroutinator/issues/39#issuecomment-2421913959
+                    // https://github.com/reformator14/stacktrace-decoroutinator/issues/39#issuecomment-2421913959
                     } catch (e: IllegalAccessException) {
                         Log.w(LOG_TAG, e)
                         return@repeat
