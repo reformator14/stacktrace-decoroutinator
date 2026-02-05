@@ -52,9 +52,8 @@ private val boundaryStacktraceElement =
     StackTraceElement("", "", boundaryLabel, -1)
 
 @OptIn(ExperimentalContracts::class)
-private inline fun Any.getElementAndSpecMethod(
-    consumer: (element: StackTraceElement?, specMethod: MethodHandle) -> Unit,
-    elementSupplier: () -> StackTraceElement?
+private inline fun CoroutineStackFrame.getElementAndSpecMethod(
+    consumer: (element: StackTraceElement?, specMethod: MethodHandle) -> Unit
 ) {
     contract { callsInPlace(consumer, InvocationKind.EXACTLY_ONCE) }
     val cache = (this as? ContinuationCached)?.`$decoroutinator$cache`
@@ -67,33 +66,11 @@ private inline fun Any.getElementAndSpecMethod(
         }
         consumer(cache.element, specMethod)
     } else {
-        val element = elementSupplier()
+        val element = getNormalizedStackTraceElement()
         val specMethod = element?.let { specMethodsFactory.getSpecMethodHandle(it) } ?:
             methodHandleInvoker.unknownSpecMethodHandle
         consumer(element, specMethod)
     }
-}
-
-@OptIn(ExperimentalContracts::class)
-private inline fun BaseContinuation.getElementAndSpecMethod(
-    consumer: (element: StackTraceElement?, specMethod: MethodHandle) -> Unit
-) {
-    contract { callsInPlace(consumer, InvocationKind.EXACTLY_ONCE) }
-    getElementAndSpecMethod(
-        consumer = consumer,
-        elementSupplier = { getNormalizedStackTraceElement() }
-    )
-}
-
-@OptIn(ExperimentalContracts::class)
-private inline fun CoroutineStackFrame.getElementAndSpecMethod(
-    consumer: (element: StackTraceElement?, specMethod: MethodHandle) -> Unit
-) {
-    contract { callsInPlace(consumer, InvocationKind.EXACTLY_ONCE) }
-    getElementAndSpecMethod(
-        consumer = consumer,
-        elementSupplier = { getNormalizedStackTraceElement() }
-    )
 }
 
 private class ElementAndSpecMethod(
@@ -103,16 +80,7 @@ private class ElementAndSpecMethod(
 
 private fun BaseContinuation.getElementsAndSpecMethods(): List<ElementAndSpecMethod> =
     buildList {
-        run {
-            val element: StackTraceElement?
-            val specMethod: MethodHandle
-            getElementAndSpecMethod { gotElement, gotSpecMethod ->
-                element = gotElement
-                specMethod = gotSpecMethod
-            }
-            add(ElementAndSpecMethod(element, specMethod))
-        }
-        var frame = callerFrame
+        var frame: CoroutineStackFrame? = this@getElementsAndSpecMethods
         while (frame != null) {
             val element: StackTraceElement?
             val specMethod: MethodHandle
@@ -125,14 +93,9 @@ private fun BaseContinuation.getElementsAndSpecMethods(): List<ElementAndSpecMet
         }
     }
 
-private fun CoroutineStackFrame.getNormalizedStackTraceElement(): StackTraceElement? =
-    getNormalizedStackTraceElement(getStackTraceElement())
-
-private fun BaseContinuation.getNormalizedStackTraceElement(): StackTraceElement? =
-    getNormalizedStackTraceElement(getStackTraceElement())
-
-private fun Any.getNormalizedStackTraceElement(element: StackTraceElement?): StackTraceElement? =
-    when {
+private fun CoroutineStackFrame.getNormalizedStackTraceElement(): StackTraceElement? {
+    val element = getStackTraceElement()
+    return when {
         element != null -> element
         fillUnknownElementsWithClassName -> StackTraceElement(
             javaClass.name,
@@ -142,6 +105,7 @@ private fun Any.getNormalizedStackTraceElement(element: StackTraceElement?): Sta
         )
         else -> null
     }
+}
 
 private fun BaseContinuation.stdlibAwake(accessor: BaseContinuationAccessor, result: Any?) {
     var newResult = result
