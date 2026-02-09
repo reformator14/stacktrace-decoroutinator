@@ -20,7 +20,6 @@ dependencies {
     implementation(libs.junit4)
     implementation(libs.kotlinx.coroutines.core.build)
     implementation(libs.kotlin.logging.jvm)
-    implementation(project(":test-utils:retrace-repack", configuration = "shadow"))
     implementation(project(":stacktrace-decoroutinator-common"))
 
     runtimeOnly(libs.ktor.io.jvm) {

@@ -85,7 +85,7 @@ open class RuntimeTest {
         } catch (e: RuntimeException) {
             e.stackTrace.checkStacktrace(*(1 .. 10).map {
                 StackTraceElement(
-                    RuntimeTest::class.java.typeName,
+                    ownerClassName,
                     RuntimeTest::resumeWithExceptionRec.name,
                     currentFileName,
                     resumeWithExceptionRecBaseLineNumber + 8
@@ -107,7 +107,7 @@ open class RuntimeTest {
         try {
             runBlocking {
                 try {
-                    resumeClassName = ownerClass.name
+                    resumeClassName = ownerClassName
                     resumeMethodName = ownerMethodName
                     firstResumeLineNumber = currentLineNumber + 1
                     suspendCoroutineUninterceptedOrReturn { cont ->
@@ -230,7 +230,7 @@ open class RuntimeTest {
     fun withContextMustHaveDispatchedCoroutineResumeWithMethod(): Unit = runBlocking {
         withContext(Dispatchers.Default) {
             yield()
-            assertTrue(Exception().stackTrace.any { element ->
+            assertTrue(Exception().stackTrace.asSequence().flatMap { it.getPossibleUnobfuscatedFrames() }.any { element ->
                 element.className == "kotlinx.coroutines.DispatchedCoroutine" &&
                 element.methodName == "resumeWith"
             })
@@ -256,7 +256,7 @@ open class RuntimeTest {
     private suspend fun rec(lineNumberOffsets: List<Int>, index: Int): String {
         val checkedStacktrace = lineNumberOffsets.subList(0, index).reversed().map {
             StackTraceElement(
-                RuntimeTest::class.java.name,
+                ownerClassName,
                 RuntimeTest::rec.name,
                 currentFileName,
                 recBaseLineNumber + it
@@ -308,7 +308,7 @@ open class RuntimeTest {
     private suspend fun overload(par: Int) {
         val lineNumber = currentLineNumber + 1
         suspendResumeAndCheckStack(StackTraceElement(
-            RuntimeTest::class.java.typeName,
+            ownerClassName,
             ownerMethodName,
             currentFileName,
             lineNumber
@@ -320,7 +320,7 @@ open class RuntimeTest {
     private suspend fun overload(par: String) {
         val lineNumber = currentLineNumber + 1
         suspendResumeAndCheckStack(StackTraceElement(
-            RuntimeTest::class.java.typeName,
+            ownerClassName,
             ownerMethodName,
             currentFileName,
             lineNumber
@@ -458,7 +458,7 @@ private suspend fun tailCallDeoptimizeBasicRec(depth: Int) {
                 ::tailCallDeoptimizeBasicRec.name to recLineNumber
             }
             StackTraceElement(
-                currentFileClass.name,
+                ownerClassName,
                 methodName,
                 currentFileName,
                 lineNumber
@@ -472,9 +472,6 @@ private val recRecLineNumber = currentLineNumber + 2
 private suspend fun tailCallDeoptimizeBasicRecRec(depth: Int) {
     tailCallDeoptimizeBasicRec(depth)
 }
-
-private val currentFileClass: Class<*>
-    @GetOwnerClass get() { fail() }
 
 private val customLoaderJarUri: String
     @LoadConstant("customLoaderJarUri") get() { fail() }

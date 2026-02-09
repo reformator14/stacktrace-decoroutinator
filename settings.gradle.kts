@@ -38,7 +38,6 @@ include(
     "jvm-agent-common:suspend-class-stub",
     "generator-jvm:android-wrong-generator-tests",
     "gradle-plugin:gradle-groovy-dsl-tests",
-    "test-utils:retrace-repack",
     "gradle-plugin:aar-builder"
 )
 project(":provider").name = "stacktrace-decoroutinator-provider"

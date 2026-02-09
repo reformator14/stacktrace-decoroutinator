@@ -78,7 +78,7 @@ dependencies {
     compileOnly("dev.reformator.bytecodeprocessor:bytecode-processor-intrinsics")
 }
 
-val minifyDebugMappingFileDevicePath = "/sdcard/debugMapping.txt"
+val minifyDebugMappingFileDevicePath = "/sdcard/debugMappingLegacy.txt"
 
 bytecodeProcessor {
     processors = listOf(
