@@ -1,11 +1,16 @@
+import dev.reformator.stacktracedecoroutinator.jvm.tests.InstallDecoroutinatorLauncherSessionListener;
+import org.junit.platform.launcher.LauncherSessionListener;
+
 module dev.reformator.stacktracedecoroutinator.jvm.tests {
+    requires static dev.reformator.stacktracedecoroutinator.intrinsics;
+
+    requires dev.reformator.stacktracedecoroutinator.tests;
+    requires dev.reformator.stacktracedecoroutinator.methodswithspacestests;
     requires dev.reformator.stacktracedecoroutinator.jvm;
     requires kotlin.test.junit5;
-    requires dev.reformator.stacktracedecoroutinator.common;
-    requires dev.reformator.stacktracedecoroutinator.provider;
-    requires dev.reformator.stacktracedecoroutinator.testutils;
-    requires dev.reformator.stacktracedecoroutinator.testutilsjvm;
-    requires kotlinx.coroutines.core;
+    requires org.junit.platform.launcher;
 
-    exports dev.reformator.stacktracedecoroutinator.jvmtests;
+    provides LauncherSessionListener with InstallDecoroutinatorLauncherSessionListener;
+
+    exports dev.reformator.stacktracedecoroutinator.jvm.tests;
 }

@@ -94,7 +94,12 @@ class SpecCache(
 ) {
     var speckMethod: MethodHandle? = null
 
-    constructor(className: String, methodName: String, fileName: String?, lineNumber: Int): this(StackTraceElement(
+    constructor(
+        className: String,
+        methodName: String,
+        fileName: String?,
+        lineNumber: Int
+    ): this(StackTraceElement(
         className,
         methodName,
         fileName,

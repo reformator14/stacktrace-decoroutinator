@@ -1,8 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    kotlin("jvm")
-    alias(libs.plugins.gradle.plugin.publish)
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.gradle.publish)
 }
 
 repositories {
@@ -41,7 +41,7 @@ kotlin {
 gradlePlugin {
     plugins {
         create("bytecodeProcessor") {
-            id = "dev.reformator.bytecodeprocessor"
+            id = libs.plugins.bytecode.processor.get().pluginId
             implementationClass = "dev.reformator.bytecodeprocessor.gradleplugin.BytecodeProcessorPlugin"
         }
     }

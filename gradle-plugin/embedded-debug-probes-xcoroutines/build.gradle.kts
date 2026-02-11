@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     kotlin("jvm")
-    id("dev.reformator.bytecodeprocessor")
+    alias(libs.plugins.bytecode.processor)
 }
 
 bytecodeProcessor {
@@ -17,11 +17,9 @@ repositories {
 }
 
 dependencies {
-    //noinspection UseTomlInstead
-    compileOnly("dev.reformator.bytecodeprocessor:bytecode-processor-intrinsics")
+    compileOnly(libs.bytecode.processor.intrinsics)
     compileOnly(project(":gradle-plugin:embedded-debug-probes-stdlib"))
-
-    implementation(project(":stacktrace-decoroutinator-runtime-settings"))
+    compileOnly(project(":stacktrace-decoroutinator-runtime-settings"))
 }
 
 java {

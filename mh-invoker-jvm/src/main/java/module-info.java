@@ -5,7 +5,7 @@ import dev.reformator.stacktracedecoroutinator.mhinvokerjvm.internal.JvmVarHandl
 
 module dev.reformator.stacktracedecoroutinator.mhinvokerjvm {
     requires static dev.reformator.bytecodeprocessor.intrinsics;
-    requires static intrinsics;
+    requires static dev.reformator.stacktracedecoroutinator.intrinsics;
 
     requires dev.reformator.stacktracedecoroutinator.provider;
     requires dev.reformator.stacktracedecoroutinator.common;

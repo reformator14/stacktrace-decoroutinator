@@ -10,11 +10,11 @@ module dev.reformator.stacktracedecoroutinator.provider {
             dev.reformator.stacktracedecoroutinator.common,
             dev.reformator.stacktracedecoroutinator.mhinvoker,
             dev.reformator.stacktracedecoroutinator.generatorjvm,
-            dev.reformator.stacktracedecoroutinator.test.basecontinuationaccessorstub,
             dev.reformator.stacktracedecoroutinator.jvmagentcommon,
             dev.reformator.stacktracedecoroutinator.generator.tests,
             dev.reformator.stacktracedecoroutinator.specmethodbuilder,
-            dev.reformator.stacktracedecoroutinator.classtransformer;
+            dev.reformator.stacktracedecoroutinator.classtransformer,
+            dev.reformator.stacktracedecoroutinator.naivebasecontinuationaccessor;
 
     uses DecoroutinatorProvider;
 }

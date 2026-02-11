@@ -1,8 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    kotlin("jvm")
-    id("dev.reformator.forcevariantjavaversion")
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.force.variant.java.version)
 }
 
 repositories {

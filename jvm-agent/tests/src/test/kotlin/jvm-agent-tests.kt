@@ -1,0 +1,11 @@
+@file:Suppress("PackageDirectoryMismatch")
+
+package dev.reformator.stacktracedecoroutinator.jvmagent.tests
+
+class RuntimeTest: dev.reformator.stacktracedecoroutinator.tests.RuntimeTest()
+class TailCallDeoptimizeTest: dev.reformator.stacktracedecoroutinator.tests.TailCallDeoptimizeTest()
+class MethodNameWithSpacesTest: dev.reformator.stacktracedecoroutinator.methodswithspacestests.MethodNameWithSpacesTest()
+class TailCallDeoptimizedMethodNameWithSpacesTest: dev.reformator.stacktracedecoroutinator.methodswithspacestests.TailCallDeoptimizedMethodNameWithSpacesTest()
+class CustomClassLoaderTest: dev.reformator.stacktracedecoroutinator.tests.CustomClassLoaderTest()
+class CustomClassLoaderTailCallDeoptimizedTest: dev.reformator.stacktracedecoroutinator.tests.CustomClassLoaderTailCallDeoptimizedTest()
+class PerformanceTest: dev.reformator.stacktracedecoroutinator.tests.PerformanceTest()

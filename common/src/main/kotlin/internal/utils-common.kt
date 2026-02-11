@@ -105,7 +105,7 @@ internal fun Class<*>.getBodyStream(): InputStream? =
 
 internal const val ENABLED_PROPERTY = "dev.reformator.stacktracedecoroutinator.enabled"
 
-internal class DecoroutinatorContinuationImpl(
+internal class TailCallDeoptimizedContinuation(
     completion: Continuation<Any?>,
     override val `$decoroutinator$cache`: SpecCache
 ): ContinuationImpl(completion), ContinuationCached {

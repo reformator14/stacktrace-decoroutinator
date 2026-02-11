@@ -137,6 +137,10 @@ class BytecodeProcessorPlugin : Plugin<Project> {
                     mergeContextsTask.configure { it.dependsOn(task) }
                     task.dependsOn(loadDependentProjectsTask)
                     val contextFile = bytecodeProcessorDirectory.get().file("compileContext_${task.name}.json")
+                    val contextFileAsJavaFile = contextFile.asFile
+                    if (contextFileAsJavaFile.isDirectory) {
+                        contextFileAsJavaFile.deleteRecursively()
+                    }
                     task.outputs.file(contextFile)
                     contextFiles.add(contextFile)
                     task.doLast { _ ->
@@ -148,9 +152,8 @@ class BytecodeProcessorPlugin : Plugin<Project> {
                             context = context,
                             skipUpdate = extension.skipUpdate
                         )
-                        val file = contextFile.asFile
-                        file.delete()
-                        context.write(file)
+                        contextFileAsJavaFile.delete()
+                        context.write(contextFileAsJavaFile)
                     }
                 }
                 tasks.withType(AbstractCompile::class.java) { task ->

@@ -8,8 +8,8 @@ plugins {
     alias(libs.plugins.dokka)
     `maven-publish`
     signing
-    alias(libs.plugins.gradle.plugin.publish)
-    id("dev.reformator.bytecodeprocessor")
+    alias(libs.plugins.gradle.publish)
+    alias(libs.plugins.bytecode.processor)
     groovy
 }
 
@@ -53,8 +53,7 @@ afterEvaluate {
 }
 
 dependencies {
-    //noinspection UseTomlInstead
-    compileOnly("dev.reformator.bytecodeprocessor:bytecode-processor-intrinsics")
+    compileOnly(libs.bytecode.processor.intrinsics)
     compileOnly(project(":intrinsics"))
 
     implementation(project(":stacktrace-decoroutinator-class-transformer"))
@@ -63,8 +62,6 @@ dependencies {
     implementation(libs.kotlin.logging.jvm)
     implementation(libs.kotlin.gradle.plugin.api)
     implementation(libs.asm.utils)
-
-    testImplementation(kotlin("test"))
 }
 
 val fillConstantProcessorTask = tasks.register("fillConstantProcessor") {
@@ -116,12 +113,6 @@ bytecodeProcessorInitTask.dependsOn(fillConstantProcessorTask)
 
 kotlin {
     jvmToolchain(8)
-}
-
-tasks.test {
-    useJUnitPlatform()
-    dependsOn(project(":gradle-plugin:tests-gp").tasks.test)
-    dependsOn(project(":gradle-plugin:jdk8-tests-gp").tasks.test)
 }
 
 publishing {

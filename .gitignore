@@ -1,6 +1,7 @@
 .gradle
 .idea
 .kotlin
+.claude
 build
 local.properties
 *.hprof

@@ -1,7 +1,10 @@
+import dev.reformator.bytecodeprocessor.api.BytecodeProcessorContextImpl
+import dev.reformator.bytecodeprocessor.api.applyBytecodeProcessors
 import dev.reformator.bytecodeprocessor.plugins.*
 import org.jetbrains.dokka.gradle.AbstractDokkaTask
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import java.util.Base64
+import kotlin.apply
 
 plugins {
     alias(libs.plugins.android.library)
@@ -9,7 +12,7 @@ plugins {
     alias(libs.plugins.dokka)
     `maven-publish`
     signing
-    id("dev.reformator.bytecodeprocessor")
+    alias(libs.plugins.bytecode.processor)
 }
 
 repositories {
@@ -19,10 +22,9 @@ repositories {
 
 android {
     namespace = "dev.reformator.stacktracedecoroutinator.mhinvokerandroid"
-    compileSdk = 36
+    compileSdk = libs.versions.android.compile.sdk.get().toInt()
     defaultConfig {
         minSdk = 14
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     packaging {
         resources.pickFirsts.add("META-INF/*")
@@ -33,8 +35,7 @@ android {
 }
 
 dependencies {
-    //noinspection UseTomlInstead
-    compileOnly("dev.reformator.bytecodeprocessor:bytecode-processor-intrinsics")
+    compileOnly(libs.bytecode.processor.intrinsics)
 
     implementation(project(":stacktrace-decoroutinator-common"))
 }
@@ -47,21 +48,26 @@ bytecodeProcessor {
     )
 }
 
-val fillConstantProcessorTask = tasks.register("fillConstantProcessor") {
+val fillConstantProcessorTask: TaskProvider<*> = tasks.register("fillConstantProcessor") {
     val mhInvokerProject = project(":stacktrace-decoroutinator-mh-invoker")
     val mhInvokerCompileKotlinTask = mhInvokerProject.tasks.named<KotlinJvmCompile>("compileKotlin")
     dependsOn(mhInvokerCompileKotlinTask)
     doLast {
-        val tmpDir = temporaryDir
+        val tempDir = temporaryDir
+        tempDir.clearDir()
+        mhInvokerCompileKotlinTask.get().destinationDirectory.get().asFile.copyClassesTo(tempDir)
+        tempDir.renameClasses(
+            namePrefixes = listOf("dev.reformator.stacktracedecoroutinator.mhinvoker", "dcunknown"),
+            prefixAppend = "android"
+        )
         providers.exec {
             setCommandLine((
                 sequenceOf(
                     "${android.sdkDirectory}/build-tools/${android.buildToolsVersion}/d8",
                     "--min-api", "26",
-                    "--output", tmpDir.absolutePath
-                ) + mhInvokerCompileKotlinTask.get()
-                    .destinationDirectory.get().asFile.walk()
-                    .filter { it.isFile && it.name.endsWith(".class") && it.name != "module-info.class" }
+                    "--output", tempDir.absolutePath
+                ) + tempDir.walk()
+                    .filter { it.isFile && it.name.endsWith(".class") }
                     .map { it.absolutePath }
             ).asIterable())
         }.result.get().rethrowFailure()
@@ -69,7 +75,7 @@ val fillConstantProcessorTask = tasks.register("fillConstantProcessor") {
             initContext {
                 LoadConstantProcessor.addValues(this, mapOf(
                     "regularMethodHandleDexBase64" to
-                            Base64.getEncoder().encodeToString(tmpDir.resolve("classes.dex").readBytes())
+                            Base64.getEncoder().encodeToString(tempDir.resolve("classes.dex").readBytes())
                 ))
             }
         }
@@ -125,3 +131,42 @@ afterEvaluate {
         sign(publishing.publications[mavenPublicationName])
     }
 }
+
+fun File.clearDir() {
+    listFiles()!!.forEach {
+        if (it.isDirectory) {
+            it.deleteRecursively()
+        } else {
+            it.delete()
+        }
+    }
+}
+
+val File.isClass: Boolean
+    get() = isFile && name.endsWith(".class") && name != "module-info.class"
+
+fun File.copyClassesTo(output: File) {
+    walk().filter { it.isClass }.forEach { file ->
+        val outputFile = output.resolve(file.relativeTo(this))
+        outputFile.parentFile.mkdirs()
+        file.copyTo(outputFile)
+    }
+}
+
+fun File.renameClasses(namePrefixes: List<String>, prefixAppend: String) {
+    val changeClassNameParameters = classNameSequence.associateWith { className ->
+        val prefix = namePrefixes.first { className.startsWith(it) }
+        "${prefix}${prefixAppend}${className.removePrefix(prefix)}"
+    }
+    applyBytecodeProcessors(
+        processors = listOf(ChangeClassNameProcessor),
+        context = BytecodeProcessorContextImpl().apply {
+            ChangeClassNameProcessor.add(this, changeClassNameParameters)
+        }
+    )
+}
+
+val File.classNameSequence: Sequence<String>
+    get() = walk().filter { it.isClass }.map {
+        it.relativeTo(this).path.removeSuffix(".class").replace(File.separator, ".")
+    }

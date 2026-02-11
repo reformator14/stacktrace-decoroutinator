@@ -24,7 +24,7 @@ internal class JvmVarHandleInvoker: VarHandleInvoker by
         "dev.reformator.stacktracedecoroutinator.mhinvokerjvm.internal.RegularVarHandleInvoker"
     ).getDeclaredConstructor().newInstance() as VarHandleInvoker
 
-private val loader = run {
+private val loader: ClassLoader = run {
     val classes = getRegularMethodHandleInvokerClasses()
     try {
         val internalPackageLookup = MethodHandles.lookup()
@@ -57,7 +57,7 @@ private val String.decodeBase64: ByteArray
     get() = Base64.getDecoder().decode(this)
 
 private fun getRegularMethodHandleInvokerClasses(): Map<String, ByteArray> = buildMap {
-    ZipInputStream(regularMethodHandleJarBase64.decodeBase64.inputStream()) .use { input ->
+    ZipInputStream(regularMethodHandleJarBase64.decodeBase64.inputStream()).use { input ->
         while (true) {
             val entry = input.nextEntry ?: return@use
             if (entry.name.endsWith(".class")) {

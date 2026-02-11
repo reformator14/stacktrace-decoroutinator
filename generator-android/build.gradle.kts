@@ -7,8 +7,7 @@ plugins {
     alias(libs.plugins.dokka)
     `maven-publish`
     signing
-    id("dev.reformator.bytecodeprocessor")
-    id("decoroutinatorTransformBaseContinuation")
+    alias(libs.plugins.bytecode.processor)
 }
 
 repositories {
@@ -18,10 +17,9 @@ repositories {
 
 android {
     namespace = "dev.reformator.stacktracedecoroutinator.generatorandroid"
-    compileSdk = 36
+    compileSdk = libs.versions.android.compile.sdk.get().toInt()
     defaultConfig {
         minSdk = 14
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     packaging {
         resources.pickFirsts.add("META-INF/*")
@@ -32,20 +30,13 @@ android {
 }
 
 dependencies {
-    //noinspection UseTomlInstead
-    compileOnly("dev.reformator.bytecodeprocessor:bytecode-processor-intrinsics")
+    compileOnly(libs.bytecode.processor.intrinsics)
     compileOnly(project(":intrinsics"))
-
-    api(project(":stacktrace-decoroutinator-common"))
 
     implementation(project(":stacktrace-decoroutinator-provider"))
     implementation(libs.dalvik.dx)
 
-    testImplementation(kotlin("test"))
-    testImplementation(libs.kotlinx.coroutines.jdk8.build)
-
-    testRuntimeOnly(project(":stacktrace-decoroutinator-mh-invoker"))
-    testRuntimeOnly(project(":test-utils:base-continuation-accessor-stub"))
+    api(project(":stacktrace-decoroutinator-common"))
 }
 
 bytecodeProcessor {
@@ -53,11 +44,6 @@ bytecodeProcessor {
     processors = listOf(
         ChangeClassNameProcessor
     )
-}
-
-afterEvaluate {
-    configurations["debugUnitTestRuntimeClasspath"].attributes.attribute(decoroutinatorTransformedBaseContinuationAttribute, true)
-    configurations["releaseUnitTestRuntimeClasspath"].attributes.attribute(decoroutinatorTransformedBaseContinuationAttribute, true)
 }
 
 val dokkaJavadocsJar = tasks.register<Jar>("dokkaJavadocsJar") {

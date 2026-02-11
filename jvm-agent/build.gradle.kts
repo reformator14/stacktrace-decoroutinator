@@ -7,7 +7,7 @@ plugins {
     alias(libs.plugins.shadow)
     `maven-publish`
     signing
-    id("dev.reformator.forcevariantjavaversion")
+    alias(libs.plugins.force.variant.java.version)
 }
 
 repositories {
@@ -37,25 +37,15 @@ tasks.shadowJar {
 }
 
 tasks.test {
-    useJUnitPlatform()
-    dependsOn(project(":jvm-agent:tests-ja").tasks.test)
-    dependsOn(project(":jvm-agent:jdk8-tests-ja").tasks.test)
-}
-
-java {
-    sourceCompatibility = JavaVersion.VERSION_1_9
-    targetCompatibility = JavaVersion.VERSION_1_9
+    dependsOn(
+        project(":stacktrace-decoroutinator-jvm-agent:jvm-agent-tests").tasks.test,
+        project(":stacktrace-decoroutinator-jvm-agent:jvm-agent-jdk8-tests").tasks.test
+    )
 }
 
 kotlin {
     compilerOptions {
         jvmTarget = JvmTarget.JVM_1_8
-    }
-}
-
-sourceSets {
-    main {
-        kotlin.destinationDirectory = java.destinationDirectory
     }
 }
 

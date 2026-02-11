@@ -9,10 +9,7 @@ repositories {
 }
 
 dependencies {
-    //noinspection UseTomlInstead
-    compileOnly("dev.reformator.bytecodeprocessor:bytecode-processor-intrinsics")
-
-    implementation(project(":stacktrace-decoroutinator-runtime-settings"))
+    compileOnly(libs.bytecode.processor.intrinsics)
 }
 
 java {

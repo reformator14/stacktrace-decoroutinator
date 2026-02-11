@@ -595,87 +595,31 @@ private fun ClassNode.tryTransformSuspendMethods(
     notSuspendFunctionSignatures: Collection<JvmMethodSignature>
 ): Boolean {
     var needTransformation = false
-    val check = { info: DebugMetadataInfo? ->
-        if (info != null && info.specClassInternalClassName == name) {
+
+    debugMetadataInfo?.let { info ->
+        if (info.specClassInternalClassName == name) {
             needTransformation = true
-            val currentLineNumbers = lineNumbersBySpecMethodName.computeIfAbsent(info.methodName) {
+            lineNumbersBySpecMethodName.computeIfAbsent(info.methodName) {
                 hashSetOf(UNKNOWN_LINE_NUMBER)
-            }
-            currentLineNumbers.addAll(info.lineNumbers)
+            }.addAll(info.lineNumbers)
         }
     }
-    check(debugMetadataInfo)
+
     methods.orEmpty().forEach { method ->
-        when (val status = getCheckTransformationStatus(this, method, notSuspendFunctionSignatures)) {
-            is DefaultTransformationStatus -> check(metadataResolver(status.baseContinuationClassName))
-            is TailCallTransformationStatus -> {
-                if (tailCallDeopt(
-                    completionVarIndex = status.completionVarIndex,
-                    clazz = this,
-                    method = method,
-                    lineNumbersBySpecMethodName = lineNumbersBySpecMethodName,
-                    tailCallCaches = tailCallCaches
-                )) needTransformation = true
-            }
-            null -> { }
-        }
+        if (tryTransformSuspendMethod(
+            clazz = this,
+            method = method,
+            notSuspendFunctionSignatures = notSuspendFunctionSignatures,
+            metadataResolver = metadataResolver,
+            lineNumbersBySpecMethodName = lineNumbersBySpecMethodName,
+            tailCallCaches = tailCallCaches
+        )) needTransformation = true
     }
+
     return needTransformation
 }
 
 private class TailCallDeoptimizeMethodNameAndLineNumber(val methodName: String, val lineNumber: Int)
-
-@Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
-private fun tailCallDeopt(
-    completionVarIndex: Int,
-    clazz: ClassNode,
-    method: MethodNode,
-    lineNumbersBySpecMethodName: MutableMap<String, MutableSet<Int>>,
-    tailCallCaches: MutableList<TailCallDeoptimizeMethodNameAndLineNumber>
-): Boolean {
-    var result = false
-    method.instructions.forEach { instruction ->
-        if (instruction is VarInsnNode && instruction.opcode == Opcodes.ALOAD && instruction.`var` == completionVarIndex) {
-            result = true
-
-            val lineNumber = generateSequence(instruction.next, { it.next })
-                    .takeWhile { it.opcode == -1 }
-                    .mapNotNull { it as? LineNumberNode }
-                    .firstOrNull()?.line
-                ?: generateSequence(instruction.previous, { it.previous })
-                    .mapNotNull { it as? LineNumberNode }
-                    .firstOrNull()?.line
-                ?: UNKNOWN_LINE_NUMBER
-
-            lineNumbersBySpecMethodName.computeIfAbsent(method.name) {
-                mutableSetOf(UNKNOWN_LINE_NUMBER)
-            }.add(lineNumber)
-
-            val cacheFieldName = getTailCallCacheFieldName(tailCallCaches.size)
-            tailCallCaches.add(TailCallDeoptimizeMethodNameAndLineNumber(method.name, lineNumber))
-
-            method.instructions.insert(instruction, InsnList().apply {
-                add(FieldInsnNode(
-                    Opcodes.GETSTATIC,
-                    clazz.name,
-                    cacheFieldName,
-                    Type.getDescriptor(SpecCache::class.java)
-                ))
-                add(MethodInsnNode(
-                    Opcodes.INVOKESTATIC,
-                    Type.getInternalName(providerApiClass),
-                    tailCallDeoptimizeMethodName,
-                    "("
-                        + Type.getDescriptor(Object::class.java)
-                        + Type.getDescriptor(SpecCache::class.java)
-                        + ")${Type.getDescriptor(Object::class.java)}"
-                ))
-                add(TypeInsnNode(Opcodes.CHECKCAST, Type.getInternalName(Continuation::class.java)))
-            })
-        }
-    }
-    return result
-}
 
 private fun getTailCallCacheFieldName(index: Int): String =
     "\$decoroutinator\$tailCallDeoptimizeCache$$index"
@@ -696,110 +640,142 @@ private val ClassNode.debugMetadataInfo: DebugMetadataInfo?
         )
     }
 
-private val MethodNode.lastArgumentIndex: Int
-    get() {
-        var result = 0
-        if (!isStatic) {
-            result++
-        }
-        val arguments = Type.getArgumentTypes(desc)
-        arguments.asSequence()
-            .take(arguments.size - 1)
-            .forEach { result += it.size }
-        return result
-    }
-
-private sealed interface CheckTransformationStatus
-private class DefaultTransformationStatus(val baseContinuationClassName: String): CheckTransformationStatus
-private class TailCallTransformationStatus(val completionVarIndex: Int): CheckTransformationStatus
-
 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
-private fun getCheckTransformationStatus(
+private fun tryTransformSuspendMethod(
     clazz: ClassNode,
     method: MethodNode,
-    notSuspendFunctionSignatures: Collection<JvmMethodSignature>
-): CheckTransformationStatus? {
-    if (
-        method.name == "<init>"
-        || method.name == "<clinit>"
-        || !method.desc.endsWith("${Type.getDescriptor(Continuation::class.java)})${Type.getDescriptor(Object::class.java)}")
-        || method.instructions == null
-        || method.instructions.size() == 0
-        || notSuspendFunctionSignatures.any { it.name == method.name && it.descriptor == method.desc }
-    ) return null
-    val completionIndex = method.lastArgumentIndex
-    val baseContinuationClassNames = mutableSetOf<String>()
-    method.instructions.forEach { instruction ->
-        if (instruction is VarInsnNode) {
-            when (instruction.opcode) {
-                Opcodes.ISTORE, Opcodes.FSTORE, Opcodes.ASTORE -> {
-                    if (instruction.`var` == completionIndex) return null
-                }
-                Opcodes.LSTORE, Opcodes.DSTORE -> {
-                    if (instruction.`var` == completionIndex || instruction.`var` == completionIndex - 1) {
-                        return null
+    notSuspendFunctionSignatures: Collection<JvmMethodSignature>,
+    metadataResolver: (className: String) -> DebugMetadataInfo?,
+    lineNumbersBySpecMethodName: MutableMap<String, MutableSet<Int>>,
+    tailCallCaches: MutableList<TailCallDeoptimizeMethodNameAndLineNumber>
+): Boolean {
+    if (method.instructions == null || method.instructions.size() == 0) return false
+
+    if (notSuspendFunctionSignatures.any { it.name == method.name && it.descriptor == method.desc }) return false
+
+    val completionIndex = run {
+        val methodType = Type.getMethodType(method.desc)
+        if (methodType.returnType != Type.getType(Object::class.java)) return false
+        val arguments = methodType.argumentTypes
+        if (arguments.isEmpty() || arguments.last() != Type.getType(Continuation::class.java)) return false
+        (if (method.isStatic) 0 else 1) + arguments.asSequence()
+            .take(arguments.size - 1)
+            .sumOf { it.size }
+    }
+
+    run {
+        val metadataList = method.instructions.asSequence()
+            .filterIsInstance<TypeInsnNode>()
+            .filter { it.opcode == Opcodes.INSTANCEOF }
+            .map { Type.getObjectType(it.desc) }
+            .filter { it.sort == Type.OBJECT }
+            .mapNotNull { metadataResolver(it.className) }
+            .toList()
+
+        var result = false
+
+        metadataList.asSequence()
+            .filter { it.specClassInternalClassName == clazz.name }
+            .forEach { metadata ->
+                result = true
+                lineNumbersBySpecMethodName.computeIfAbsent(metadata.methodName) {
+                    hashSetOf(UNKNOWN_LINE_NUMBER)
+                }.addAll(metadata.lineNumbers)
+            }
+
+        if (metadataList.isNotEmpty()) return result
+    }
+
+    val loadCompletionInstruction = run {
+        var loadCompletionInstruction: VarInsnNode? = null
+        method.instructions.asSequence()
+            .filterIsInstance<VarInsnNode>()
+            .forEach { instruction ->
+                when (instruction.opcode) {
+                    Opcodes.ISTORE, Opcodes.FSTORE, Opcodes.ASTORE -> {
+                        if (instruction.`var` == completionIndex) return false
                     }
-                }
-                Opcodes.ALOAD -> {
-                    if (instruction.`var` == completionIndex) {
-                        var next = instruction.next
-                        while (next != null) {
-                            if (next.opcode == -1) {
-                                next = next.next
-                            } else if (next is TypeInsnNode) {
-                                if (next.opcode == Opcodes.INSTANCEOF || next.opcode == Opcodes.CHECKCAST) {
-                                    baseContinuationClassNames.add(Type.getObjectType(next.desc).className)
-                                    break
-                                }
-                            } else if (next is MethodInsnNode) {
-                                if (next.opcode == Opcodes.INVOKESPECIAL && next.name == "<init>"
-                                    && next.desc == "(${Type.getDescriptor(Continuation::class.java)})${Type.VOID_TYPE.descriptor}"
-                                ) {
-                                    baseContinuationClassNames.add(Type.getObjectType(next.owner).className)
-                                }
-                                break
-                            } else {
-                                break
-                            }
+
+                    Opcodes.LSTORE, Opcodes.DSTORE -> {
+                        if (instruction.`var` == completionIndex || instruction.`var` == completionIndex - 1) {
+                            return false
+                        }
+                    }
+
+                    Opcodes.ALOAD -> {
+                        if (instruction.`var` == completionIndex) {
+                            if (loadCompletionInstruction == null) {
+                                loadCompletionInstruction = instruction
+                            } else return false
                         }
                     }
                 }
             }
-        }
+        loadCompletionInstruction ?: return false
     }
-    return if (baseContinuationClassNames.size == 1) {
-        val baseContinuationClassName = baseContinuationClassNames.single()
-        if (baseContinuationClassName != Type.getObjectType(clazz.name).className) {
-            DefaultTransformationStatus(baseContinuationClassName)
-        } else {
-            null
-        }
-    } else if (baseContinuationClassNames.isEmpty()) {
+
+    run {
         val hasCompletionLocalVar = method.localVariables.orEmpty().any { localVar ->
             localVar.index == completionIndex && localVar.name == "\$completion"
         }
+        if (!hasCompletionLocalVar) return false
+    }
+
+    run {
         val hasContinuationLocalVar = method.localVariables.orEmpty().any { localVar ->
             localVar.name == "\$continuation"
         }
-        val isMethodSynthetic = method.access and Opcodes.ACC_SYNTHETIC != 0
-        val isMethodStatic = method.access and Opcodes.ACC_STATIC != 0
-        if (
-            hasCompletionLocalVar && !hasContinuationLocalVar && (
-                !isMethodSynthetic ||
-                    (clazz.isInterface && isMethodStatic && method.name.startsWith("defaultImpl\$"))
-            )
-        ) {
-            TailCallTransformationStatus(completionIndex)
-        } else {
-            null
-        }
-    } else {
-        null
+        if (hasContinuationLocalVar) return false
     }
+
+    run {
+        val interfaceDefaultImpl =
+            clazz.isInterface && method.isStatic && method.name.startsWith("defaultImpl$")
+        if (method.isSynthetic && !interfaceDefaultImpl) return false
+    }
+
+    val lineNumber = generateSequence(loadCompletionInstruction.next) { it.next }
+        .takeWhile { it.opcode == -1 }
+        .filterIsInstance<LineNumberNode>()
+        .firstOrNull()?.line
+        ?: generateSequence(loadCompletionInstruction.previous) { it.previous }
+            .filterIsInstance<LineNumberNode>()
+            .firstOrNull()?.line
+        ?: UNKNOWN_LINE_NUMBER
+
+    val cacheFieldName = getTailCallCacheFieldName(tailCallCaches.size)
+    tailCallCaches.add(TailCallDeoptimizeMethodNameAndLineNumber(method.name, lineNumber))
+    lineNumbersBySpecMethodName.computeIfAbsent(method.name) {
+        hashSetOf(UNKNOWN_LINE_NUMBER)
+    }.add(lineNumber)
+
+    method.instructions.insert(loadCompletionInstruction, InsnList().apply {
+        add(FieldInsnNode(
+            Opcodes.GETSTATIC,
+            clazz.name,
+            cacheFieldName,
+            Type.getDescriptor(SpecCache::class.java)
+        ))
+        add(MethodInsnNode(
+            Opcodes.INVOKESTATIC,
+            Type.getInternalName(providerApiClass),
+            tailCallDeoptimizeMethodName,
+            "("
+                    + Type.getDescriptor(Object::class.java)
+                    + Type.getDescriptor(SpecCache::class.java)
+                    + ")${Type.getDescriptor(Object::class.java)}"
+        ))
+        add(TypeInsnNode(Opcodes.CHECKCAST, Type.getInternalName(Continuation::class.java)))
+    })
+
+    return true
 }
 
 private val MethodNode.isStatic: Boolean
     get() = access and Opcodes.ACC_STATIC != 0
+
+private val MethodNode.isSynthetic: Boolean
+    get() = access and Opcodes.ACC_SYNTHETIC != 0
 
 private fun ClassNode.getOrCreateClinitMethod(): MethodNode =
     methods.firstOrNull {

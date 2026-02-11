@@ -4,8 +4,8 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     kotlin("jvm")
-    id("dev.reformator.forcevariantjavaversion")
-    id("dev.reformator.bytecodeprocessor")
+    alias(libs.plugins.force.variant.java.version)
+    alias(libs.plugins.bytecode.processor)
 }
 
 repositories {
@@ -13,13 +13,7 @@ repositories {
 }
 
 dependencies {
-    //noinspection UseTomlInstead
-    compileOnly("dev.reformator.bytecodeprocessor:bytecode-processor-intrinsics")
-    testImplementation(kotlin("test"))
-}
-
-tasks.test {
-    useJUnitPlatform()
+    compileOnly(libs.bytecode.processor.intrinsics)
 }
 
 java {

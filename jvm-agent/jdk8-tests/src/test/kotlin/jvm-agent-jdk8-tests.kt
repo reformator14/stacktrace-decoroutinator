@@ -1,0 +1,19 @@
+@file:Suppress("PackageDirectoryMismatch")
+
+package dev.reformator.stacktracedecoroutinator.jvmagent.jdk8tests
+
+import dev.reformator.stacktracedecoroutinator.methodswithspacestests.MethodNameWithSpacesTest
+import dev.reformator.stacktracedecoroutinator.methodswithspacestests.TailCallDeoptimizedMethodNameWithSpacesTest
+import dev.reformator.stacktracedecoroutinator.tests.CustomClassLoaderTailCallDeoptimizedTest
+import dev.reformator.stacktracedecoroutinator.tests.CustomClassLoaderTest
+import dev.reformator.stacktracedecoroutinator.tests.PerformanceTest
+import dev.reformator.stacktracedecoroutinator.tests.RuntimeTest
+import dev.reformator.stacktracedecoroutinator.tests.TailCallDeoptimizeTest
+
+class RuntimeTest: RuntimeTest()
+class TailCallDeoptimizeTest: TailCallDeoptimizeTest()
+class MethodNameWithSpacesTest: MethodNameWithSpacesTest()
+class TailCallDeoptimizedMethodNameWithSpacesTest: TailCallDeoptimizedMethodNameWithSpacesTest()
+class CustomClassLoaderTest: CustomClassLoaderTest()
+class CustomClassLoaderTailCallDeoptimizedTest: CustomClassLoaderTailCallDeoptimizedTest()
+class PerformanceTest: PerformanceTest()

@@ -7,8 +7,8 @@ plugins {
     alias(libs.plugins.dokka)
     `maven-publish`
     signing
-    id("dev.reformator.bytecodeprocessor")
-    id("dev.reformator.forcevariantjavaversion")
+    alias(libs.plugins.bytecode.processor)
+    alias(libs.plugins.force.variant.java.version)
 }
 
 repositories {
@@ -16,10 +16,7 @@ repositories {
 }
 
 dependencies {
-    //noinspection UseTomlInstead
-    compileOnly("dev.reformator.bytecodeprocessor:bytecode-processor-intrinsics")
-
-    testImplementation(kotlin("test"))
+    compileOnly(libs.bytecode.processor.intrinsics)
 }
 
 bytecodeProcessor {
@@ -28,10 +25,6 @@ bytecodeProcessor {
         GetOwnerClassProcessor,
         LoadConstantProcessor
     )
-}
-
-tasks.test {
-    useJUnitPlatform()
 }
 
 java {

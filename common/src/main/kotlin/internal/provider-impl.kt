@@ -61,7 +61,7 @@ internal class Provider: DecoroutinatorProvider {
                 }
             if (label != NONE_LABEL && label and Int.MIN_VALUE != 0) return completion
         }
-        return DecoroutinatorContinuationImpl(completion as Continuation<Any?>, cache)
+        return TailCallDeoptimizedContinuation(completion as Continuation<Any?>, cache)
     }
 
     override val isUsingElementFactoryForBaseContinuationEnabled: Boolean

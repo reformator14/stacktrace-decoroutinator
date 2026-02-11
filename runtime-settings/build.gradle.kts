@@ -6,7 +6,7 @@ plugins {
     alias(libs.plugins.dokka)
     `maven-publish`
     signing
-    id("dev.reformator.forcevariantjavaversion")
+    alias(libs.plugins.force.variant.java.version)
 }
 
 repositories {

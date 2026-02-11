@@ -8,8 +8,8 @@ buildscript {
 }
 
 plugins {
-    alias(libs.plugins.kotlin.jvm.build)
-    alias(libs.plugins.gradle.plugin.publish)
+    alias(libs.plugins.kotlin.jvm) version libs.versions.kotlin.build
+    alias(libs.plugins.gradle.publish) version libs.versions.plugin.gradle.publish
 }
 
 group = "dev.reformator.forcevariantjavaversion"
@@ -17,10 +17,6 @@ version = "0.0.1-SNAPSHOT"
 
 repositories {
     mavenCentral()
-}
-
-dependencies {
-    implementation(libs.kotlin.logging.jvm)
 }
 
 java {
@@ -38,7 +34,7 @@ kotlin {
 gradlePlugin {
     plugins {
         create("forcevariantjavaversionPlugin") {
-            id = "dev.reformator.forcevariantjavaversion"
+            id = libs.plugins.force.variant.java.version.get().pluginId
             implementationClass = "dev.reformator.forcevariantjavaversion.ForceVariantJavaVersionPlugin"
         }
     }

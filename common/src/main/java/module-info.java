@@ -4,7 +4,7 @@ import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuatio
 
 module dev.reformator.stacktracedecoroutinator.common {
     requires static dev.reformator.bytecodeprocessor.intrinsics;
-    requires static intrinsics;
+    requires static dev.reformator.stacktracedecoroutinator.intrinsics;
 
     requires kotlin.stdlib;
     requires dev.reformator.stacktracedecoroutinator.provider;

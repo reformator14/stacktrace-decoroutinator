@@ -2,7 +2,7 @@ import dev.reformator.stacktracedecoroutinator.jvmagentcommon.internal.AgentBase
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessorProvider;
 
 module dev.reformator.stacktracedecoroutinator.jvmagentcommon {
-    requires static intrinsics;
+    requires static dev.reformator.stacktracedecoroutinator.intrinsics;
     requires static dev.reformator.bytecodeprocessor.intrinsics;
 
     requires kotlin.stdlib;

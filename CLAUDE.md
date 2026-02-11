@@ -19,13 +19,14 @@ Targets JVM 1.8+ and Android API 14+ (MethodHandle API requires Android 8+).
 
 # Run specific module tests
 ./gradlew :stacktrace-decoroutinator-jvm:test
-./gradlew :gradle-plugin:tests-gp:test
-./gradlew :gradle-plugin:jdk8-tests-gp:test
 ./gradlew :jvm-agent:tests-ja:test
 
+# Gradle plugin tests (separate project, requires main build first)
+./gradlew gradlePluginTest
+
 # Android tests (requires emulator)
-./gradlew connectedAndroidTest
-./gradlew legacyAndroidTest
+./gradlew gradlePluginAndroidTest
+./gradlew gradlePluginLegacyAndroidTest
 
 # Compatibility tests
 ./gradlew :latest-kotlin-gradle-plugin-test:test
@@ -39,6 +40,7 @@ Build requires JDK 21 (and JDK 8 for JDK8-specific test modules). Gradle wrapper
 Multi-module Gradle project (Kotlin DSL) with ~40 submodules. Key layout:
 
 - **`_plugins/`** — Custom Gradle plugins (bytecode-processor, gradle-plugin-test, force-variant-java-version) included as composite builds
+- **`_gradle_plugin_tests/`** — Gradle plugin tests (standalone project, invoked via GradleConnector)
 - **`_tests/`** — Latest Kotlin compatibility test projects (composite builds)
 - **`_latest-gradle-test/`** — Latest Gradle version compatibility tests
 

@@ -7,9 +7,8 @@ plugins {
     alias(libs.plugins.dokka)
     `maven-publish`
     signing
-    id("dev.reformator.bytecodeprocessor")
-    id("dev.reformator.forcevariantjavaversion")
-    id("decoroutinatorTransformBaseContinuation")
+    alias(libs.plugins.bytecode.processor)
+    alias(libs.plugins.force.variant.java.version)
 }
 
 repositories {
@@ -17,22 +16,14 @@ repositories {
 }
 
 dependencies {
-    //noinspection UseTomlInstead
-    compileOnly("dev.reformator.bytecodeprocessor:bytecode-processor-intrinsics")
+    compileOnly(libs.bytecode.processor.intrinsics)
     compileOnly(project(":intrinsics"))
-
-    api(project(":stacktrace-decoroutinator-common"))
 
     implementation(libs.asm.utils)
     implementation(project(":stacktrace-decoroutinator-provider"))
     implementation(project(":stacktrace-decoroutinator-spec-method-builder"))
 
-    testImplementation(kotlin("test"))
-    testImplementation(project(":test-utils"))
-    testImplementation(project(":test-utils-jvm"))
-
-    testRuntimeOnly(project(":stacktrace-decoroutinator-mh-invoker"))
-    testRuntimeOnly(project(":test-utils:base-continuation-accessor-stub"))
+    api(project(":stacktrace-decoroutinator-common"))
 }
 
 bytecodeProcessor {
@@ -43,15 +34,6 @@ bytecodeProcessor {
         GetOwnerClassProcessor,
         LoadConstantProcessor
     )
-}
-
-afterEvaluate {
-    configurations.testRuntimeClasspath.get().attributes.attribute(decoroutinatorTransformedBaseContinuationAttribute, true)
-}
-
-tasks.test {
-    useJUnitPlatform()
-    dependsOn(project(":generator-jvm:jdk8-tests-g").tasks.test)
 }
 
 java {

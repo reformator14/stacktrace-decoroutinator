@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     kotlin("jvm")
-    id("dev.reformator.bytecodeprocessor")
+    alias(libs.plugins.bytecode.processor)
 }
 
 repositories {
@@ -11,8 +11,7 @@ repositories {
 }
 
 dependencies {
-    //noinspection UseTomlInstead
-    compileOnly("dev.reformator.bytecodeprocessor:bytecode-processor-intrinsics")
+    compileOnly(libs.bytecode.processor.intrinsics)
 }
 
 bytecodeProcessor {

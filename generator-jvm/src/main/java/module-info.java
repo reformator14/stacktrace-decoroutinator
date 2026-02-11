@@ -5,7 +5,7 @@ import dev.reformator.stacktracedecoroutinator.generatorjvm.internal.AnnotationM
 
 module dev.reformator.stacktracedecoroutinator.generatorjvm {
     requires static dev.reformator.bytecodeprocessor.intrinsics;
-    requires static intrinsics;
+    requires static dev.reformator.stacktracedecoroutinator.intrinsics;
 
     requires kotlin.stdlib;
     requires org.objectweb.asm.tree;

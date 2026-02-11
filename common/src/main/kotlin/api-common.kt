@@ -19,6 +19,10 @@ import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 data class DecoroutinatorStatus(val successful: Boolean, val description: String)
 
 object DecoroutinatorCommonApi {
+    fun interface LocalSuspendCall {
+        suspend operator fun invoke(callThis: suspend () -> Unit)
+    }
+
     /**
      * Get the status of Decoroutinator correctness.
      * @param sourceCall call this lambda. Need to check status properly. See the sample below.
@@ -26,7 +30,7 @@ object DecoroutinatorCommonApi {
      */
     fun getStatus(
         allowTailCallOptimization: Boolean = false,
-        sourceCall: suspend (callThisAndReturnItsResult: suspend () -> Any?) -> Any? = { it() }
+        sourceCall: LocalSuspendCall = LocalSuspendCall { it() }
     ): DecoroutinatorStatus {
         if (!supportsMethodHandle) {
             return DecoroutinatorStatus(
@@ -81,23 +85,20 @@ object DecoroutinatorCommonApi {
 
             @Suppress("unused", "UNCHECKED_CAST")
             private suspend fun getStatus(): DecoroutinatorStatus {
+                @Suppress("LocalVariableName") var _trace: List<StackTraceElement>? = null
                 @Suppress("ClassName")
                 @AndroidKeep
-                class _lambda: suspend () -> List<StackTraceElement> {
-                    override suspend fun invoke(): List<StackTraceElement> {
-                        val result = suspendResumeAndGetStacktrace()
-                        result.hashCode() // tail-call deoptimize
-                        return result
+                class _lambda: suspend () -> Unit {
+                    override suspend fun invoke() {
+                        _trace = suspendResumeAndGetStacktrace()
+                        hashCode() // tail-call deoptimize
                     }
                 }
-                val trace = sourceCall(_lambda())
+                sourceCall(_lambda())
                 if (!wasSuspended) {
                     error("'sourceCall' must be called exactly once")
                 }
-                if (!(trace is List<*> && trace.all { it is StackTraceElement })) {
-                    error("'sourceCall' must return the result of it's argument invocation")
-                }
-                trace as List<StackTraceElement>
+                val trace = _trace!!
                 /*
                     trace should be from top to bottom:
                     - suspendResumeAndGetStacktrace()

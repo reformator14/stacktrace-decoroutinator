@@ -1,0 +1,43 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+plugins {
+    id 'dev.reformator.stacktracedecoroutinator'
+    id 'org.jetbrains.kotlin.jvm'
+}
+
+repositories {
+    mavenCentral()
+}
+
+stacktraceDecoroutinator {
+    regularDependencyConfigurations.include = []
+    androidDependencyConfigurations.include = []
+    jvmDependencyConfigurations.include = []
+    addJvmRuntimeDependency = false
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_9
+    targetCompatibility = JavaVersion.VERSION_1_9
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_1_8
+    }
+}
+
+assertTrue(File.class.isInstance(decoroutinatorAndroidProGuardRules()))
+assertTrue(decoroutinatorCommon().startsWith("dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-common:"))
+assertTrue(decoroutinatorJvmRuntime().startsWith("dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-generator-jvm:"))
+assertTrue(decoroutinatorAndroidRuntime().startsWith("dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-generator-android:"))
+assertTrue(decoroutinatorRegularMethodHandleInvoker().startsWith("dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-mh-invoker:"))
+assertTrue(decoroutinatorAndroidMethodHandleInvoker().startsWith("dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-mh-invoker-android:"))
+assertTrue(decoroutinatorJvmMethodHandleInvoker().startsWith("dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-mh-invoker-jvm:"))
+assertTrue(decoroutinatorRuntimeSettings().startsWith("dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-runtime-settings:"))
+
+static def assertTrue(Boolean value) {
+    if (!value) {
+        throw new RuntimeException("check failed")
+    }
+}

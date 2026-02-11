@@ -1,51 +1,24 @@
-import org.gradle.tooling.GradleConnector
-import org.gradle.tooling.ProjectConnection
-
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-    }
-
-    dependencies {
-        classpath(libs.kotlin.gradle.plugin)
-        classpath(libs.android.gradle.plugin)
-        classpath(libs.shadow.gradle.plugin)
-        //noinspection UseTomlInstead
-        classpath("dev.reformator.bytecodeprocessor:bytecode-processor-plugins")
-        //noinspection UseTomlInstead
-        classpath("dev.reformator.bytecodeprocessor:bytecode-processor-intrinsics")
-        //noinspection UseTomlInstead
-        classpath("dev.reformator.gradle-plugin-test:gradle-plugin-test")
-    }
+plugins {
+    alias(libs.plugins.kotlin.jvm) version libs.versions.kotlin.build.get() apply false
+    alias(libs.plugins.kotlin.android) version libs.versions.kotlin.build.get() apply false
+    alias(libs.plugins.android.library) version libs.versions.agp.build.get() apply false
+    alias(libs.plugins.shadow) version libs.versions.plugin.shadow.get() apply false
+    alias(libs.plugins.dokka) version libs.versions.plugin.dokka.get() apply false
+    alias(libs.plugins.gradle.publish) version libs.versions.plugin.gradle.publish.get() apply false
 }
 
-subprojects {
+allprojects {
     group = "dev.reformator.stacktracedecoroutinator"
     version = "2.6.2-SNAPSHOT"
 }
 
-repositories {
-    mavenCentral()
-}
-
-tasks.register("latestGradleTest") {
-    dependsOn(":stacktrace-decoroutinator-gradle-plugin:jar")
+tasks.register("initTestsGradleWrapper") {
+    val sourceFile = file("gradle/wrapper/gradle-wrapper.properties")
+    val targetFile = file("_tests/gradle/wrapper/gradle-wrapper.properties")
+    inputs.file(sourceFile)
+    outputs.file(targetFile)
     doLast {
-        getLatestGradleTestConnection().newBuild().forTasks("test").run()
+        targetFile.parentFile.mkdirs()
+        sourceFile.copyTo(targetFile, overwrite = true)
     }
 }
-
-tasks.register("latestGradleClean") {
-    dependsOn(":stacktrace-decoroutinator-gradle-plugin:jar")
-    doLast {
-        getLatestGradleTestConnection().newBuild().forTasks("clean").run()
-    }
-}
-
-private fun getLatestGradleTestConnection(): ProjectConnection =
-    GradleConnector.newConnector()
-        .useGradleVersion("9.2.1")
-        .forProjectDirectory(file("_latest-gradle-test"))
-        .connect()

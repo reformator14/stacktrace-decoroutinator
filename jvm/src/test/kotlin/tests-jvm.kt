@@ -1,54 +1,88 @@
-package dev.reformator.stacktracedecoroutinator.jvmtests
+@file:Suppress("PackageDirectoryMismatch")
+
+package dev.reformator.stacktracedecoroutinator.jvm.tests
 
 import dev.reformator.stacktracedecoroutinator.intrinsics.BASE_CONTINUATION_CLASS_NAME
 import dev.reformator.stacktracedecoroutinator.jvm.DecoroutinatorJvmApi
 import dev.reformator.stacktracedecoroutinator.jvm.internal.isTransformed
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.yield
-import org.junit.jupiter.api.condition.DisabledIfSystemProperty
-import org.junit.jupiter.api.condition.EnabledIfSystemProperty
+import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.platform.launcher.LauncherSession
+import org.junit.platform.launcher.LauncherSessionListener
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-@DisabledIfSystemProperty(named = "testReloadBaseConfiguration", matches = "true")
-class PerformanceTest: dev.reformator.stacktracedecoroutinator.test.PerformanceTest() {
-    @BeforeTest
-    fun setup() {
-        setupTest()
-    }
-}
+private val installDecoroutinator = System.getProperty("installDecoroutinator", "false").toBoolean()
 
-@DisabledIfSystemProperty(named = "testReloadBaseConfiguration", matches = "true")
-class RuntimeTest: dev.reformator.stacktracedecoroutinator.test.RuntimeTest() {
-    @BeforeTest
-    fun setup() {
-        setupTest()
-    }
-}
-
-// Jacoco only instruments this class
-@DisabledIfSystemProperty(named = "testReloadBaseConfiguration", matches = "true")
-class JacocoInstrumentedMethodTest {
-    @BeforeTest
-    fun setup() {
-        setupTest()
-    }
-
-    @Test
-    fun jacocoInstrumentedMethodTest(): Unit = runBlocking {
-        suspend fun jacocoInstrumentedMethod() {
-            yield()
-            yield()
+class InstallDecoroutinatorLauncherSessionListener: LauncherSessionListener {
+    override fun launcherSessionOpened(session: LauncherSession) {
+        if (installDecoroutinator) {
+            System.setProperty(
+                "dev.reformator.stacktracedecoroutinator.jvmAgentDebugMetadataInfoResolveStrategy",
+                "SYSTEM_RESOURCE"
+            )
+            DecoroutinatorJvmApi.install()
         }
-
-        jacocoInstrumentedMethod()
     }
 }
 
-@EnabledIfSystemProperty(named = "testReloadBaseConfiguration", matches = "true")
+class RuntimeTest: dev.reformator.stacktracedecoroutinator.tests.RuntimeTest() {
+    @BeforeTest
+    fun check() {
+        assumeTrue(installDecoroutinator)
+    }
+}
+
+class TailCallDeoptimizeTest: dev.reformator.stacktracedecoroutinator.tests.TailCallDeoptimizeTest() {
+    @BeforeTest
+    fun check() {
+        assumeTrue(installDecoroutinator)
+    }
+}
+
+class MethodNameWithSpacesTest: dev.reformator.stacktracedecoroutinator.methodswithspacestests.MethodNameWithSpacesTest() {
+    @BeforeTest
+    fun check() {
+        assumeTrue(installDecoroutinator)
+    }
+}
+
+class TailCallDeoptimizedMethodNameWithSpacesTest: dev.reformator.stacktracedecoroutinator.methodswithspacestests.TailCallDeoptimizedMethodNameWithSpacesTest() {
+    @BeforeTest
+    fun check() {
+        assumeTrue(installDecoroutinator)
+    }
+}
+
+class CustomClassLoaderTest: dev.reformator.stacktracedecoroutinator.tests.CustomClassLoaderTest() {
+    @BeforeTest
+    fun check() {
+        assumeTrue(installDecoroutinator)
+    }
+}
+
+class CustomClassLoaderTailCallDeoptimizedTest: dev.reformator.stacktracedecoroutinator.tests.CustomClassLoaderTailCallDeoptimizedTest() {
+    @BeforeTest
+    fun check() {
+        assumeTrue(installDecoroutinator)
+    }
+}
+
+class PerformanceTest: dev.reformator.stacktracedecoroutinator.tests.PerformanceTest() {
+    @BeforeTest
+    fun check() {
+        assumeTrue(installDecoroutinator)
+    }
+}
+
 class ReloadBaseContinuationTest {
+    @BeforeTest
+    fun check() {
+        assumeFalse(installDecoroutinator)
+    }
+
     @Test
     fun reloadBaseContinuation() {
         val baseContinuationClass = Class.forName(BASE_CONTINUATION_CLASS_NAME)
@@ -56,28 +90,4 @@ class ReloadBaseContinuationTest {
         DecoroutinatorJvmApi.install()
         assertTrue(baseContinuationClass.isTransformed)
     }
-}
-
-@DisabledIfSystemProperty(named = "testReloadBaseConfiguration", matches = "true")
-class CustomClassLoaderTest: dev.reformator.stacktracedecoroutinator.test.CustomClassLoaderTest() {
-    @BeforeTest
-    fun setup() {
-        setupTest()
-    }
-}
-
-@DisabledIfSystemProperty(named = "testReloadBaseConfiguration", matches = "true")
-class JvmTest: dev.reformator.stacktracedecoroutinator.testjvm.JvmTest() {
-    @BeforeTest
-    fun setup() {
-        setupTest()
-    }
-}
-
-fun setupTest() {
-    System.setProperty(
-        "dev.reformator.stacktracedecoroutinator.jvmAgentDebugMetadataInfoResolveStrategy",
-        "SYSTEM_RESOURCE"
-    )
-    DecoroutinatorJvmApi.install()
 }

@@ -8,8 +8,8 @@ plugins {
     alias(libs.plugins.dokka)
     `maven-publish`
     signing
-    id("dev.reformator.bytecodeprocessor")
-    id("dev.reformator.forcevariantjavaversion")
+    alias(libs.plugins.bytecode.processor)
+    alias(libs.plugins.force.variant.java.version)
 }
 
 repositories {
@@ -17,23 +17,18 @@ repositories {
 }
 
 dependencies {
-    //noinspection UseTomlInstead
-    compileOnly("dev.reformator.bytecodeprocessor:bytecode-processor-intrinsics")
+    compileOnly(libs.bytecode.processor.intrinsics)
 
     implementation(project(":stacktrace-decoroutinator-provider"))
     implementation(project(":stacktrace-decoroutinator-common"))
-    testImplementation(kotlin("test"))
 }
 
 bytecodeProcessor {
     processors = listOf(
         GetOwnerClassProcessor,
-        RemoveKotlinStdlibProcessor
+        RemoveKotlinStdlibProcessor,
+        MakeStaticProcessor
     )
-}
-
-tasks.test {
-    useJUnitPlatform()
 }
 
 java {
