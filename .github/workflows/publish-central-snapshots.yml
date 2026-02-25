@@ -1,9 +1,10 @@
 name: Publish Maven Central Snapshots
 
 on:
-  push:
-    branches:
-      - master
+#  push:
+#    branches:
+#      - master
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -14,15 +15,18 @@ jobs:
         with:
           distribution: 'corretto'
           java-version: '8'
+
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'corretto'
           java-version: '21'
+
+      - name: Import PGP key
+        run: echo "${{ secrets.PGP_PRIVATE_KEY }}" | gpg --batch --yes --import
+
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Import PGP key
-        run: |
-          echo "${{ secrets.PGP_PRIVATE_KEY }}" | gpg --batch --yes --import
+
       - name: Publish
-        run: ./gradlew --no-daemon -Dorg.gradle.jvmargs="-Xmx2g" -Psonatype.username=${{ secrets.SONATYPE_USERNAME }} -Psonatype.password=${{ secrets.SONATYPE_PASSWORD }} publishAggregationToCentralSnapshots
+        run: ./gradlew -Dorg.gradle.jvmargs="-Xmx2g" -Psonatype.username=${{ secrets.SONATYPE_USERNAME }} -Psonatype.password=${{ secrets.SONATYPE_PASSWORD }} publishAggregationToCentralSnapshots

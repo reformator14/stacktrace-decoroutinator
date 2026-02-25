@@ -12,6 +12,10 @@ allprojects {
     version = "2.6.2-SNAPSHOT"
 }
 
+repositories {
+    mavenCentral()
+}
+
 tasks.register("initTestsGradleWrapper") {
     val sourceFile = file("gradle/wrapper/gradle-wrapper.properties")
     val targetFile = file("_tests/gradle/wrapper/gradle-wrapper.properties")
