@@ -19,18 +19,14 @@ Targets JVM 1.8+ and Android API 14+ (MethodHandle API requires Android 8+).
 
 # Run specific module tests
 ./gradlew :stacktrace-decoroutinator-jvm:test
-./gradlew :jvm-agent:tests-ja:test
+./gradlew :stacktrace-decoroutinator-jvm-agent:jvm-agent-tests:test
 
-# Gradle plugin tests (separate project, requires main build first)
-./gradlew gradlePluginTest
+# _tests build (Gradle plugin + compatibility tests, separate project)
+./gradlew initTestsGradleWrapper  # required once before running _tests
+cd _tests && ../gradlew test
 
-# Android tests (requires emulator)
-./gradlew gradlePluginAndroidTest
-./gradlew gradlePluginLegacyAndroidTest
-
-# Compatibility tests
-./gradlew :latest-kotlin-gradle-plugin-test:test
-./gradlew latestGradleTest
+# Android tests (requires emulator, run from _tests)
+cd _tests && ../gradlew connectedAndroidTest
 ```
 
 Build requires JDK 21 (and JDK 8 for JDK8-specific test modules). Gradle wrapper version is 9.2.1. `GRADLE_OPTS: -Xmx2g` is used in CI.
@@ -39,10 +35,9 @@ Build requires JDK 21 (and JDK 8 for JDK8-specific test modules). Gradle wrapper
 
 Multi-module Gradle project (Kotlin DSL) with ~40 submodules. Key layout:
 
-- **`_plugins/`** — Custom Gradle plugins (bytecode-processor, gradle-plugin-test, force-variant-java-version) included as composite builds
+- **`_plugins/`** — Custom Gradle plugins (bytecode-processor, force-variant-java-version) included as composite builds
 - **`_gradle_plugin_tests/`** — Gradle plugin tests (standalone project, invoked via GradleConnector)
-- **`_tests/`** — Latest Kotlin compatibility test projects (composite builds)
-- **`_latest-gradle-test/`** — Latest Gradle version compatibility tests
+- **`_tests/`** — Gradle plugin + compatibility test projects (composite build, run separately)
 
 ### Core modules (published to Maven Central):
 
@@ -63,8 +58,9 @@ Multi-module Gradle project (Kotlin DSL) with ~40 submodules. Key layout:
 | `intrinsics` | Compiler intrinsics for compile-time optimizations |
 
 ### Test modules:
-- `test-utils`, `test-utils-jvm` — Shared test utilities (retrace tool, custom classloader, stubs)
-- Modules named `*-tests-*` or `*-jdk8-tests-*` contain integration/compatibility tests
+- `tests` — Shared test utilities (retrace tool, runtime tests); submodules: `tests:custom-loader`, `tests:methods-with-spaces-tests`, `tests:naive-base-continuation-accessor`, `tests:duplicate-entity-jar`, `tests:aar`, `tests:bytecode-processor`
+- `jvm:jdk8-tests`, `jvm-agent:tests`, `jvm-agent:jdk8-tests` — JVM integration tests
+- `_tests/jvm/*`, `_tests/jdk8/*`, `_tests/android/*`, `_tests/android-legacy/*` — Latest Kotlin compatibility tests (separate composite build)
 
 ## Architecture
 
