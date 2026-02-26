@@ -5,14 +5,16 @@ package dev.reformator.stacktracedecoroutinator.tests
 import dev.reformator.stacktracedecoroutinator.tests.internal.R8Retrace
 import org.junit.Test
 import org.junit.jupiter.api.Assertions.assertTrue
-import java.io.File
+import java.io.InputStream
 
 typealias Junit4Test = Test
 typealias Junit5Test = org.junit.jupiter.api.Test
 
 @Suppress("unused")
-fun setRetraceMappingFiles(vararg files: String) {
-    retraces = files.map { R8Retrace(File(it)) }
+fun readRetraceMappings(vararg streams: InputStream) {
+    retraces = streams.map { stream ->
+        R8Retrace(stream.bufferedReader().lineSequence().iterator())
+    }
 }
 
 fun Array<StackTraceElement>.checkStacktrace(vararg expectedElements: StackTraceElement, fromIndex: Int = 0) {

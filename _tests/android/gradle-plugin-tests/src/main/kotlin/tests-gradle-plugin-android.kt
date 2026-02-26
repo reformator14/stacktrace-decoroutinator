@@ -2,12 +2,9 @@
 
 package dev.reformator.stacktracedecoroutinator.tests.android.gradleplugintests
 
-import android.Manifest
-import androidx.test.rule.GrantPermissionRule
-import dev.reformator.bytecodeprocessor.intrinsics.LoadConstant
+import androidx.test.platform.app.InstrumentationRegistry
 import dev.reformator.bytecodeprocessor.intrinsics.currentFileName
 import dev.reformator.bytecodeprocessor.intrinsics.currentLineNumber
-import dev.reformator.bytecodeprocessor.intrinsics.fail
 import dev.reformator.bytecodeprocessor.intrinsics.ownerClassName
 import dev.reformator.stacktracedecoroutinator.tests.aar.suspendFunFromAar
 import dev.reformator.stacktracedecoroutinator.tests.aar.suspendFunFromAarFileName
@@ -15,26 +12,21 @@ import dev.reformator.stacktracedecoroutinator.tests.aar.suspendFunFromAarLineNu
 import dev.reformator.stacktracedecoroutinator.tests.aar.suspendFunFromAarMethodName
 import dev.reformator.stacktracedecoroutinator.tests.aar.suspendFunFromAarOwnerClassName
 import dev.reformator.stacktracedecoroutinator.tests.checkStacktrace
-import dev.reformator.stacktracedecoroutinator.tests.setRetraceMappingFiles
+import dev.reformator.stacktracedecoroutinator.tests.readRetraceMappings
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.debug.DebugProbes
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.yield
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.junit.jupiter.api.Assertions.assertTrue
 import kotlin.coroutines.resume
 
 open class TestLocalFile {
-    @get:Rule
-    val permissionRule: GrantPermissionRule
-        get() = GrantPermissionRule.grant(Manifest.permission.READ_EXTERNAL_STORAGE)
-
     @Before
     fun setup() {
-        setRetraceMappingFiles(mappingFile)
+        setRetraceMappings()
     }
 
     @Test
@@ -84,13 +76,9 @@ open class TestLocalFile {
 }
 
 open class TailCallDeoptimizeTest: dev.reformator.stacktracedecoroutinator.tests.TailCallDeoptimizeTest() {
-    @get:Rule
-    val permissionRule: GrantPermissionRule
-        get() = GrantPermissionRule.grant(Manifest.permission.READ_EXTERNAL_STORAGE)
-
     @Before
     fun setup() {
-        setRetraceMappingFiles(mappingFile)
+        setRetraceMappings()
     }
 }
 
@@ -108,15 +96,14 @@ open class DebugProbesTest {
 }
 
 open class RuntimeTest: dev.reformator.stacktracedecoroutinator.tests.RuntimeTest() {
-    @get:Rule
-    val permissionRule: GrantPermissionRule
-        get() = GrantPermissionRule.grant(Manifest.permission.READ_EXTERNAL_STORAGE)
-
     @Before
     fun setup() {
-        setRetraceMappingFiles(mappingFile)
+        setRetraceMappings()
     }
 }
 
-private val mappingFile: String
-    @LoadConstant("mappingFile") get() = fail()
+private fun setRetraceMappings() {
+    InstrumentationRegistry.getInstrumentation().targetContext.assets.open("mapping.txt").use { mapping ->
+        readRetraceMappings(mapping)
+    }
+}

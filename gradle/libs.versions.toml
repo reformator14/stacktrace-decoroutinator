@@ -6,7 +6,6 @@ agp-latest = "9.0.1"
 coroutines-build = "1.8.1"
 coroutines-latest = "1.10.2"
 jackson = "2.19.2"
-androidx-test = "1.5.0"
 plugin-shadow = "9.2.2"
 plugin-dokka = "1.9.20"
 plugin-gradle-publish = "2.0.0"
@@ -17,6 +16,7 @@ jupiter = "5.10.5"
 asm-utils = { group = "org.ow2.asm", name = "asm-util", version = "9.9.1" }
 dalvik-dx = { group = "com.jakewharton.android.repackaged", name = "dalvik-dx", version = "16.0.1" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version = "1.5.2" }
+androidx-test-monitor = { group = "androidx.test", name = "monitor", version = "1.6.0" }
 kotlin-logging-jvm = { group = "io.github.oshai", name = "kotlin-logging-jvm", version = "7.0.0" }
 kotlin-gradle-plugin-api = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin-api", version = "1.7.0" }
 byte-buddy-agent = { group = "net.bytebuddy", name = "byte-buddy-agent", version = "1.18.3" }
@@ -36,8 +36,6 @@ multidex = { group = "androidx.multidex", name = "multidex", version = "2.0.1" }
 jackson-core = { group = "com.fasterxml.jackson.core", name = "jackson-core", version.ref = "jackson" }
 jackson-kotlin = { group = "com.fasterxml.jackson.module", name = "jackson-module-kotlin", version.ref = "jackson" }
 kotlin-metadata-jvm = { group = "dev.reformator.kotlin-metadata-jvm-repack", name = "kotlin-metadata-jvm-repack", version = "0.9.0-3" }
-androidx-test-rules = { group = "androidx.test", name = "rules", version.ref = "androidx-test" }
-androidx-annotation = { group = "androidx.annotation", name = "annotation", version.ref = "androidx-test" }
 ant = { group = "org.apache.ant", name = "ant", version = "1.10.15" }
 android-gradle-plugin-build = { group = "com.android.tools.build", name = "gradle", version.ref = "agp-build" }
 junit5-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher", version = "1.14.3" }

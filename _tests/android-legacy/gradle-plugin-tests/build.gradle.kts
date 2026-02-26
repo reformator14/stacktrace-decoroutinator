@@ -1,7 +1,7 @@
 import com.android.build.gradle.internal.tasks.R8Task
+import com.android.build.gradle.internal.tasks.factory.dependsOn
 import dev.reformator.bytecodeprocessor.plugins.GetCurrentFileNameProcessor
 import dev.reformator.bytecodeprocessor.plugins.GetOwnerClassProcessor
-import dev.reformator.bytecodeprocessor.plugins.LoadConstantProcessor
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -30,46 +30,34 @@ dependencies {
     implementation(libs.junit4)
     implementation(libs.jupiter.api)
     implementation(libs.decoroutinator.aar)
-    implementation(libs.androidx.test.rules)
     implementation(libs.coroutines.debug.build)
+    implementation(libs.androidx.test.monitor)
 
     runtimeOnly(libs.decoroutinator.mh.invoker.jvm)
     runtimeOnly(libs.decoroutinator.generator.jvm)
+    runtimeOnly(libs.androidx.test.runner)
 }
 
-val mappingFileDevicePath = "/sdcard/decoroutinator/tests/android-legacy/gradle-plugin-mapping.txt"
+val copyMappingFileToAssetsTask = tasks.register<Copy>("copyMappingFileToAssets") {
+    into(layout.buildDirectory.dir("generated/mapping-assets"))
+    rename { "mapping.txt" }
+}
+
 
 bytecodeProcessor {
     processors = listOf(
         GetCurrentFileNameProcessor,
-        LoadConstantProcessor,
         GetOwnerClassProcessor
     )
-    initContext {
-        LoadConstantProcessor.addValues(
-            context = this,
-            valuesByKeys = mapOf("mappingFile" to mappingFileDevicePath)
-        )
-    }
 }
 
 afterEvaluate {
-    val minifyDebugWithR8Task = tasks.named<R8Task>("minifyDebugWithR8")
-
-    val pushMinifyDebugMappingFileTask = tasks.register<Exec>("pushMinifyDebugMappingFile") {
-
-        commandLine(
-            androidComponents.sdkComponents.adb.get().asFile.absolutePath,
-            "push",
-            minifyDebugWithR8Task.get().mappingFile.get().asFile.absolutePath,
-            mappingFileDevicePath
-        )
-        dependsOn(minifyDebugWithR8Task)
+    copyMappingFileToAssetsTask.configure {
+        from(tasks.named<R8Task>("minifyDebugWithR8").flatMap { it.mappingFile })
     }
-
-    tasks.matching { it.name.startsWith("connected") && it.name.endsWith("AndroidTest") }.configureEach {
-        dependsOn(pushMinifyDebugMappingFileTask)
-    }
+    tasks.named("mergeDebugAssets").dependsOn(copyMappingFileToAssetsTask)
+    tasks.named("generateDebugLintVitalReportModel").dependsOn(copyMappingFileToAssetsTask)
+    tasks.named("lintVitalAnalyzeDebug").dependsOn(copyMappingFileToAssetsTask)
 }
 
 android {
@@ -79,7 +67,7 @@ android {
         applicationId = "dev.reformator.stacktracedecoroutinator.tests.androidlegacy.gradleplugintests"
         versionCode = 1
         versionName = "1.0"
-        minSdk = 16
+        minSdk = 14
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     packaging {
@@ -93,6 +81,7 @@ android {
             jvmTarget = JvmTarget.JVM_1_8
         }
     }
+    sourceSets["debug"].assets.srcDir(copyMappingFileToAssetsTask.map { it.destinationDir })
     buildTypes {
         debug {
             isMinifyEnabled = true
