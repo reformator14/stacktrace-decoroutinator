@@ -10,6 +10,9 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Set up JDK 8
         uses: actions/setup-java@v4
         with:
@@ -22,11 +25,11 @@ jobs:
           distribution: 'corretto'
           java-version: '21'
 
+      - name: Configure Gradle memory
+        run: mkdir -p ~/.gradle && echo "org.gradle.jvmargs=-Xmx2g" >> ~/.gradle/gradle.properties
+
       - name: Import PGP key
         run: echo "${{ secrets.PGP_PRIVATE_KEY }}" | gpg --batch --yes --import
 
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Publish
-        run: ./gradlew -Dorg.gradle.jvmargs="-Xmx2g" -Psonatype.username=${{ secrets.SONATYPE_USERNAME }} -Psonatype.password=${{ secrets.SONATYPE_PASSWORD }} publishAggregationToCentralSnapshots
+        run: ./gradlew -Psonatype.username=${{ secrets.SONATYPE_USERNAME }} -Psonatype.password=${{ secrets.SONATYPE_PASSWORD }} publishAggregationToCentralSnapshots

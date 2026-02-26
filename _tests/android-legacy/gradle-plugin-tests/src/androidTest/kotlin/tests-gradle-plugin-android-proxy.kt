@@ -13,4 +13,7 @@ class TestLocalFile: dev.reformator.stacktracedecoroutinator.tests.androidlegacy
 class DebugProbesTest: dev.reformator.stacktracedecoroutinator.tests.androidlegacy.gradleplugintests.DebugProbesTest()
 
 @Keep
+class LegacyAndroidTest: dev.reformator.stacktracedecoroutinator.tests.androidlegacy.gradleplugintests.LegacyAndroidTest()
+
+@Keep
 class PerformanceTest: dev.reformator.stacktracedecoroutinator.tests.PerformanceTest()

@@ -6,26 +6,10 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-24.04-arm
-    env:
-      GRADLE_OPTS: -Xmx2g
+    runs-on: ubuntu-latest
     steps:
-      - name: Enable KVM
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-
-      - name: Create AVD 35
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          arch: arm64-v8a
-          target: google_apis_playstore
-          force-avd-creation: false
-          emulator-options: -no-window -gpu off -no-snapshot -noaudio -no-boot-anim
-          disable-animations: true
-          script: echo "AVD 35 created"
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up JDK 8
         uses: actions/setup-java@v4
@@ -39,29 +23,90 @@ jobs:
           distribution: 'corretto'
           java-version: '21'
 
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Configure Gradle memory
+        run: mkdir -p ~/.gradle && echo "org.gradle.jvmargs=-Xmx2g" >> ~/.gradle/gradle.properties
 
-      - name: Initialize test build's Gradle wrapper
-        run: ./gradlew initTestsGradleWrapper
-
-      - name: Setup local.properties in test build
-        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > _tests/local.properties
-#
-#      - name: Run root build's tests
-#        run: ./gradlew test
-#
-#      - name: Run test build's tests
-#        working-directory: _tests
-#        run: ../gradlew test
-
-      - name: Run test build's Android tests
-        uses: reactivecircus/android-emulator-runner@v2
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          api-level: 36
-          arch: arm64-v8a
-          target: google_apis_playstore
-          force-avd-creation: false
-          emulator-options: -no-window -gpu off -no-snapshot -noaudio -no-boot-anim
-          disable-animations: true
-          script: cd _tests && ../gradlew connectedAndroidTest
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Initialize test build
+        run: ./gradlew initTestsBuild && echo "sdk.dir=$ANDROID_SDK_ROOT" > _tests/local.properties
+
+      - name: Run root build's tests
+        run: ./gradlew test
+
+      - name: Run test build's tests
+        working-directory: _tests
+        run: ../gradlew test
+
+      - name: Build test build's android-gradle-plugin-tests APKs
+        working-directory: _tests
+        run: ../gradlew :android:gradle-plugin-tests:assembleDebug :android:gradle-plugin-tests:assembleDebugAndroidTest
+
+      - name: Run test build's android-gradle-plugin-tests on API 26
+        run: |
+          gcloud firebase test android run \
+            --type instrumentation \
+            --results-bucket=decoroutinator-tests-results \
+            --app _tests/android/gradle-plugin-tests/build/outputs/apk/debug/gradle-plugin-tests-debug.apk \
+            --test _tests/android/gradle-plugin-tests/build/outputs/apk/androidTest/debug/gradle-plugin-tests-debug-androidTest.apk \
+            --device model=Pixel2.arm,version=26,locale=en \
+            --no-record-video \
+            --timeout 1m
+
+      - name: Run test build's android-gradle-plugin-tests on API 36
+        run: |
+          gcloud firebase test android run \
+            --type instrumentation \
+            --results-bucket=decoroutinator-tests-results \
+            --app _tests/android/gradle-plugin-tests/build/outputs/apk/debug/gradle-plugin-tests-debug.apk \
+            --test _tests/android/gradle-plugin-tests/build/outputs/apk/androidTest/debug/gradle-plugin-tests-debug-androidTest.apk \
+            --device model=tokay,version=36,locale=en \
+            --no-record-video \
+            --timeout 1m
+
+      - name: Build test build's android-wrong-generator-tests APKs
+        working-directory: _tests
+        run: ../gradlew :android:wrong-generator-tests:assembleDebug :android:wrong-generator-tests:assembleDebugAndroidTest
+
+      - name: Run test build's android-wrong-generator-tests on API 26
+        run: |
+          gcloud firebase test android run \
+            --type instrumentation \
+            --results-bucket=decoroutinator-tests-results \
+            --app _tests/android/wrong-generator-tests/build/outputs/apk/debug/wrong-generator-tests-debug.apk \
+            --test _tests/android/wrong-generator-tests/build/outputs/apk/androidTest/debug/wrong-generator-tests-debug-androidTest.apk \
+            --device model=Pixel2.arm,version=26,locale=en \
+            --no-record-video \
+            --timeout 1m
+
+      - name: Build test build's android-legacy-gradle-plugin-tests APKs
+        working-directory: _tests
+        run: ../gradlew :android-legacy:gradle-plugin-tests:assembleDebug :android-legacy:gradle-plugin-tests:assembleDebugAndroidTest
+
+      - name: Run test build's android-legacy-gradle-plugin-tests on API 26
+        run: |
+          gcloud firebase test android run \
+            --type instrumentation \
+            --results-bucket=decoroutinator-tests-results \
+            --app _tests/android-legacy/gradle-plugin-tests/build/outputs/apk/debug/gradle-plugin-tests-debug.apk \
+            --test _tests/android-legacy/gradle-plugin-tests/build/outputs/apk/androidTest/debug/gradle-plugin-tests-debug-androidTest.apk \
+            --device model=Pixel2.arm,version=26,locale=en \
+            --no-record-video \
+            --timeout 1m
+
+      - name: Run test build's android-legacy-gradle-plugin-tests on API 23
+        run: |
+          gcloud firebase test android run \
+            --type instrumentation \
+            --results-bucket=decoroutinator-tests-results \
+            --app _tests/android-legacy/gradle-plugin-tests/build/outputs/apk/debug/gradle-plugin-tests-debug.apk \
+            --test _tests/android-legacy/gradle-plugin-tests/build/outputs/apk/androidTest/debug/gradle-plugin-tests-debug-androidTest.apk \
+            --device model=1610,version=23,locale=en \
+            --no-record-video \
+            --timeout 1m

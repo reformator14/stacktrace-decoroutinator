@@ -16,7 +16,7 @@ repositories {
     mavenCentral()
 }
 
-tasks.register("initTestsGradleWrapper") {
+tasks.register("initTestsBuild") {
     val sourceFile = file("gradle/wrapper/gradle-wrapper.properties")
     val targetFile = file("_tests/gradle/wrapper/gradle-wrapper.properties")
     inputs.file(sourceFile)

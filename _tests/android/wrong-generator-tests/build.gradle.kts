@@ -2,7 +2,7 @@ import dev.reformator.decoroutinatortransformbasecontinuation.decoroutinatorTran
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.decoroutinator.transform.base.continuation)
 }
@@ -28,6 +28,9 @@ android {
     namespace = "dev.reformator.stacktracedecoroutinator.tests.android.wronggeneratortests"
     compileSdk = libs.versions.android.compile.sdk.get().toInt()
     defaultConfig {
+        applicationId = "dev.reformator.stacktracedecoroutinator.tests.android.wronggeneratortests"
+        versionCode = 1
+        versionName = "1.0"
         minSdk = 26
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

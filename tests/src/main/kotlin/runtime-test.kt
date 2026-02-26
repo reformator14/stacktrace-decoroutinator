@@ -20,6 +20,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 import kotlin.coroutines.resume
@@ -79,19 +80,28 @@ open class RuntimeTest {
 
     @Junit4Test @Junit5Test
     fun resumeWithException() {
+        var className = ""
+        var methodName = ""
+        var lineNumber = 0
         try {
             runBlocking {
-                resumeWithExceptionRec(10)
+                className = ownerClassName
+                methodName = ownerMethodName
+                lineNumber = currentLineNumber + 1
+                suspendCoroutineUninterceptedOrReturn<Nothing> { continuation ->
+                    thread {
+                        continuation.resumeWithException(RuntimeException("test"))
+                    }
+                    COROUTINE_SUSPENDED
+                }
             }
         } catch (e: RuntimeException) {
-            e.stackTrace.checkStacktrace(*(1 .. 10).map {
-                StackTraceElement(
-                    ownerClassName,
-                    RuntimeTest::resumeWithExceptionRec.name,
-                    currentFileName,
-                    resumeWithExceptionRecBaseLineNumber
-                )
-            }.toTypedArray())
+            e.stackTrace.checkStacktrace(StackTraceElement(
+                className,
+                methodName,
+                currentFileName,
+                lineNumber
+            ))
         }
     }
 
@@ -282,7 +292,9 @@ open class RuntimeTest {
             return result
         }
 
-        private val traceOpcodeBuffer = ThreadLocal.withInitial<MutableList<TraceOpcodeItem>> { LinkedList() }
+        private val traceOpcodeBuffer = object: ThreadLocal<MutableList<TraceOpcodeItem>>() {
+            override fun initialValue(): MutableList<TraceOpcodeItem> = LinkedList()
+        }
 
         private suspend inline fun callInline(trace: List<ConcurrentTestMock>) {
             yield()
@@ -293,8 +305,6 @@ open class RuntimeTest {
 
         private fun tailCallDeoptimize() { }
     }
-
-    private var resumeWithExceptionRecBaseLineNumber: Int = 0
 
     private val concurrentTestMocks = listOf(
         ConcurrentTestMock1(), ConcurrentTestMock2(), ConcurrentTestMock3(), ConcurrentTestMock4(),
@@ -413,20 +423,6 @@ open class RuntimeTest {
             if (fileName == "decoroutinator-boundary") return i
         }
         error("not found")
-    }
-
-    private suspend fun resumeWithExceptionRec(depth: Int) {
-        if (depth == 0) {
-            suspendCancellableCoroutine { continuation ->
-                ForkJoinPool.commonPool().execute {
-                    continuation.resumeWithException(RuntimeException("test"))
-                }
-            }
-        } else {
-            resumeWithExceptionRecBaseLineNumber = currentLineNumber + 1
-            resumeWithExceptionRec(depth - 1)
-        }
-        tailCallDeoptimize()
     }
 
     private suspend fun rec(lineNumberOffsets: List<Int>, index: Int): String {

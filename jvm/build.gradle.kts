@@ -47,6 +47,10 @@ java {
     targetCompatibility = JavaVersion.VERSION_1_9
 }
 
+tasks.withType<JavaCompile> {
+    options.compilerArgs.add("-Xlint:-module")
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = JvmTarget.JVM_1_8

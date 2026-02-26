@@ -7,4 +7,7 @@ module dev.reformator.stacktracedecoroutinator.jvm {
     requires kotlin.stdlib;
 
     exports dev.reformator.stacktracedecoroutinator.jvm;
+
+    exports dev.reformator.stacktracedecoroutinator.jvm.internal to
+            dev.reformator.stacktracedecoroutinator.jvm.tests;
 }
