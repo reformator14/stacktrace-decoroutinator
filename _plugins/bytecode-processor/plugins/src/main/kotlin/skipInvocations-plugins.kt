@@ -9,13 +9,10 @@ import dev.reformator.bytecodeprocessor.api.Processor
 import dev.reformator.bytecodeprocessor.plugins.internal.find
 import dev.reformator.bytecodeprocessor.plugins.internal.getParameter
 import dev.reformator.bytecodeprocessor.plugins.internal.isStatic
-import dev.reformator.bytecodeprocessor.plugins.internal.setParameter
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.MethodInsnNode
 import org.objectweb.asm.tree.MethodNode
-
-private const val APPLIED_PARAMETER = "applied"
 
 object SkipInvocationsProcessor: Processor {
     data class Key(
@@ -64,22 +61,17 @@ object SkipInvocationsProcessor: Processor {
                 val deleteAfterChanging =
                     annotation.getParameter(SkipInvocations::deleteAfterChanging.name) as Boolean? ?: true
 
-                if (annotation.getParameter(APPLIED_PARAMETER) as Boolean? ?: false) {
-                    require(!deleteAfterChanging)
-                    return@mapNotNull null
-                }
-
                 if (deleteAfterChanging) {
                     methodsToDelete.add(method)
                 } else {
-                    annotation.setParameter(APPLIED_PARAMETER, true)
+                    method.invisibleAnnotations = method.invisibleAnnotations.filter { it != annotation }
                 }
                 processingClass.markModified()
 
                 Key(processingClass.node.name, method)
             }
             if (methodsToDelete.isNotEmpty()) {
-                require(processingClass.node.methods.removeAll(methodsToDelete))
+                processingClass.node.methods = processingClass.node.methods.filter { it !in methodsToDelete }
             }
             list
         }.toSet()

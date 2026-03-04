@@ -9,12 +9,9 @@ import dev.reformator.bytecodeprocessor.api.Processor
 import dev.reformator.bytecodeprocessor.plugins.internal.find
 import dev.reformator.bytecodeprocessor.plugins.internal.getParameter
 import dev.reformator.bytecodeprocessor.plugins.internal.internalName
-import dev.reformator.bytecodeprocessor.plugins.internal.setParameter
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.MethodInsnNode
 import org.objectweb.asm.tree.MethodNode
-
-private const val APPLIED_PARAMETER = "applied"
 
 object ChangeInvocationsOwnerProcessor: Processor {
     object ContextKey: BytecodeProcessorContext.Key<Map<Key, String>> {
@@ -67,11 +64,6 @@ object ChangeInvocationsOwnerProcessor: Processor {
                 val deleteAfterChanging =
                     annotation.getParameter(ChangeInvocationsOwner::deleteAfterChanging.name) as Boolean? ?: true
 
-                if (annotation.getParameter(APPLIED_PARAMETER) as Boolean? ?: false) {
-                    require(!deleteAfterChanging)
-                    return@mapNotNull null
-                }
-
                 val key = Key(
                     ownerInternalName = processingClass.node.name,
                     method = method
@@ -80,14 +72,14 @@ object ChangeInvocationsOwnerProcessor: Processor {
                 if (deleteAfterChanging) {
                     methodsToDelete.add(method)
                 } else {
-                    annotation.setParameter(APPLIED_PARAMETER, true)
+                    method.invisibleAnnotations = method.invisibleAnnotations.filter { it != annotation }
                 }
                 processingClass.markModified()
 
                 key to toInternalName
             }
             if (methodsToDelete.isNotEmpty()) {
-                require(processingClass.node.methods.removeAll(methodsToDelete))
+                processingClass.node.methods = processingClass.node.methods.filter { it !in methodsToDelete }
             }
             list
         }.toMap()

@@ -636,7 +636,6 @@ private fun Project.setGeneratingProguardFiles(legacyAndroidCompatibility: Boole
         val dir = decoroutinatorDir
         @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") val proguardRules = """
             # Decoroutinator ProGuard rules
-            -dontwarn dev.reformator.bytecodeprocessor.intrinsics.*
             -keep,allowobfuscation @interface ${DecoroutinatorTransformed::class.java.name}
             -keepattributes RuntimeVisibleAnnotations,LineNumberTable,SourceFile
             -keepclasseswithmembers,allowshrinking @${DecoroutinatorTransformed::class.java.name} class * {

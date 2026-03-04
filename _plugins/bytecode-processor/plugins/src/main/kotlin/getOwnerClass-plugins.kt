@@ -14,18 +14,12 @@ import dev.reformator.bytecodeprocessor.plugins.internal.find
 import dev.reformator.bytecodeprocessor.plugins.internal.getParameter
 import dev.reformator.bytecodeprocessor.plugins.internal.isStatic
 import dev.reformator.bytecodeprocessor.plugins.internal.readAsm
-import dev.reformator.bytecodeprocessor.plugins.internal.setParameter
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.LdcInsnNode
 import org.objectweb.asm.tree.MethodInsnNode
 import org.objectweb.asm.tree.MethodNode
 import kotlin.collections.first
-
-private val classMethodDesc = "()${Type.getDescriptor(Class::class.java)}"
-private val stringMethodDesc = "()${Type.getDescriptor(String::class.java)}"
-
-private const val APPLIED_PARAMETER = "applied"
 
 object GetOwnerClassProcessor: Processor {
     object ContextKey: BytecodeProcessorContext.Key<Set<Key>> {
@@ -64,15 +58,10 @@ object GetOwnerClassProcessor: Processor {
                 val deleteAfterChanging =
                     annotation.getParameter(GetOwnerClass::deleteAfterModification.name) as Boolean? ?: true
 
-                if (annotation.getParameter(APPLIED_PARAMETER) as Boolean? ?: false) {
-                    require(!deleteAfterChanging)
-                    return@mapNotNull null
-                }
-
                 if (deleteAfterChanging) {
                     methodsToDelete.add(method)
                 } else {
-                    annotation.setParameter(APPLIED_PARAMETER, true)
+                    method.invisibleAnnotations = method.invisibleAnnotations.filter { it != annotation }
                 }
                 processingClass.markModified()
 
@@ -83,7 +72,7 @@ object GetOwnerClassProcessor: Processor {
                 )
             }
             if (methodsToDelete.isNotEmpty()) {
-                require(processingClass.node.methods.removeAll(methodsToDelete))
+                processingClass.node.methods = processingClass.node.methods.filter { it !in methodsToDelete }
             }
             list
         }.toSet()
@@ -156,20 +145,17 @@ object GetOwnerClassProcessor: Processor {
         ownerClassInstruction = methods
             .first { it.name == GetOwnerClassProcessor::usageOwnerClass.name }
             .instructions
-            .asSequence()
-            .mapNotNull { it as? MethodInsnNode }
-            .first()
+            .firstNotNullOf { it as? MethodInsnNode }
         ownerClassNameInstruction = methods
             .first { it.name == GetOwnerClassProcessor::usageOwnerClassName.name }
             .instructions
-            .asSequence()
-            .mapNotNull { it as? MethodInsnNode }
-            .first()
+            .firstNotNullOf { it as? MethodInsnNode }
         ownerMethodNameInstruction = methods
             .first { it.name == GetOwnerClassProcessor::usageOwnerMethodName.name }
             .instructions
-            .asSequence()
-            .mapNotNull { it as? MethodInsnNode }
-            .first()
+            .firstNotNullOf { it as? MethodInsnNode }
     }
 }
+
+private val classMethodDesc = "()${Type.getDescriptor(Class::class.java)}"
+private val stringMethodDesc = "()${Type.getDescriptor(String::class.java)}"

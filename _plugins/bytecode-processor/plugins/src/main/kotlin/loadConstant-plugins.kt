@@ -11,7 +11,6 @@ import dev.reformator.bytecodeprocessor.intrinsics.MethodNameConstant
 import dev.reformator.bytecodeprocessor.plugins.internal.find
 import dev.reformator.bytecodeprocessor.plugins.internal.getParameter
 import dev.reformator.bytecodeprocessor.plugins.internal.isStatic
-import dev.reformator.bytecodeprocessor.plugins.internal.setParameter
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.LdcInsnNode
@@ -19,8 +18,6 @@ import org.objectweb.asm.tree.MethodInsnNode
 import org.objectweb.asm.tree.MethodNode
 
 private val stringMethodDesc = "()${Type.getDescriptor(String::class.java)}"
-
-private const val APPLIED_PARAMETER = "applied"
 
 object LoadConstantProcessor: Processor {
     object KeyValueContextKey: BytecodeProcessorContext.Key<Map<String, String>> {
@@ -71,17 +68,14 @@ object LoadConstantProcessor: Processor {
             val annotation = processingClass.node.invisibleAnnotations.find(ClassNameConstant::class.java)
                 ?: return@forEach
 
-            if (annotation.getParameter(APPLIED_PARAMETER) as Boolean? ?: false) {
-                return@forEach
-            }
-
             val key = annotation.getParameter(ClassNameConstant::key.name) as String
             context.merge(
                 key = KeyValueContextKey,
                 value = mapOf(key to Type.getObjectType(processingClass.node.name).className)
             )
 
-            annotation.setParameter(APPLIED_PARAMETER, true)
+            processingClass.node.invisibleAnnotations =
+                processingClass.node.invisibleAnnotations.filter { it != annotation }
             processingClass.markModified()
         }
 
@@ -90,21 +84,20 @@ object LoadConstantProcessor: Processor {
                 val annotation = method.invisibleAnnotations.find(MethodNameConstant::class.java)
                     ?: return@forEachMethod
 
-                if (annotation.getParameter(APPLIED_PARAMETER) as Boolean? ?: false) return@forEachMethod
-
                 val key = annotation.getParameter(MethodNameConstant::key.name) as String
                 context.merge(
                     key = KeyValueContextKey,
                     value = mapOf(key to method.name)
                 )
 
-                annotation.setParameter(APPLIED_PARAMETER, true)
+                method.invisibleAnnotations = method.invisibleAnnotations.filter { it != annotation }
                 processingClass.markModified()
             }
         }
 
         val keys = directory.classes.flatMap { processingClass ->
             val methodsToDelete = mutableListOf<MethodNode>()
+
             val list = processingClass.node.methods.orEmpty().mapNotNull { method ->
                 val annotation = method.invisibleAnnotations.find(LoadConstant::class.java)
                     ?: return@mapNotNull null
@@ -117,15 +110,10 @@ object LoadConstantProcessor: Processor {
                 val deleteAfterChanging =
                     annotation.getParameter(LoadConstant::deleteAfterModification.name) as Boolean? ?: true
 
-                if (annotation.getParameter(APPLIED_PARAMETER) as Boolean? ?: false) {
-                    require(!deleteAfterChanging)
-                    return@mapNotNull null
-                }
-
                 if (deleteAfterChanging) {
                     methodsToDelete.add(method)
                 } else {
-                    annotation.setParameter(APPLIED_PARAMETER, true)
+                    method.invisibleAnnotations = method.invisibleAnnotations.filter { it != annotation }
                 }
 
                 processingClass.markModified()
@@ -135,9 +123,11 @@ object LoadConstantProcessor: Processor {
                     methodName = method.name
                 ) to key
             }
+
             if (methodsToDelete.isNotEmpty()) {
-                processingClass.node.methods.removeAll(methodsToDelete)
+                processingClass.node.methods = processingClass.node.methods.filter { it !in methodsToDelete }
             }
+
             list
         }.toMap()
         context.merge(MethodKeyContextKey, keys)

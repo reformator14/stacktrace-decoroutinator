@@ -65,12 +65,8 @@ object GetCurrentFileNameProcessor: Processor {
     init {
         val methods: List<MethodNode> = GetCurrentFileNameProcessor::class.java.readAsm().methods
         currentFileNameInstruction = methods.first { it.name == ::currentFileNameUsage.name }.instructions
-            .asSequence()
-            .mapNotNull { it as? MethodInsnNode }
-            .first()
+            .firstNotNullOf { it as? MethodInsnNode }
         currentLineNumberInstruction = methods.first { it.name == ::currentLineNumberUsage.name }.instructions
-                .asSequence()
-                .mapNotNull { it as? MethodInsnNode }
-                .first()
+            .firstNotNullOf { it as? MethodInsnNode }
     }
 }

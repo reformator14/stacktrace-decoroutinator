@@ -10,14 +10,11 @@ import dev.reformator.bytecodeprocessor.plugins.internal.find
 import dev.reformator.bytecodeprocessor.plugins.internal.getOrCreateClinit
 import dev.reformator.bytecodeprocessor.plugins.internal.getParameter
 import dev.reformator.bytecodeprocessor.plugins.internal.isStatic
-import dev.reformator.bytecodeprocessor.plugins.internal.setParameter
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.InsnList
 import org.objectweb.asm.tree.InsnNode
 import org.objectweb.asm.tree.MethodInsnNode
-
-private const val APPLIED_PARAMETER = "applied"
 
 object MakeStaticProcessor: Processor {
     data class Key(
@@ -44,14 +41,6 @@ object MakeStaticProcessor: Processor {
 
                 val methodType = Type.getMethodType(method.desc)
 
-                if (annotation.getParameter(APPLIED_PARAMETER) as Boolean? ?: false) {
-                    require(method.isStatic)
-                    val argumentTypes = methodType.argumentTypes
-                    require(argumentTypes.isNotEmpty())
-                    require(argumentTypes[0] == Type.getObjectType(processingClass.node.name))
-                    return@mapNotNull null
-                }
-
                 require(!method.isStatic)
                 val key = Key(
                     classInternalName = processingClass.node.name,
@@ -67,7 +56,7 @@ object MakeStaticProcessor: Processor {
                     keysToAddToStaticInitializer.add(key)
                 }
 
-                annotation.setParameter(APPLIED_PARAMETER, true)
+                method.invisibleAnnotations = method.invisibleAnnotations.filter { it != annotation }
                 processingClass.markModified()
 
                 key

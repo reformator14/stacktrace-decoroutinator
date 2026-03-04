@@ -22,20 +22,6 @@ internal fun AnnotationNode.getParameter(name: String): Any? {
     return null
 }
 
-internal fun AnnotationNode.setParameter(name: String, value: Any) {
-    val parameters: MutableList<Any> = values ?: run { values = mutableListOf(); values }
-    var index = 0
-    while (index < parameters.size) {
-        if (parameters[index] == name) {
-            parameters[index + 1] = value
-            return
-        }
-        index += 2
-    }
-    parameters.add(name)
-    parameters.add(value)
-}
-
 internal val MethodNode.isStatic: Boolean
     get() = access and Opcodes.ACC_STATIC != 0
 

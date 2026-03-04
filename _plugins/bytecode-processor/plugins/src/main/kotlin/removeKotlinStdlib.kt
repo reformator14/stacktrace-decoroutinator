@@ -14,9 +14,8 @@ import java.util.Objects
 import kotlin.jvm.internal.Intrinsics
 import kotlin.reflect.KFunction
 
-private const val KOTLIN_STDLIB_MODULE = "kotlin.stdlib"
-
 object RemoveKotlinStdlibProcessor: Processor {
+    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
     override fun process(directory: ProcessingDirectory, context: BytecodeProcessorContext) {
         directory.classes.forEach { clazz ->
             clazz.node.methods?.forEach { method ->
@@ -77,6 +76,8 @@ object RemoveKotlinStdlibProcessor: Processor {
         }
     }
 }
+
+private const val KOTLIN_STDLIB_MODULE = "kotlin.stdlib"
 
 private val intrinsicCheckNotNullWithMessageMethodNames = setOf(
     run {val x: (Any?, String) -> Unit = Intrinsics::checkNotNull; x as KFunction<*> }.name,

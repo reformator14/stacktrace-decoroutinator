@@ -12,7 +12,6 @@ object DeleteClassProcessor: Processor {
     override fun process(directory: ProcessingDirectory, context: BytecodeProcessorContext) {
         directory.classes.forEach { processingClass ->
             processingClass.node.invisibleAnnotations.find(DeleteClass::class.java) ?: return@forEach
-
             processingClass.delete()
         }
     }

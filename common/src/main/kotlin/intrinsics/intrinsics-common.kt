@@ -35,17 +35,11 @@ internal val Any?.toResult: Result<*>
     @SkipInvocations get() { fail() }
 
 @Suppress("UNUSED_PARAMETER")
-@ChangeInvocationsOwner(
-    toName = "kotlin.coroutines.jvm.internal.DebugProbesKt",
-    deleteAfterChanging = true
-)
+@ChangeInvocationsOwner(toName = "kotlin.coroutines.jvm.internal.DebugProbesKt")
 internal fun probeCoroutineResumed(frame: Continuation<*>) { fail() }
 
 @Suppress("UNUSED_PARAMETER")
-@ChangeInvocationsOwner(
-    toName = "kotlin.ResultKt",
-    deleteAfterChanging = true
-)
+@ChangeInvocationsOwner(toName = "kotlin.ResultKt")
 internal fun createFailure(exception: Throwable): Any { fail() }
 
 @ChangeClassName(toName = "kotlin.coroutines.jvm.internal.ContinuationImpl", deleteAfterChanging = true)
