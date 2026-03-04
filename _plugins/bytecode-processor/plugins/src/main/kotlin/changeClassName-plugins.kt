@@ -4,17 +4,15 @@ package dev.reformator.bytecodeprocessor.plugins
 
 import dev.reformator.bytecodeprocessor.intrinsics.ChangeClassName
 import dev.reformator.bytecodeprocessor.api.BytecodeProcessorContext
+import dev.reformator.bytecodeprocessor.api.ProcessingClass
 import dev.reformator.bytecodeprocessor.api.ProcessingDirectory
 import dev.reformator.bytecodeprocessor.api.Processor
 import dev.reformator.bytecodeprocessor.plugins.internal.find
 import dev.reformator.bytecodeprocessor.plugins.internal.getParameter
 import dev.reformator.bytecodeprocessor.plugins.internal.internalName
-import dev.reformator.bytecodeprocessor.plugins.internal.setParameter
 import org.objectweb.asm.Handle
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.*
-
-private const val FROM_INTERNAL_NAME = "fromInternalName"
 
 object ChangeClassNameProcessor: Processor {
     object ContextKey: BytecodeProcessorContext.Key<Map<String, String>> {
@@ -40,6 +38,8 @@ object ChangeClassNameProcessor: Processor {
     }
 
     override fun process(directory: ProcessingDirectory, context: BytecodeProcessorContext) {
+        val deletedClasses = mutableSetOf<ProcessingClass>()
+
         val values = directory.classes.mapNotNull { processingClass ->
             val annotation = processingClass.node.invisibleAnnotations.find(ChangeClassName::class.java)
                 ?: return@mapNotNull null
@@ -59,19 +59,15 @@ object ChangeClassNameProcessor: Processor {
             val deleteAfterChanging =
                 annotation.getParameter(ChangeClassName::deleteAfterChanging.name) as Boolean? ?: false
 
-            val fromInternalNameParameter = annotation.getParameter(FROM_INTERNAL_NAME) as String?
-            if (fromInternalNameParameter != null) {
-                require(processingClass.node.name == toInternalName)
-                require(!deleteAfterChanging)
-                return@mapNotNull null
-            }
-
-            require(processingClass.node.name != toInternalName)
             val oldInternalName = processingClass.node.name
+            require(oldInternalName != toInternalName)
+
             if (deleteAfterChanging) {
+                deletedClasses.add(processingClass)
                 processingClass.delete()
             } else {
-                annotation.setParameter(FROM_INTERNAL_NAME, oldInternalName)
+                processingClass.node.invisibleAnnotations =
+                    processingClass.node.invisibleAnnotations.filter { it != annotation }
                 processingClass.node.name = toInternalName
                 processingClass.markModified()
             }
@@ -129,7 +125,7 @@ object ChangeClassNameProcessor: Processor {
             }
         }
 
-        directory.classes.forEach { processingClass ->
+        directory.classes.filter { it !in deletedClasses }.forEach { processingClass ->
             processingClass.node.name.modify {
                 processingClass.markModified()
                 processingClass.node.name = it

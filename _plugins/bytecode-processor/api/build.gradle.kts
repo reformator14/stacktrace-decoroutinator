@@ -10,8 +10,6 @@ repositories {
 
 dependencies {
     api(libs.asm.utils)
-
-    testImplementation(kotlin("test"))
 }
 
 tasks.test {

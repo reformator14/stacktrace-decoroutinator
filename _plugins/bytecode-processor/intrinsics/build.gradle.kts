@@ -9,11 +9,6 @@ repositories {
     mavenCentral()
 }
 
-dependencies {
-    implementation(libs.asm.utils)
-    testImplementation(kotlin("test"))
-}
-
 tasks.test {
     useJUnitPlatform()
 }
