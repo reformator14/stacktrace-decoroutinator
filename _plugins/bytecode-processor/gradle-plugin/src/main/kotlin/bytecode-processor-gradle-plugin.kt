@@ -93,78 +93,81 @@ abstract class BytecodeProcessorMergeContextsNoModifierTask(): BytecodeProcessor
 
 @Suppress("unused")
 class BytecodeProcessorPlugin : Plugin<Project> {
-    override fun apply(target: Project) {
-        with(target) {
-            val extension = extensions.create(EXTENSION_NAME, BytecodeProcessorPluginExtension::class.java)
-            val loadDependentProjectsTask = tasks.register(
-                INIT_TASK_NAME,
-                BytecodeProcessorMergeContextsTask::class.java,
-                *arrayOf({ context: MapperBytecodeProcessorContext ->
-                    extension.initContextTasks.forEach { context.it() }
-                })
-            )
-            loadDependentProjectsTask.configure { task ->
-                task.mergedContextsFile.set(bytecodeProcessorDirectory.get().file("initialContext.json"))
-            }
-            val mergeContextsTask = tasks.register(
-                MERGE_CONTEXTS_TASK_NAME,
-                BytecodeProcessorMergeContextsNoModifierTask::class.java
-            ) { task ->
-                task.mergedContextsFile.set(bytecodeProcessorDirectory.get().file("mergedContext.json"))
-            }
-            afterEvaluate { _ ->
-                val dependentProjectsMergedContextsFiles = mutableListOf<RegularFileProperty>()
-                extension.dependentProjects.forEach { dependentProject ->
-                    val dependentProjectAction = Action<Project> { _ ->
-                        val dependentProjectMergeContextsTask = dependentProject.mergedContextsTask
-                        loadDependentProjectsTask.configure { task ->
-                            task.dependsOn(dependentProjectMergeContextsTask)
-                        }
-                        dependentProjectsMergedContextsFiles.add(dependentProjectMergeContextsTask.mergedContextsFile)
-                    }
-                    if (dependentProject.state.executed) {
-                        dependentProjectAction.execute(dependentProject)
-                    } else {
-                        dependentProject.afterEvaluate(dependentProjectAction)
-                    }
-                }
-                loadDependentProjectsTask.configure { task ->
-                    task.contextFilesToMerge.setFrom(dependentProjectsMergedContextsFiles)
-                }
+    override fun apply(target: Project) = with(target) {
+        val extension = extensions.create(EXTENSION_NAME, BytecodeProcessorPluginExtension::class.java)
 
-                val contextFiles = mutableListOf<RegularFile>()
-                fun updateCompileTask(task: Task, dir: DirectoryProperty) {
-                    mergeContextsTask.configure { it.dependsOn(task) }
-                    task.dependsOn(loadDependentProjectsTask)
-                    val contextFile = bytecodeProcessorDirectory.get().file("compileContext_${task.name}.json")
-                    val contextFileAsJavaFile = contextFile.asFile
-                    if (contextFileAsJavaFile.isDirectory) {
-                        contextFileAsJavaFile.deleteRecursively()
+        val loadDependentProjectsTask = tasks.register(
+            INIT_TASK_NAME,
+            BytecodeProcessorMergeContextsTask::class.java,
+            *arrayOf({ context: MapperBytecodeProcessorContext ->
+                extension.initContextTasks.forEach { context.it() }
+            })
+        )
+        loadDependentProjectsTask.configure { task ->
+            task.mergedContextsFile.set(bytecodeProcessorDirectory.get().file("initialContext.json"))
+        }
+
+        val mergeContextsTask = tasks.register(
+            MERGE_CONTEXTS_TASK_NAME,
+            BytecodeProcessorMergeContextsNoModifierTask::class.java
+        ) { task ->
+            task.mergedContextsFile.set(bytecodeProcessorDirectory.get().file("mergedContext.json"))
+        }
+
+        afterEvaluate { _ ->
+            val dependentProjectsMergedContextsFiles = mutableListOf<RegularFileProperty>()
+            extension.dependentProjects.forEach { dependentProject ->
+                val dependentProjectAction = Action<Project> { _ ->
+                    val dependentProjectMergeContextsTask = dependentProject.mergedContextsTask
+                    loadDependentProjectsTask.configure { task ->
+                        task.dependsOn(dependentProjectMergeContextsTask)
                     }
-                    task.outputs.file(contextFile)
-                    contextFiles.add(contextFile)
-                    task.doLast { _ ->
-                        val context = MapperBytecodeProcessorContext.read(
-                            from = loadDependentProjectsTask.get().mergedContextsFile.get().asFile
-                        )
-                        dir.get().asFile.applyBytecodeProcessors(
-                            processors = extension.processors,
-                            context = context,
-                            skipUpdate = extension.skipUpdate
-                        )
-                        contextFileAsJavaFile.delete()
-                        context.write(contextFileAsJavaFile)
-                    }
+                    dependentProjectsMergedContextsFiles.add(dependentProjectMergeContextsTask.mergedContextsFile)
                 }
-                tasks.withType(AbstractCompile::class.java) { task ->
-                    updateCompileTask(task, task.destinationDirectory)
+                if (dependentProject.state.executed) {
+                    dependentProjectAction.execute(dependentProject)
+                } else {
+                    dependentProject.afterEvaluate(dependentProjectAction)
                 }
-                tasks.withType(KotlinJvmCompile::class.java) { task ->
-                    updateCompileTask(task, task.destinationDirectory)
+            }
+
+            loadDependentProjectsTask.configure { task ->
+                task.contextFilesToMerge.setFrom(dependentProjectsMergedContextsFiles)
+            }
+
+            val contextFiles = mutableListOf<RegularFile>()
+            fun updateCompileTask(task: Task, dir: DirectoryProperty) {
+                mergeContextsTask.configure { it.dependsOn(task) }
+                task.dependsOn(loadDependentProjectsTask)
+                val contextFile = bytecodeProcessorDirectory.get().file("compileContext_${task.name}.json")
+                val contextFileAsJavaFile = contextFile.asFile
+                if (contextFileAsJavaFile.isDirectory) {
+                    contextFileAsJavaFile.deleteRecursively()
                 }
-                mergeContextsTask.configure { task ->
-                    task.contextFilesToMerge.setFrom(contextFiles)
+                task.outputs.file(contextFile)
+                contextFiles.add(contextFile)
+                task.doLast { _ ->
+                    val context = MapperBytecodeProcessorContext.read(
+                        from = loadDependentProjectsTask.get().mergedContextsFile.get().asFile
+                    )
+                    dir.get().asFile.applyBytecodeProcessors(
+                        processors = extension.processors,
+                        context = context,
+                        skipUpdate = extension.skipUpdate
+                    )
+                    contextFileAsJavaFile.delete()
+                    context.write(contextFileAsJavaFile)
                 }
+            }
+
+            tasks.withType(AbstractCompile::class.java) { task ->
+                updateCompileTask(task, task.destinationDirectory)
+            }
+            tasks.withType(KotlinJvmCompile::class.java) { task ->
+                updateCompileTask(task, task.destinationDirectory)
+            }
+            mergeContextsTask.configure { task ->
+                task.contextFilesToMerge.setFrom(contextFiles)
             }
         }
     }

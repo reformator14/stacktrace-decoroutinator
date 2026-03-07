@@ -11,8 +11,6 @@ repositories {
 dependencies {
     implementation(project(":bytecode-processor-api"))
     implementation(project(":bytecode-processor-intrinsics"))
-
-    testImplementation(kotlin("test"))
 }
 
 tasks.test {

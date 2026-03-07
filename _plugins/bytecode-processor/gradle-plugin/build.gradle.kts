@@ -10,13 +10,12 @@ repositories {
 }
 
 dependencies {
-    implementation(libs.kotlin.gradle.plugin.api)
-    api(project(":bytecode-processor-api"))
     api(project(":bytecode-processor-plugins"))
-    implementation(libs.asm.utils)
+
+    implementation(project(":bytecode-processor-api"))
+    implementation(libs.kotlin.gradle.plugin.api)
     implementation(libs.jackson.core)
     implementation(libs.jackson.kotlin)
-    testImplementation(kotlin("test"))
 }
 
 tasks.test {

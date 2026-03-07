@@ -1,7 +1,9 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import dev.reformator.bytecodeprocessor.api.Processor
 import dev.reformator.bytecodeprocessor.plugins.*
-import org.gradle.kotlin.dsl.bytecodeProcessorFrom
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.net.URLClassLoader
+import kotlin.jvm.java
 
 plugins {
     kotlin("jvm")
@@ -11,10 +13,6 @@ plugins {
 
 repositories {
     mavenCentral()
-}
-
-val bytecodeProcessorConfig: Configuration = configurations.create("bytecodeProcessor") {
-    isCanBeResolved = true
 }
 
 dependencies {
@@ -29,28 +27,33 @@ dependencies {
     implementation(libs.junit4)
     implementation(libs.coroutines.core.build)
     implementation(project(":tests:duplicate-entity-jar", "duplicateEntityJar"))
-
-    add(bytecodeProcessorConfig.name, project(":tests:bytecode-processor"))
 }
 
 bytecodeProcessor {
     processors = listOf(
         GetCurrentFileNameProcessor,
         GetOwnerClassProcessor,
-        LoadConstantProcessor,
-        bytecodeProcessorFrom(
-            configuration = bytecodeProcessorConfig,
-            processorClassName = "dev.reformator.stacktracedecoroutinator.tests.bytecodeprocessor.AddOpcodeTraceProcessor"
-        )
+        LoadConstantProcessor
     )
 }
 
 val fillConstantProcessorTask: TaskProvider<*> = tasks.register("fillConstantProcessor") {
-    val customLoaderProject = project(":tests:custom-loader")
-    val customLoaderJarTask = customLoaderProject.tasks.named<ShadowJar>("shadowJar")
+    val customLoaderJarTask = project(":tests:custom-loader").tasks.named<ShadowJar>("shadowJar")
     dependsOn(customLoaderJarTask)
+
+    val bytecodeProcessorJarTask = project(":tests:bytecode-processor").tasks.named<Jar>("jar")
+    dependsOn(bytecodeProcessorJarTask)
+
     doLast {
         val customLoaderJarUri = customLoaderJarTask.get().archiveFile.get().asFile.toURI().toString()
+
+        val addOpcodeTraceProcessor = URLClassLoader(
+            arrayOf(bytecodeProcessorJarTask.get().archiveFile.get().asFile.toURI().toURL()),
+            Processor::class.java.classLoader
+        ).loadClass("dev.reformator.stacktracedecoroutinator.tests.bytecodeprocessor.AddOpcodeTraceProcessor")
+            .getConstructor()
+            .newInstance() as Processor
+
         bytecodeProcessor {
             initContext {
                 LoadConstantProcessor.addValues(
@@ -58,6 +61,7 @@ val fillConstantProcessorTask: TaskProvider<*> = tasks.register("fillConstantPro
                     valuesByKeys = mapOf("customLoaderJarUri" to customLoaderJarUri)
                 )
             }
+            processors += addOpcodeTraceProcessor
         }
     }
 }
