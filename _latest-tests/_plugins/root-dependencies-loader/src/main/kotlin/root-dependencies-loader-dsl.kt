@@ -19,6 +19,7 @@ import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloade
 import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloader.libsKotlinMetadataJvm
 import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloader.libsJacksonKotlin
 import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloader.libsKotlinGradlePluginApi
+import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloader.libsKotlinLoggingJvm
 import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloader.libsKtorIoJvm
 import org.gradle.api.Project
 import org.gradle.api.artifacts.dsl.DependencyHandler
@@ -167,6 +168,17 @@ val Project.decoroutinatorJvm: DependenciesConfiguration
         addRuntime(libsByteBuddyAgent)
     }
 
+val Project.decoroutinatorGradlePlugin: DependenciesConfiguration
+    get() = buildDependenciesConfiguration {
+        addApi(getRootDependenciesBuildLibsClassesJar("gradle-plugin"))
+        addRuntime(decoroutinatorClassTransformer)
+        addRuntime(decoroutinatorRuntimeSettings)
+        addRuntime(decoroutinatorProvider)
+        addRuntime(libsKotlinLoggingJvm)
+        addRuntime(libsKotlinGradlePluginApi)
+        addRuntime(libsAsmUtils)
+    }
+
 fun DependencyHandler.compileOnly(dependencies: DependenciesConfiguration) {
     dependencies.api.applyTo(this, "compileOnly")
 }
@@ -188,5 +200,10 @@ fun DependencyHandler.api(dependencies: DependenciesConfiguration) {
 
 fun DependencyHandler.testImplementation(dependencies: DependenciesConfiguration) {
     dependencies.api.applyTo(this, "testImplementation")
+    dependencies.runtime.applyTo(this, "testRuntimeOnly")
+}
+
+fun DependencyHandler.testRuntimeOnly(dependencies: DependenciesConfiguration) {
+    dependencies.api.applyTo(this, "testRuntimeOnly")
     dependencies.runtime.applyTo(this, "testRuntimeOnly")
 }

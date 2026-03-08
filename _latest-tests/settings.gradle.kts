@@ -24,6 +24,7 @@ includeBuild("_plugins/build-dependencies")
 
 include(
     "jvm:dynamic-agent-tests",
+    "jvm:gradle-plugin-tests",
 
     "tests",
     "tests:methods-with-spaces-tests"

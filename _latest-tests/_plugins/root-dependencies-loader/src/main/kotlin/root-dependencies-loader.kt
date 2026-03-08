@@ -121,6 +121,10 @@ internal val Project.libsByteBuddyAgent: Dependencies
     get() = libs.reflectGet("byte").reflectGet("buddy")
         .reflectGet("agent").toDependencies
 
+internal val Project.libsKotlinLoggingJvm: Dependencies
+    get() = libs.reflectGet("kotlin").reflectGet("logging")
+        .reflectGet("jvm").toDependencies
+
 internal val Project.libsKotlinMetadataJvm: Dependencies
     get() = libs.reflectGet("kotlin").reflectGet("metadata")
         .reflectGet("jvm").toDependencies

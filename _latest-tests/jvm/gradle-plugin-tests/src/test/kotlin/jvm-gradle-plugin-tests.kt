@@ -1,0 +1,8 @@
+@file:Suppress("PackageDirectoryMismatch")
+
+package dev.reformator.stacktracedecoroutinator.latesttests.jvm.gradleplugintests
+
+class RuntimeTest: dev.reformator.stacktracedecoroutinator.latesttests.tests.RuntimeTest()
+class TailCallDeoptimizeTest: dev.reformator.stacktracedecoroutinator.latesttests.tests.TailCallDeoptimizeTest()
+class MethodNameWithSpacesTest: dev.reformator.stacktracedecoroutinator.latesttests.methodswithspacestests.MethodNameWithSpacesTest()
+class TailCallDeoptimizedMethodNameWithSpacesTest: dev.reformator.stacktracedecoroutinator.latesttests.methodswithspacestests.TailCallDeoptimizedMethodNameWithSpacesTest()

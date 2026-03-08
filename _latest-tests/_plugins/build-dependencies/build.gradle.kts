@@ -15,4 +15,5 @@ repositories {
 
 dependencies {
     api(bytecodeProcessorGradlePlugin)
+    api(decoroutinatorGradlePlugin)
 }
