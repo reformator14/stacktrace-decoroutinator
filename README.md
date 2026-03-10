@@ -70,7 +70,7 @@ Some examples of suffering from this problem:
 - https://stackoverflow.com/questions/54349418/how-to-recover-the-coroutines-true-call-trace
 - https://stackoverflow.com/questions/69226016/how-to-get-full-exception-stacktrace-when-using-await-on-completablefuture
 
-The Kotlin team are known about the problem and has come up with a [solution](https://github.com/Kotlin/kotlinx.coroutines/blob/master/docs/topics/debugging.md#stacktrace-recovery), but it solves just a part of the cases.
+The Kotlin team is aware of the problem and has come up with a [solution](https://github.com/Kotlin/kotlinx.coroutines/blob/master/docs/topics/debugging.md#stacktrace-recovery), but it solves just a part of the cases.
 For example, the exception from the example above still lacks some calls.
 
 ### Solution
@@ -157,7 +157,7 @@ java.lang.Exception: exception at 1764729227496
 ```
 
 ### Android
-For Android there is only one option to enable Stacktrace-decoroutinator - apply the Gradle plugin `dev.reformator.stacketracedecoroutinator` to your application's project.
+For Android there is only one option to enable Stacktrace-decoroutinator - apply the Gradle plugin `dev.reformator.stacktracedecoroutinator` to your application's project.
 ```kotlin
 plugins {
     id("dev.reformator.stacktracedecoroutinator") version "2.6.1"
