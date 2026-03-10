@@ -27,6 +27,12 @@ cd _tests && ../gradlew test
 
 # Android tests (requires emulator, run from _tests)
 cd _tests && ../gradlew connectedAndroidTest
+
+# _latest-tests build (latest Kotlin/Gradle/AGP version tests, separate project)
+cd _latest-tests && ./gradlew test
+
+# Android latest tests (requires emulator, run from _latest-tests)
+cd _latest-tests && ./gradlew connectedAndroidTest
 ```
 
 Build requires JDK 21 (and JDK 8 for JDK8-specific test modules). Gradle wrapper version is 9.2.1. `GRADLE_OPTS: -Xmx2g` is used in CI.
@@ -36,8 +42,8 @@ Build requires JDK 21 (and JDK 8 for JDK8-specific test modules). Gradle wrapper
 Multi-module Gradle project (Kotlin DSL) with ~40 submodules. Key layout:
 
 - **`_plugins/`** — Custom Gradle plugins (bytecode-processor, force-variant-java-version) included as composite builds
-- **`_gradle_plugin_tests/`** — Gradle plugin tests (standalone project, invoked via GradleConnector)
 - **`_tests/`** — Gradle plugin + compatibility test projects (composite build, run separately)
+- **`_latest-tests/`** — Tests against the latest Kotlin, Gradle, and AGP versions (separate composite build with its own gradlew). Re-compiles test sources from the main project with the latest Kotlin compiler. Has a custom `root-dependencies-loader` plugin to load JARs from the main build. Submodules: `jvm/dynamic-agent-tests`, `jvm/gradle-plugin-tests`, `android/gradle-plugin-tests`, `tests`, `tests/methods-with-spaces-tests`
 
 ### Core modules (published to Maven Central):
 
@@ -60,7 +66,8 @@ Multi-module Gradle project (Kotlin DSL) with ~40 submodules. Key layout:
 ### Test modules:
 - `tests` — Shared test utilities (retrace tool, runtime tests); submodules: `tests:custom-loader`, `tests:methods-with-spaces-tests`, `tests:naive-base-continuation-accessor`, `tests:duplicate-entity-jar`, `tests:aar`, `tests:bytecode-processor`
 - `jvm:jdk8-tests`, `jvm-agent:tests`, `jvm-agent:jdk8-tests` — JVM integration tests
-- `_tests/jvm/*`, `_tests/jdk8/*`, `_tests/android/*`, `_tests/android-legacy/*` — Latest Kotlin compatibility tests (separate composite build)
+- `_tests/jvm/*`, `_tests/jdk8/*`, `_tests/android/*`, `_tests/android-legacy/*` — Gradle plugin compatibility tests (separate composite build)
+- `_latest-tests/jvm/*`, `_latest-tests/android/*`, `_latest-tests/tests/*` — Latest Kotlin/Gradle/AGP version tests (separate composite build)
 
 ## Architecture
 
