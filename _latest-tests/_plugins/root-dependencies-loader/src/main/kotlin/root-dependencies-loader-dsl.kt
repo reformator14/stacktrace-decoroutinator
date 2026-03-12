@@ -8,7 +8,7 @@ import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloade
 import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloader.applyTo
 import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloader.buildDependenciesConfiguration
 import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloader.getRootDependenciesBuildLibsClassesJar
-import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloader.getRootDependenciesClassesJar
+import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloader.getRootDependenciesFile
 import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloader.libsCoroutinesCoreBuild
 import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloader.libsJunit4
 import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloader.libsJupiterApi
@@ -86,8 +86,8 @@ val Project.decoroutinatorCommon: DependenciesConfiguration
 
 val Project.decoroutinatorTestsDuplicateEntityJar: DependenciesConfiguration
     get() = buildDependenciesConfiguration {
-        addApi(getRootDependenciesClassesJar(
-            "tests", "duplicate-entity-jar", "build"
+        addApi(getRootDependenciesFile(
+            "tests", "duplicate-entity-jar", "build", "duplicate-entity.jar"
         ))
     }
 

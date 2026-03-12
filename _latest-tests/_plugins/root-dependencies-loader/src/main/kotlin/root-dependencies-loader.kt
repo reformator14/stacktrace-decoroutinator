@@ -98,6 +98,17 @@ internal fun Project.getRootDependenciesBuildLibsClassesJar(
 ): Dependencies =
     getRootDependenciesClassesJar(*path, "build", "libs")
 
+internal fun Project.getRootDependenciesFile(vararg segments: String): Dependencies {
+    val dirSegments = segments.asSequence().take(segments.size - 1)
+    val fileName = segments.last()
+    val dir = dirSegments.fold<String, Provider<Directory>>(
+        initial = rootDependenciesLoader.rootPath
+    ) { dir, segment ->
+        dir.map { it.dir(segment) }
+    }
+    return files(dir.map { it.file(fileName) }).toDependencies
+}
+
 internal val Project.libsAsmUtils: Dependencies
     get() = libs.reflectGet("asm").reflectGet("utils").toDependencies
 
