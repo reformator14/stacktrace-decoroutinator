@@ -43,7 +43,7 @@ Multi-module Gradle project (Kotlin DSL) with ~40 submodules. Key layout:
 
 - **`_plugins/`** — Custom Gradle plugins (bytecode-processor, force-variant-java-version) included as composite builds
 - **`_tests/`** — Gradle plugin + compatibility test projects (composite build, run separately)
-- **`_latest-tests/`** — Tests against the latest Kotlin, Gradle, and AGP versions (separate composite build with its own gradlew). Re-compiles test sources from the main project with the latest Kotlin compiler. Has a custom `root-dependencies-loader` plugin to load JARs from the main build. Submodules: `jvm/dynamic-agent-tests`, `jvm/gradle-plugin-tests`, `android/gradle-plugin-tests`, `tests`, `tests/methods-with-spaces-tests`
+- **`_latest-tests/`** — Tests against the latest Kotlin, Gradle, and AGP versions (separate composite build with its own gradlew). Re-compiles test sources from the main project with the latest Kotlin compiler. Submodules: `jvm/dynamic-agent-tests`, `jvm/gradle-plugin-tests`, `android/gradle-plugin-tests`, `tests`, `tests/methods-with-spaces-tests`
 
 ### Core modules (published to Maven Central):
 
@@ -62,6 +62,18 @@ Multi-module Gradle project (Kotlin DSL) with ~40 submodules. Key layout:
 | `jvm-agent-common` | Shared agent transformation logic |
 | `gradle-plugin` | Gradle plugin for build-time bytecode transformation |
 | `intrinsics` | Compiler intrinsics for compile-time optimizations |
+
+### `_latest-tests` infrastructure:
+
+The `_latest-tests/_plugins/root-dependencies-loader` composite build plugin provides a DSL for loading prebuilt JARs from the main build into `_latest-tests` subprojects. It defines `DependenciesConfiguration` (split into `api` and `runtime` parts) and extension properties on `Project` in `root-dependencies-loader-dsl.kt`:
+
+- **`bytecodeProcessorIntrinsics/Api/Plugins/GradlePlugin`** — bytecode-processor plugin JARs from `_plugins/bytecode-processor/`
+- **`decoroutinatorProvider/RuntimeSettings/Common`** — core library JARs
+- **`decoroutinatorTests/TestsDuplicateEntityJar/TestsMethodWithSpacesTests`** — test utility JARs
+- **`decoroutinatorSpecMethodBuilder/ClassTransformer/MhInvoker/GeneratorJvm/JvmAgentCommon/Jvm`** — JVM runtime JARs
+- **`decoroutinatorGradlePlugin`** — Gradle plugin JAR
+
+Each property mirrors the Gradle dependency scope of the original module (`api` deps → `addApi`, `implementation`/`runtimeOnly` deps → `addRuntime`). When adding a new property, read the corresponding `build.gradle.kts` to map its deps. The `DependencyHandler` extensions `implementation(DependenciesConfiguration)`, `api(...)`, `compileOnly(...)`, `runtimeOnly(...)`, `testImplementation(...)`, `testRuntimeOnly(...)` apply configurations to the correct Gradle configurations.
 
 ### Test modules:
 - `tests` — Shared test utilities (retrace tool, runtime tests); submodules: `tests:custom-loader`, `tests:methods-with-spaces-tests`, `tests:naive-base-continuation-accessor`, `tests:duplicate-entity-jar`, `tests:aar`, `tests:bytecode-processor`
