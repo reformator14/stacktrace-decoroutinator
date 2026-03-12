@@ -118,7 +118,7 @@ private fun BaseContinuation.stdlibAwake(accessor: BaseContinuationAccessor, res
         if (newResult === COROUTINE_SUSPENDED) return
         baseContinuation = baseContinuation.completion!! as? BaseContinuation ?: break
     } while (true)
-    baseContinuation.completion!!.resumeWith(Result.success(newResult))
+    baseContinuation.completion!!.resumeWith(newResult.toResult)
 }
 
 private fun BaseContinuation.callSpecMethods(
