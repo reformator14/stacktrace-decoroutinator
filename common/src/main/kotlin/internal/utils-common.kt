@@ -224,7 +224,7 @@ internal inline fun BaseContinuation.callInvokeSuspend(
     val newResult = try {
         accessor.invokeSuspend(this, result)
     } catch (exception: Throwable) {
-        return createFailure(exception)
+        createFailure(exception)
     }
     if (newResult === COROUTINE_SUSPENDED) {
         return newResult
