@@ -26,7 +26,7 @@ internal class StacktraceElementsFactoryImpl: StacktraceElementsFactory {
         val elementsByLabel = spec.elementsByLabel ?: return null
         val label = spec.getLabel(baseContinuation)
         if (label == UNKNOWN_LABEL) return elementsByLabel[0]
-        return elementsByLabel[label]
+        return elementsByLabel[label and Int.MAX_VALUE]
     }
 
     override fun getLabel(baseContinuation: BaseContinuation): Int =

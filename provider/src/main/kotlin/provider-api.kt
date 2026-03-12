@@ -73,7 +73,7 @@ interface BaseContinuationExtractor: ContinuationCached {
     val `$decoroutinator$caches`: Array<SpecCache>
 
     override val `$decoroutinator$cache`: SpecCache
-        get() = `$decoroutinator$caches`[`$decoroutinator$label`]
+        get() = `$decoroutinator$caches`[`$decoroutinator$label` and Int.MAX_VALUE]
 }
 
 interface ManualContinuation: ContinuationCached {
