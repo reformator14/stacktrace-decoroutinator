@@ -104,3 +104,13 @@ Custom `_plugins/bytecode-processor` Gradle plugin applies compile-time transfor
 - All published modules use the group `dev.reformator.stacktracedecoroutinator`
 - Dependencies are managed via `gradle/libs.versions.toml` version catalog
 - Kotlin incremental compilation is disabled (`kotlin.incremental=false` in `gradle.properties`)
+
+### Internal implementation gotchas:
+
+**`$label` high-bit flag**: Kotlin's coroutine state machine sets the high bit (`or Int.MIN_VALUE`) on `$label` when actively executing inside `invokeSuspend` (re-entry guard). Any code using `$label` as an array index must strip the high bit: `label and Int.MAX_VALUE`. The sentinel `NONE_LABEL = Int.MIN_VALUE / 2` means "no debug metadata"; `UNKNOWN_LABEL = NONE_LABEL - 1` means "label field inaccessible". See `tailCallDeoptimize` in `provider-impl.kt` for the canonical guard pattern.
+
+**Raw result values**: The awakener passes raw `Any?` values (not `Result<T>` wrappers) through the coroutine chain. Since `Result<T>` is `@JvmInline`, a `Result.Failure` object IS the raw failure value and `Result.success(x)` at JVM bytecode level is just `x`. Therefore `Result.success(createFailure(e))` correctly delivers a failure to `resumeWith`. The `toResult` extension property is `@SkipInvocations` — a no-op cast at bytecode level.
+
+**`releaseIntercepted()` contract**: Must be called after `invokeSuspend` completes for both success and exception paths, but NOT when it returns `COROUTINE_SUSPENDED`. This mirrors `BaseContinuationImpl.resumeWith` in the standard library.
+
+**Bytecode intrinsics**: `@SkipInvocations` removes the call instruction leaving the receiver on the stack; `@ChangeClassName` renames the class in bytecode; `@ChangeInvocationsOwner` redirects method call owner; `@GetOwnerClass` injects the class literal; `@MethodNameConstant` injects the method name as a string constant.
