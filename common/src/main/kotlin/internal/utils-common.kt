@@ -98,7 +98,7 @@ internal inline fun <reified T: Any> loadService(): T? =
     loadService(T::class.java)
 
 internal fun Class<*>.getBodyStream(loader: ClassLoader): InputStream? =
-    loader.getResourceAsStream(name.internalName + ".class")
+    loader.getResourceAsStream("${name.internalName}.class")
 
 internal fun Class<*>.getBodyStream(): InputStream? =
     classLoader?.let { getBodyStream(it) }

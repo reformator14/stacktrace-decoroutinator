@@ -79,11 +79,11 @@ interface BaseContinuationExtractor: ContinuationCached {
 interface ManualContinuation: ContinuationCached {
     @Suppress("PropertyName")
     @get:MethodNameConstant("manualContinuationGetCacheFieldMethodName")
-    val `$decoroutinator$cacheField`: SpecCache
+    val `$decoroutinator$cacheField`: SpecCache?
 
     override val `$decoroutinator$cache`: SpecCache?
         get() {
-            val cache = `$decoroutinator$cacheField`
+            val cache = `$decoroutinator$cacheField` ?: return null
             return if (javaClass.name == cache.element.className) cache else null
         }
 }
