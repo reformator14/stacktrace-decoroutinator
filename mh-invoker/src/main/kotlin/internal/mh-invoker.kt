@@ -38,6 +38,7 @@ internal class RegularMethodHandleInvoker: MethodHandleInvoker {
 }
 
 internal class RegularVarHandleInvoker: VarHandleInvoker {
+    @Suppress("NewApi")
     override fun getIntVar(handle: VarHandle, owner: Any): Int =
         handle[owner] as Int
 }
@@ -60,9 +61,10 @@ private class _support {
 @Suppress("ClassName")
 @AndroidKeep
 private class _supportVarHandle {
+    @Suppress("NewApi")
     fun verifyVarHandle() {
         val varHandle = MethodHandles.lookup().findVarHandle(
-            _support::class.java,
+            _supportVarHandle::class.java,
             ::field.name,
             Int::class.javaPrimitiveType
         )
