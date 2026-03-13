@@ -20,6 +20,7 @@ import dev.reformator.stacktracedecoroutinator.runtimesettings.internal.getRunti
 import java.io.IOException
 import java.lang.invoke.MethodHandle
 import java.lang.invoke.MethodHandles
+import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.nio.ByteBuffer
@@ -142,4 +143,8 @@ private val classLoaderFindClassMethod: Method =
     }
 
 private fun ClassLoader.findClass(className: String): Class<*>? =
-    classLoaderFindClassMethod.invoke(this, className) as Class<*>?
+    try {
+        classLoaderFindClassMethod.invoke(this, className) as Class<*>?
+    } catch (e: InvocationTargetException) {
+        throw e.cause ?: e
+    }

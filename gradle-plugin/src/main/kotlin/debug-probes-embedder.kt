@@ -90,7 +90,7 @@ private inline fun Artifact.processArtifact(
                             return true
                         }
                     }
-                    newArtifact.addFile(path, reader())
+                    reader().use { newArtifact.addFile(path, it) }
                     return true
                 }
 
