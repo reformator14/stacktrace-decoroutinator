@@ -114,3 +114,9 @@ Custom `_plugins/bytecode-processor` Gradle plugin applies compile-time transfor
 **`releaseIntercepted()` contract**: Must be called after `invokeSuspend` completes for both success and exception paths, but NOT when it returns `COROUTINE_SUSPENDED`. This mirrors `BaseContinuationImpl.resumeWith` in the standard library.
 
 **Bytecode intrinsics**: `@SkipInvocations` removes the call instruction leaving the receiver on the stack; `@ChangeClassName` renames the class in bytecode; `@ChangeInvocationsOwner` redirects method call owner; `@GetOwnerClass` injects the class literal; `@MethodNameConstant` injects the method name as a string constant.
+
+**`supportsVarHandle` check in `mh-invoker`**: `_supportVarHandle.verifyVarHandle()` in `mh-invoker/src/main/kotlin/internal/mh-invoker.kt` must use `_supportVarHandle::class.java` (not `_support::class.java`) in the `findVarHandle` call. Using the wrong class causes `NoSuchFieldException`, silently disabling VarHandle-based label reads and forcing a slower reflection fallback on every coroutine resume.
+
+**Spec method chain execution order**: Spec methods create a nested real JVM call chain (outermost spec method calls inner, which calls inner, etc.). `DecoroutinatorSpec.resumeNext` calls `nextContinuation.callInvokeSuspend` — the `nextContinuation` is always one level *below* the current spec (the spec represents the line number of the frame *above* the continuation it resumes). Execution order: innermost continuation first (via `resumeNext` of the innermost spec), then each outer continuation in turn.
+
+**`SpecCache.specMethod` benign race**: Written without synchronization (two threads may both compute and write the same handle), which is benign since MethodHandle instances are immutable and the computation is pure.

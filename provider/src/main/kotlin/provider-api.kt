@@ -92,7 +92,7 @@ interface ManualContinuation: ContinuationCached {
 class SpecCache(
     val element: StackTraceElement
 ) {
-    var speckMethod: MethodHandle? = null
+    var specMethod: MethodHandle? = null
 
     constructor(
         className: String,

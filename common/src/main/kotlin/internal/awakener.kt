@@ -58,10 +58,10 @@ private inline fun CoroutineStackFrame.getElementAndSpecMethod(
     contract { callsInPlace(consumer, InvocationKind.EXACTLY_ONCE) }
     val cache = (this as? ContinuationCached)?.`$decoroutinator$cache`
     if (cache != null) {
-        val specMethod = cache.speckMethod ?: run {
+        val specMethod = cache.specMethod ?: run {
             val specMethod = specMethodsFactory.getSpecMethodHandle(cache.element) ?:
                 methodHandleInvoker.unknownSpecMethodHandle
-            cache.speckMethod = specMethod
+            cache.specMethod = specMethod
             specMethod
         }
         consumer(cache.element, specMethod)
