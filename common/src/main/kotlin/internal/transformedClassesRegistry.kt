@@ -47,8 +47,8 @@ internal class TransformedClassesRegistryImpl: TransformedClassesRegistry {
         } catch (_: GenericSignatureFormatError) {
             if (annotationMetadataResolver != null) {
                 try {
-                    clazz.getBodyStream(loader)?.use {
-                        annotationMetadataResolver.getTransformationMetadata(it)
+                    clazz.getBodyStream(loader)?.use { body ->
+                        annotationMetadataResolver.getTransformationMetadata(body)
                     }
                 } catch (_: Exception) {
                     null
@@ -59,15 +59,13 @@ internal class TransformedClassesRegistryImpl: TransformedClassesRegistry {
         }
         if (meta != null) {
             val transformedClassSpec = run {
-                val lineNumbersByMethod = meta.methods.asSequence()
-                    .map { it.name to it.lineNumbers }
-                    .toMap(
-                        if (meta.methods.size < methodsNumberThreshold) {
-                            CompactMap()
-                        } else {
-                            newHashMapForSize(meta.methods.size)
-                        }
-                    )
+                val lineNumbersByMethod = meta.methods.associateTo(
+                    if (meta.methods.size < methodsNumberThreshold) {
+                        CompactMap()
+                    } else {
+                        newHashMapForSize(meta.methods.size)
+                    }
+                ) { it.name to it.lineNumbers }
                 TransformedClassesRegistry.TransformedClassSpec(
                     transformedClass = clazz,
                     fileName = meta.fileName,
@@ -82,12 +80,12 @@ internal class TransformedClassesRegistryImpl: TransformedClassesRegistry {
     }
 
     private fun callListeners(spec: TransformedClassesRegistry.TransformedClassSpec) {
-        listeners.forEach {
+        listeners.forEach { listener ->
             try {
-                it.onNewTransformedClass(spec)
+                listener.onNewTransformedClass(spec)
             } catch (exception: Throwable) {
                 try {
-                    it.onException(exception)
+                    listener.onException(exception)
                 } catch (_: Throwable) {}
             }
         }
