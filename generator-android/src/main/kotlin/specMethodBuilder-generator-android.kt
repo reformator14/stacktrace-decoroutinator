@@ -192,10 +192,10 @@ private fun OutputFinisher.callNextSpec(
         fileName = fileName,
         lineNumbers = lineNumbers,
         invalidLineLabel = invalidLineLabel
-    ) {
+    ) { sourcePosition ->
         add(MultiCstInsn(
             Dops.INVOKE_POLYMORPHIC,
-            it,
+            sourcePosition,
             RegisterSpecList.make(aux1MethodHandle, aux2Spec, result),
             arrayOf(
                 CstMethodRef(
@@ -212,7 +212,7 @@ private fun OutputFinisher.callNextSpec(
         ))
         add(SimpleInsn(
             Dops.MOVE_RESULT_OBJECT,
-            it,
+            sourcePosition,
             RegisterSpecList.make(result)
         ))
     }
@@ -227,10 +227,10 @@ private fun OutputFinisher.resumeNext(
         fileName = fileName,
         lineNumbers = lineNumbers,
         invalidLineLabel = invalidLineLabel
-    ) {
+    ) { sourcePosition ->
         add(CstInsn(
             Dops.INVOKE_INTERFACE,
-            it,
+            sourcePosition,
             RegisterSpecList.make(spec, result),
             CstMethodRef(
                 CstType(specClass),
@@ -242,7 +242,7 @@ private fun OutputFinisher.resumeNext(
         ))
         add(SimpleInsn(
             Dops.MOVE_RESULT_OBJECT,
-            it,
+            sourcePosition,
             RegisterSpecList.make(result)
         ))
     }
