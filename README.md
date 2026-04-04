@@ -1,14 +1,16 @@
 [![Maven Central](https://img.shields.io/maven-central/v/dev.reformator.stacktracedecoroutinator/stacktrace-decoroutinator-common 'JVM artifact')](https://central.sonatype.com/artifact/dev.reformator.stacktracedecoroutinator/stacktrace-decoroutinator-jvm)
-[![Gradle Plugin Portal Version](https://img.shields.io/gradle-plugin-portal/v/dev.reformator.stacktracedecoroutinator 'Gradle plugin')](https://plugins.gradle.org/plugin/dev.reformator.stacktracedecoroutinator)
+[![Gradle Plugin](https://img.shields.io/gradle-plugin-portal/v/dev.reformator.stacktracedecoroutinator 'Gradle plugin')](https://plugins.gradle.org/plugin/dev.reformator.stacktracedecoroutinator)
+[![Kotlin Foundation Grantee](https://img.shields.io/badge/Kotlin%20Foundation-Grantee-blue 'Winner of the Kotlin Foundation Grants Program')](https://kotlinfoundation.org/news/grants-program-winners-25/)
+
 # Stacktrace-decoroutinator
-Library for recovering stack trace in exceptions thrown in Kotlin coroutines.
+Library for recovering stack traces in exceptions thrown in Kotlin coroutines.
 
 Supports JVM 1.8 or higher and Android API 14 or higher.
 
-### Motivation
-Coroutines is a significant Kotlin feature that allows you to write asynchronous code in synchronous style.
+## Motivation
+Coroutines are a significant Kotlin feature that allows you to write asynchronous code in a synchronous style.
 
-It's absolutely perfect until you need to investigate problems in your code.
+This works perfectly until you need to debug problems in your code.
 
 One of the common problems is the shortened stack trace in exceptions thrown in coroutines. For example, this code prints out the stack trace below:
 ```kotlin
@@ -61,7 +63,7 @@ java.lang.Exception: exception at 1641842199891
   at MainKt.main(main.kt:21)
   at MainKt.main(main.kt)
 ```
-The stack trace doesn't represent the true coroutine call stack: calls of functions `fun3` and `fun2` are absent.
+The stack trace is missing calls to `fun3` and `fun2`, so it does not represent the true coroutine call stack.
 
 In complex systems, even more calls may be missing. This can make debugging much more difficult.
 
@@ -70,27 +72,27 @@ Some examples of suffering from this problem:
 - https://stackoverflow.com/questions/54349418/how-to-recover-the-coroutines-true-call-trace
 - https://stackoverflow.com/questions/69226016/how-to-get-full-exception-stacktrace-when-using-await-on-completablefuture
 
-The Kotlin team is aware of the problem and has come up with a [solution](https://github.com/Kotlin/kotlinx.coroutines/blob/master/docs/topics/debugging.md#stacktrace-recovery), but it solves just a part of the cases.
+The Kotlin team is aware of the problem and has come up with a [solution](https://github.com/Kotlin/kotlinx.coroutines/blob/master/docs/topics/debugging.md#stacktrace-recovery), but it only addresses some cases.
 For example, the exception from the example above still lacks some calls.
 
-### Solution
-Decoroutinator replaces the coroutine awakening implementation.
+## Solution
+Decoroutinator replaces the coroutine resumption implementation.
 
 It generates methods at runtime with names that match the entire coroutine call stack.
 
-These methods don't do anything except call each other in the coroutine call stack order.
+These methods do nothing except call each other sequentially in coroutine call stack order, creating real JVM stack frames.
 
-Thus, if the coroutine throws an exception, they mimic the real call stack of the coroutine during the creation of the exception stacktrace.
+Thus, if the coroutine throws an exception, the stack trace reflects the full coroutine call chain.
 
 Check out [the Decoroutinator playground](https://decoroutinator.reformator.dev/playground/).
 
-### JVM
-There are three possible ways to enable Decoroutinator for a JVM.
-1. If you build your project with Gradle, just apply the Gradle plugin with id `dev.reformator.stacktracedecoroutinator`.
-2. Add `-javaagent:stacktrace-decoroutinator-jvm-agent-2.6.1.jar` to your JVM start arguments. The corresponding dependency is `dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-jvm-agent:2.6.1`.
-3. Add the dependency `dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-jvm:2.6.1` and call method `DecoroutinatorJvmApi.install()`.
+## JVM
+There are three ways to enable Decoroutinator on the JVM:
+1. If you build your project with Gradle, apply the Gradle plugin with id `dev.reformator.stacktracedecoroutinator`.
+2. Add `-javaagent:/path/to/stacktrace-decoroutinator-jvm-agent-2.6.2.jar` to your JVM startup arguments. The corresponding dependency is `dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-jvm-agent:2.6.2`.
+3. Add the dependency `dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-jvm:2.6.2` and call `DecoroutinatorJvmApi.install()`.
 
-The first option generates auxiliary methods at build time, and the other two use the Java instrumentation API at runtime.
+The first option generates auxiliary methods at build time; the other two use the Java instrumentation API at runtime.
 
 Usage example:
 ```kotlin
@@ -156,38 +158,37 @@ java.lang.Exception: exception at 1764729227496
 	at dev.reformator.stacktracedecoroutinator.jvmtests.ExampleKt.main(example.kt)
 ```
 
-### Android
-For Android there is only one option to enable Stacktrace-decoroutinator - apply the Gradle plugin `dev.reformator.stacktracedecoroutinator` to your application's project.
+## Android
+For Android, the only supported option is to apply the Gradle plugin to your application project:
 ```kotlin
 plugins {
-    id("dev.reformator.stacktracedecoroutinator") version "2.6.1"
+    id("dev.reformator.stacktracedecoroutinator") version "2.6.2"
 }
 ```
-Besides, Decoroutinator uses [MethodHandle API](https://developer.android.com/reference/java/lang/invoke/MethodHandle) which requires Android API level at least 26 (Android 8) so the stack trace recovery machinery doesn't work on Android less than 8.
+Note that Decoroutinator uses the [MethodHandle API](https://developer.android.com/reference/java/lang/invoke/MethodHandle), which requires Android API 26 (Android 8) or higher. Stack trace recovery does not work on older Android versions.
 
-### Embedding DebugProbes
-Also, Decoroutinator allows to embed [DebugProbes](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-debug/kotlinx.coroutines.debug/-debug-probes/) into your Android application.
-DebugProbes is a mechanism for dumping coroutine state and stack traces at runtime.
-It can be useful for debugging purposes.
+## Embedding DebugProbes
+Decoroutinator also allows embedding [DebugProbes](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-debug/kotlinx.coroutines.debug/-debug-probes/) into your Android application.
+DebugProbes is a mechanism for dumping coroutine state and stack traces at runtime, useful for debugging.
 ```kotlin
 stacktraceDecoroutinator {
     embedDebugProbesForAndroid = true
-    // or following line if you want to embed DebugProbes only for tests
+    // or the following if you want to embed DebugProbes only for tests:
     // embedDebugProbesForAndroidTest = true
 }
 ```
 
-### Using Decoroutinator Gradle plugin only for tests
-If you want to use Decoroutinator for test only, it's recommended to separate your tests in a different Gradle subproject and apply Decoroutinator Gradle plugin to it.
-But if you don't want to separate your tests, it's still possible by adding a configuration below to your `build.gradle.kts`:
+## Using the Gradle Plugin Only for Tests
+If you want to use Decoroutinator for tests only, the recommended approach is to place your tests in a separate Gradle subproject and apply the Decoroutinator Gradle plugin there.
+If you cannot separate your tests, you can still restrict it by adding the following to your `build.gradle.kts`:
 ```kotlin
 stacktraceDecoroutinator {
     androidTestsOnly = true
 }
 ```
 
-### Using Decoroutinator Gradle plugin on Android with minification enabled
-Please add the following ProGuard config file to your `build.gradle.kts` for Decoroutinator:
+## Using the Gradle Plugin on Android with Minification Enabled
+Add the following ProGuard configuration to your `build.gradle.kts`:
 ```kotlin
 android {
     buildTypes {
@@ -198,18 +199,18 @@ android {
 }
 ```
 
-### Using Decoroutinator with Kotest
-[Kotest](https://kotest.io) 6.0 offers decoroutinator support out of the box.
-See documentation on how to integrate [here](https://kotest.io/docs/extensions/decoroutinator.html).
+## Using Decoroutinator with Kotest
+[Kotest](https://kotest.io) 6.0 offers Decoroutinator support out of the box.
+See the documentation on how to integrate [here](https://kotest.io/docs/extensions/decoroutinator.html).
 
-### Problem with Shadow Gradle plugin
-There is [a bug](https://github.com/GradleUp/shadow/issues/882) in Shadow Gradle plugin which may lead to some build issues when both Decoroutinator as a Gradle plugin and Shadow are applied. But there are some [workarounds](https://github.com/GradleUp/shadow/issues/882#issuecomment-1715703146) for it. See more at https://github.com/reformator14/stacktrace-decoroutinator/issues/46. 
+## Known Issue: Shadow Gradle Plugin
+There is [a bug](https://github.com/GradleUp/shadow/issues/882) in the Shadow Gradle plugin that may cause build issues when both the Decoroutinator Gradle plugin and Shadow are applied. Several [workarounds](https://github.com/GradleUp/shadow/issues/882#issuecomment-1715703146) are available. See https://github.com/reformator14/stacktrace-decoroutinator/issues/46 for details.
 
-### Problem with Jacoco
-Using Jacoco and Decoroutinator as a Java agent may lead to the loss of code coverage. It's [a common Jacoco Problem](https://www.eclemma.org/jacoco/trunk/doc/classids.html). In order not to lose coverage, make sure that the Jacoco agent comes before the Decoroutinator agent. See more at https://github.com/reformator14/stacktrace-decoroutinator/issues/24.
+## Known Issue: Jacoco
+Using Decoroutinator as a Java agent alongside Jacoco may result in lost code coverage. This is [a known Jacoco limitation](https://www.eclemma.org/jacoco/trunk/doc/classids.html). To avoid losing coverage, ensure the Jacoco agent is listed before the Decoroutinator agent in your JVM arguments. See https://github.com/reformator14/stacktrace-decoroutinator/issues/24 for details.
 
-### Usage with Robolectric
-[Robolectric](https://robolectric.org/) puts some Decoroutinator classes in different class loaders by default, which leads to an exception during the execution of tests. To fix this please add the following config to your `build.gradle.kts`:
+## Usage with Robolectric
+[Robolectric](https://robolectric.org/) places some Decoroutinator classes in separate class loaders by default, which causes an exception during test execution. To fix this, add the following to your `build.gradle.kts`:
 ```kotlin
 android {
     testOptions {
@@ -223,8 +224,11 @@ android {
 }
 ```
 
-### Troubleshooting
-You can call function `DecoroutinatorCommonApi.getStatus { it() }` at runtime to check if Decoroutinator has been successfully installed.
+## Troubleshooting
+To check whether Decoroutinator has been successfully installed at runtime, call:
+```kotlin
+DecoroutinatorCommonApi.getStatus { it() }
+```
 
-### Communication
-Feel free to ask any question at [Discussions](https://github.com/reformator14/stacktrace-decoroutinator/discussions).
+## Communication
+Feel free to ask any questions at [Discussions](https://github.com/reformator14/stacktrace-decoroutinator/discussions).

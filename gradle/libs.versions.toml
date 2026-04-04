@@ -29,7 +29,7 @@ androidx-test-monitor = { group = "androidx.test", name = "monitor", version = "
 kotlin-logging-jvm = { group = "io.github.oshai", name = "kotlin-logging-jvm", version = "7.0.0" }
 #noinspection GradleDependency
 kotlin-gradle-plugin-api = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin-api", version = "1.7.0" }
-byte-buddy-agent = { group = "net.bytebuddy", name = "byte-buddy-agent", version = "1.18.7" }
+byte-buddy-agent = { group = "net.bytebuddy", name = "byte-buddy-agent", version = "1.18.8" }
 #noinspection NewerVersionAvailable
 ktor-io-jvm = { group = "io.ktor", name = "ktor-io-jvm", version = "2.0.1" }
 jupiter-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "jupiter" }

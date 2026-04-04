@@ -35,7 +35,7 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Initialize test build
-        run: ./gradlew initTestsBuild && echo "sdk.dir=$ANDROID_SDK_ROOT" > _tests/local.properties
+        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > _tests/local.properties
 
       - name: Run root build's tests
         run: ./gradlew test
