@@ -1,14 +1,14 @@
 [versions]
 kotlin-build = "1.9.0"
 #noinspection UnusedVersionCatalogEntry
-kotlin-latest = "2.3.20"
+kotlin-latest = "2.4.0-Beta2"
 #noinspection AndroidGradlePluginVersion
 agp-build = "8.12.0"
 #noinspection UnusedVersionCatalogEntry
-agp-latest = "9.1.0"
+agp-latest = "9.2.0"
 #noinspection NewerVersionAvailable
 coroutines-build = "1.8.1"
-coroutines-latest = "1.10.2"
+coroutines-latest = "1.11.0-rc01"
 #noinspection NewerVersionAvailable
 jackson = "2.19.2"
 plugin-shadow = "9.2.2"
