@@ -9,7 +9,7 @@ plugins {
 
 allprojects {
     group = "dev.reformator.stacktracedecoroutinator"
-    version = "2.6.3"
+    version = "2.6.4-SNAPSHOT"
 }
 
 repositories {
