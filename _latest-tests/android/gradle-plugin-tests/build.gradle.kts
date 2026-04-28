@@ -1,4 +1,5 @@
 plugins {
+    alias(libs.plugins.root.dependencies.loader)
     alias(libs.plugins.android.application)
     alias(libs.plugins.decoroutinator)
 }
@@ -9,9 +10,10 @@ repositories {
 }
 
 dependencies {
-    androidTestImplementation(project(":tests"))
-
     androidTestRuntimeOnly(libs.androidx.test.runner)
+    androidTestRuntimeOnly(decoroutinatorMhInvoker)
+
+    androidTestImplementation(project(":tests"))
 }
 
 stacktraceDecoroutinator {

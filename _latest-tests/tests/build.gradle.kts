@@ -23,8 +23,8 @@ repositories {
 
 dependencies {
     compileOnly(bytecodeProcessorIntrinsics)
-    compileOnly(decoroutinatorCommon)
 
+    implementation(decoroutinatorCommon)
     implementation(libs.jupiter.api)
     implementation(libs.junit4)
     implementation(libs.coroutines.core.latest)

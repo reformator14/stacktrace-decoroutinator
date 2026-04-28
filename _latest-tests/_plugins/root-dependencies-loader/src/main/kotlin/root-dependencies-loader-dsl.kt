@@ -207,3 +207,8 @@ fun DependencyHandler.testRuntimeOnly(dependencies: DependenciesConfiguration) {
     dependencies.api.applyTo(this, "testRuntimeOnly")
     dependencies.runtime.applyTo(this, "testRuntimeOnly")
 }
+
+fun DependencyHandler.androidTestRuntimeOnly(dependencies: DependenciesConfiguration) {
+    dependencies.api.applyTo(this, "androidTestRuntimeOnly")
+    dependencies.runtime.applyTo(this, "androidTestRuntimeOnly")
+}
