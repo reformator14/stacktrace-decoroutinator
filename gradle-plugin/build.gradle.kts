@@ -1,3 +1,4 @@
+import dev.reformator.bytecodeprocessor.plugins.ChangeClassNameProcessor
 import dev.reformator.bytecodeprocessor.plugins.LoadConstantProcessor
 import org.gradle.kotlin.dsl.named
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
@@ -103,7 +104,7 @@ bytecodeProcessor {
         project(":stacktrace-decoroutinator-generator-jvm"),
         project(":gradle-plugin:base-continuation-accessor")
     )
-    processors = listOf(LoadConstantProcessor)
+    processors = listOf(ChangeClassNameProcessor, LoadConstantProcessor)
     initContext {
         LoadConstantProcessor.addValues(this, mapOf("version" to project.version.toString()))
     }

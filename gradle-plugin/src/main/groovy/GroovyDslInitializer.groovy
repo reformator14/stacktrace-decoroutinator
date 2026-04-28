@@ -1,16 +1,14 @@
 //file:noinspection GrPackage
 
-package dev.reformator.stacktracedecoroutinator.gradleplugin.groovy
+package dev.reformator.stacktracedecoroutinator.gradleplugin
 
-import dev.reformator.stacktracedecoroutinator.gradleplugin.GroovyDslInitializer
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.ApiGradlePluginDecoroutinatorKt
 import org.jetbrains.annotations.NotNull
 
-
-class GroovyDslInitializerImpl implements GroovyDslInitializer {
-    @Override
-    void initGroovyDsl(@NotNull Project target) {
+@SuppressWarnings('unused')
+class GroovyDslInitializer {
+    static void initGroovyDsl(@NotNull Project target) {
         target.metaClass.decoroutinatorAndroidProGuardRules = { ->
             ApiGradlePluginDecoroutinatorKt.decoroutinatorAndroidProGuardRules(target)
         }

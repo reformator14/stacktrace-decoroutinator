@@ -16,7 +16,6 @@ import org.gradle.api.artifacts.type.ArtifactTypeDefinition
 import org.gradle.api.tasks.compile.AbstractCompile
 import org.gradle.kotlin.dsl.*
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
-import java.util.ServiceLoader
 
 private val log = KotlinLogging.logger { }
 
@@ -24,7 +23,7 @@ private val log = KotlinLogging.logger { }
 class DecoroutinatorPlugin: Plugin<Project> {
     override fun apply(target: Project) {
         log.debug { "applying Decoroutinator plugin to [${target.name}]" }
-        groovyDslInitializer.initGroovyDsl(target)
+        initGroovyDsl(target)
         with (target) {
             val pluginExtension = extensions.create(EXTENSION_NAME, DecoroutinatorPluginExtension::class.java)
             dependencies.attributesSchema.attribute(decoroutinatorTransformedStateAttribute)
@@ -74,12 +73,6 @@ class DecoroutinatorPlugin: Plugin<Project> {
         }
     }
 }
-
-internal fun interface GroovyDslInitializer {
-    fun initGroovyDsl(target: Project)
-}
-
-private val groovyDslInitializer = ServiceLoader.load(GroovyDslInitializer::class.java).iterator().next()!!
 
 private val Project.isAndroid: Boolean
     get() = pluginManager.hasPlugin("com.android.base")
