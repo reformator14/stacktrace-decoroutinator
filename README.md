@@ -89,8 +89,8 @@ Check out [the Decoroutinator playground](https://decoroutinator.reformator.dev/
 ## JVM
 There are three ways to enable Decoroutinator on the JVM:
 1. If you build your project with Gradle, apply the Gradle plugin with id `dev.reformator.stacktracedecoroutinator`.
-2. Add `-javaagent:/path/to/stacktrace-decoroutinator-jvm-agent-2.6.2.jar` to your JVM startup arguments. The corresponding dependency is `dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-jvm-agent:2.6.2`.
-3. Add the dependency `dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-jvm:2.6.2` and call `DecoroutinatorJvmApi.install()`.
+2. Add `-javaagent:/path/to/stacktrace-decoroutinator-jvm-agent-2.6.3.jar` to your JVM startup arguments. The corresponding dependency is `dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-jvm-agent:2.6.3`.
+3. Add the dependency `dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-jvm:2.6.3` and call `DecoroutinatorJvmApi.install()`.
 
 The first option generates auxiliary methods at build time; the other two use the Java instrumentation API at runtime.
 
@@ -162,7 +162,7 @@ java.lang.Exception: exception at 1764729227496
 For Android, the only supported option is to apply the Gradle plugin to your application project:
 ```kotlin
 plugins {
-    id("dev.reformator.stacktracedecoroutinator") version "2.6.2"
+    id("dev.reformator.stacktracedecoroutinator") version "2.6.3"
 }
 ```
 Note that Decoroutinator uses the [MethodHandle API](https://developer.android.com/reference/java/lang/invoke/MethodHandle), which requires Android API 26 (Android 8) or higher. Stack trace recovery does not work on older Android versions.
