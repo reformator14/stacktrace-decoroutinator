@@ -6,15 +6,11 @@ import dev.reformator.bytecodeprocessor.intrinsics.LoadConstant
 import dev.reformator.bytecodeprocessor.intrinsics.fail
 import dev.reformator.bytecodeprocessor.intrinsics.ownerClass
 import dev.reformator.stacktracedecoroutinator.classtransformer.internal.ClassBodyTransformationStatus
-import dev.reformator.stacktracedecoroutinator.classtransformer.internal.DebugMetadataInfo
-import dev.reformator.stacktracedecoroutinator.classtransformer.internal.getDebugMetadataInfoFromClass
-import dev.reformator.stacktracedecoroutinator.classtransformer.internal.getDebugMetadataInfoFromClassBody
 import dev.reformator.stacktracedecoroutinator.classtransformer.internal.noClassBodyTransformationStatus
 import dev.reformator.stacktracedecoroutinator.classtransformer.internal.transformClassBody
 import dev.reformator.stacktracedecoroutinator.intrinsics.BASE_CONTINUATION_CLASS_NAME
 import dev.reformator.stacktracedecoroutinator.provider.internal.internalName
 import dev.reformator.stacktracedecoroutinator.provider.providerApiClass
-import dev.reformator.stacktracedecoroutinator.runtimesettings.DecoroutinatorMetadataInfoResolveStrategy
 import java.io.ByteArrayInputStream
 import java.lang.instrument.ClassFileTransformer
 import java.lang.instrument.Instrumentation
@@ -86,35 +82,25 @@ private class DecoroutinatorClassFileTransformer(
         }
 
         if (classBeingRedefined != null) {
-            fun isClassRedefinitionAllowed(): Boolean {
-                if (!inst.isRedefineClassesSupported) return false
-                return if (classBeingRedefined.name == BASE_CONTINUATION_CLASS_NAME) {
+            val isRedefinitionAllowed = run {
+                if (!inst.isRedefineClassesSupported) return@run false
+                if (classBeingRedefined.name == BASE_CONTINUATION_CLASS_NAME) {
                     isBaseContinuationRedefinitionAllowed
                 } else {
                     isRedefinitionAllowed
                 }
             }
 
-            val transformationStatus = transformClassBody(
-                classBody = ByteArrayInputStream(classfileBuffer),
-                skipSpecMethods = false,
-                metadataResolver = metadataInfoResolveStrategy
-            )
-
-            return if (transformationStatus.updatedBody == null || isClassRedefinitionAllowed()) {
-                transformationStatus
-            } else {
-                ClassBodyTransformationStatus(
-                    updatedBody = null,
-                    needReadProviderModule = transformationStatus.needReadProviderModule
-                )
-            }
+            if (!isRedefinitionAllowed) return noClassBodyTransformationStatus
         }
 
         return transformClassBody(
             classBody = ByteArrayInputStream(classfileBuffer),
             skipSpecMethods = false,
-            metadataResolver = metadataInfoResolveStrategy
+            classBodyResolver = metadataResolver@{ className ->
+                val path = "${className.internalName}.class"
+                loader.getResourceAsStream(path)
+            }
         )
     }
 }
@@ -124,29 +110,6 @@ private val ClassLoader.hasProviderApiDependency: Boolean
         loadClass(providerApiClass.name) == providerApiClass
     } catch (_: ClassNotFoundException) {
         false
-    }
-
-internal val DecoroutinatorMetadataInfoResolveStrategy.resolveFunction: (className: String) -> DebugMetadataInfo?
-    get() = when (this) {
-        DecoroutinatorMetadataInfoResolveStrategy.SYSTEM_RESOURCE -> { className ->
-            val path = className.internalName + ".class"
-            getResourceAsStream(path)?.let { resource ->
-                resource.use {
-                    getDebugMetadataInfoFromClassBody(resource)
-                }
-            }
-        }
-
-        DecoroutinatorMetadataInfoResolveStrategy.CLASS -> { className ->
-            val clazz = try { Class.forName(className) } catch (_: ClassNotFoundException) { null }
-            clazz?.let { getDebugMetadataInfoFromClass(it) }
-        }
-
-        DecoroutinatorMetadataInfoResolveStrategy.SYSTEM_RESOURCE_AND_CLASS -> {
-            val systemResource = DecoroutinatorMetadataInfoResolveStrategy.SYSTEM_RESOURCE.resolveFunction
-            val classResource = DecoroutinatorMetadataInfoResolveStrategy.CLASS.resolveFunction
-            { systemResource(it) ?: classResource(it) }
-        }
     }
 
 private val suspendClassName: String

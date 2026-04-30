@@ -11,7 +11,6 @@ import dev.reformator.kmetarepack.jvm.KotlinClassMetadata
 import dev.reformator.kmetarepack.jvm.signature
 import dev.reformator.kmetarepack.jvm.Metadata as createMetadata
 import dev.reformator.stacktracedecoroutinator.intrinsics.BASE_CONTINUATION_CLASS_NAME
-import dev.reformator.stacktracedecoroutinator.intrinsics.DebugMetadata
 import dev.reformator.stacktracedecoroutinator.intrinsics.BaseContinuation
 import dev.reformator.stacktracedecoroutinator.intrinsics.LABEL_FIELD_NAME
 import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
@@ -44,7 +43,7 @@ class ClassBodyTransformationStatus(
 
 fun transformClassBody(
     classBody: InputStream,
-    metadataResolver: (className: String) -> DebugMetadataInfo?,
+    classBodyResolver: (className: String) -> InputStream?,
     skipSpecMethods: Boolean
 ): ClassBodyTransformationStatus {
     val node = getClassNode(classBody) ?: return noClassBodyTransformationStatus
@@ -85,7 +84,7 @@ fun transformClassBody(
             ).getNonSuspendFunctionSignatures()
 
             if (node.tryTransformSuspendMethods(
-                metadataResolver = metadataResolver,
+                classBodyResolver = classBodyResolver,
                 lineNumbersBySpecMethodName = lineNumbersBySpecMethodName,
                 notSuspendFunctionSignatures = notSuspendFunctionSignatures,
                 tailCallCaches = tailCallCaches
@@ -101,19 +100,6 @@ fun transformClassBody(
         )
     } else noClassBodyTransformationStatus
 }
-
-fun getDebugMetadataInfoFromClassBody(body: InputStream): DebugMetadataInfo? =
-    getClassNode(body, skipCode = true)?.debugMetadataInfo
-
-@Suppress("unused")
-fun getDebugMetadataInfoFromClass(clazz: Class<*>): DebugMetadataInfo? =
-    clazz.getDeclaredAnnotation(DebugMetadata::class.java)?.let {
-        DebugMetadataInfo(
-            specClassInternalClassName = it.className.internalName,
-            methodName = it.methodName,
-            lineNumbers = it.lineNumbers.toSet()
-        )
-    }
 
 private val manualContinuationsInternalClassNames =
     sequenceOf(
@@ -589,7 +575,7 @@ private val ClassNode.kotlinMetadataAnnotation: AnnotationNode?
         .firstOrNull { it.desc == Type.getDescriptor(Metadata::class.java) }
 
 private fun ClassNode.tryTransformSuspendMethods(
-    metadataResolver: (className: String) -> DebugMetadataInfo?,
+    classBodyResolver: (className: String) -> InputStream?,
     lineNumbersBySpecMethodName: MutableMap<String, MutableSet<Int>>,
     tailCallCaches: MutableList<TailCallDeoptimizeMethodNameAndLineNumber>,
     notSuspendFunctionSignatures: Collection<JvmMethodSignature>
@@ -610,7 +596,7 @@ private fun ClassNode.tryTransformSuspendMethods(
             clazz = this,
             method = method,
             notSuspendFunctionSignatures = notSuspendFunctionSignatures,
-            metadataResolver = metadataResolver,
+            classBodyResolver = classBodyResolver,
             lineNumbersBySpecMethodName = lineNumbersBySpecMethodName,
             tailCallCaches = tailCallCaches
         )) needTransformation = true
@@ -620,6 +606,12 @@ private fun ClassNode.tryTransformSuspendMethods(
 }
 
 private class TailCallDeoptimizeMethodNameAndLineNumber(val methodName: String, val lineNumber: Int)
+
+private class DebugMetadataInfo(
+    val specClassInternalClassName: String,
+    val methodName: String,
+    val lineNumbers: Set<Int>
+)
 
 private fun getTailCallCacheFieldName(index: Int): String =
     "\$decoroutinator\$tailCallDeoptimizeCache$$index"
@@ -645,7 +637,7 @@ private fun tryTransformSuspendMethod(
     clazz: ClassNode,
     method: MethodNode,
     notSuspendFunctionSignatures: Collection<JvmMethodSignature>,
-    metadataResolver: (className: String) -> DebugMetadataInfo?,
+    classBodyResolver: (className: String) -> InputStream?,
     lineNumbersBySpecMethodName: MutableMap<String, MutableSet<Int>>,
     tailCallCaches: MutableList<TailCallDeoptimizeMethodNameAndLineNumber>
 ): Boolean {
@@ -669,8 +661,10 @@ private fun tryTransformSuspendMethod(
             .filter { it.opcode == Opcodes.INSTANCEOF }
             .map { Type.getObjectType(it.desc) }
             .filter { it.sort == Type.OBJECT }
-            .mapNotNull { metadataResolver(it.className) }
-            .toList()
+            .mapNotNull { instanceofInstruction ->
+                val classBody = classBodyResolver(instanceofInstruction.className) ?: return@mapNotNull null
+                classBody.use { getClassNode(it, skipCode = true)?.debugMetadataInfo }
+            }.toList()
 
         var result = false
 

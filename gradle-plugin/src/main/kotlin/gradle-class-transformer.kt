@@ -5,7 +5,6 @@ package dev.reformator.stacktracedecoroutinator.gradleplugin
 
 import dev.reformator.bytecodeprocessor.intrinsics.LoadConstant
 import dev.reformator.bytecodeprocessor.intrinsics.fail
-import dev.reformator.stacktracedecoroutinator.classtransformer.internal.getDebugMetadataInfoFromClassBody
 import dev.reformator.stacktracedecoroutinator.classtransformer.internal.transformClassBody
 import dev.reformator.stacktracedecoroutinator.intrinsics.BASE_CONTINUATION_CLASS_NAME
 import dev.reformator.stacktracedecoroutinator.intrinsics.PROVIDER_MODULE_NAME
@@ -155,7 +154,7 @@ internal fun Artifact.transform(
                     val transformationStatus = reader().use { classBody ->
                         transformClassBody(
                             classBody = classBody,
-                            metadataResolver = { metadataClassName ->
+                            classBodyResolver = { metadataClassName ->
                                 val packageDepth = metadataClassName.count { it == '.' }
                                 val metadataClassPath = metadataClassName
                                     .splitToSequence('.')
@@ -167,11 +166,7 @@ internal fun Artifact.transform(
                                         }
                                     }
                                     .toList()
-                                getFileReader(metadataClassPath)?.let { reader ->
-                                    reader().use {
-                                        getDebugMetadataInfoFromClassBody(it)
-                                    }
-                                }
+                                getFileReader(metadataClassPath)?.invoke()
                             },
                             skipSpecMethods = skipSpecMethods
                         )

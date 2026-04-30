@@ -3,8 +3,8 @@ package dev.reformator.stacktracedecoroutinator.jvmagentcommon.internal
 import dev.reformator.bytecodeprocessor.intrinsics.ownerClass
 import java.io.InputStream
 
-internal fun getResourceAsStream(name: String): InputStream? =
-    try {
+internal fun ClassLoader?.getResourceAsStream(name: String): InputStream? =
+    this?.getResourceAsStream(name) ?: try {
         Thread.currentThread().contextClassLoader.getResourceAsStream(name)
     } catch (_: Throwable) {
         null

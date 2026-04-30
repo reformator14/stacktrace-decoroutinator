@@ -10,7 +10,7 @@ import org.objectweb.asm.util.TraceClassVisitor
 import java.io.PrintWriter
 
 fun main() {
-    val classReader = ClassReader(getResourceAsStream(BASE_CONTINUATION_CLASS_NAME.internalName + ".class"))
+    val classReader = ClassReader(null.getResourceAsStream(BASE_CONTINUATION_CLASS_NAME.internalName + ".class"))
     PrintWriter(System.out.writer()).use {
         classReader.accept(TraceClassVisitor(it), 0)
     }

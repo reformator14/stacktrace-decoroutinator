@@ -61,11 +61,11 @@ internal abstract class DecoroutinatorTransformBaseContinuationAction: Transform
                             method = ZipEntry.DEFLATED
                         })
                         if (entry.name == baseContinuationEntryName) {
-                            output.write(input.getInputStream(entry).use {
+                            output.write(input.getInputStream(entry).use { classBody ->
                                 transformClassBody(
-                                    classBody = it,
+                                    classBody = classBody,
                                     skipSpecMethods = false,
-                                    metadataResolver = { error("no need") }
+                                    classBodyResolver = { error("no need") }
                                 ).updatedBody!!
                             })
                         } else if (entry.name.endsWith("/module-info.class")) {

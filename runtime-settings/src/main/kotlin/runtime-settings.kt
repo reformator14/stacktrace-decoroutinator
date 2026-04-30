@@ -33,9 +33,6 @@ interface DecoroutinatorRuntimeSettingsProvider {
 
     // JVM Agent settings
 
-    val metadataInfoResolveStrategy: DecoroutinatorMetadataInfoResolveStrategy
-        get() = defaultValue()
-
     val isBaseContinuationRedefinitionAllowed: Boolean
         get() = defaultValue()
 
@@ -59,8 +56,4 @@ interface DecoroutinatorRuntimeSettingsProvider {
 
     val priority: Int
         get() = 0
-}
-
-enum class DecoroutinatorMetadataInfoResolveStrategy {
-    SYSTEM_RESOURCE, CLASS, SYSTEM_RESOURCE_AND_CLASS
 }

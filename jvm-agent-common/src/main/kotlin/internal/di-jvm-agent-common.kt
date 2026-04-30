@@ -2,7 +2,6 @@
 
 package dev.reformator.stacktracedecoroutinator.jvmagentcommon.internal
 
-import dev.reformator.stacktracedecoroutinator.runtimesettings.DecoroutinatorMetadataInfoResolveStrategy
 import dev.reformator.stacktracedecoroutinator.runtimesettings.internal.getRuntimeSettingsValue
 
 internal val isBaseContinuationRedefinitionAllowed =
@@ -20,11 +19,3 @@ internal val isRedefinitionAllowed =
             "false"
         ).toBoolean()
     }
-
-internal val metadataInfoResolveStrategy =
-    getRuntimeSettingsValue({ metadataInfoResolveStrategy }) {
-        DecoroutinatorMetadataInfoResolveStrategy.valueOf(System.getProperty(
-            "dev.reformator.stacktracedecoroutinator.metadataInfoResolveStrategy",
-            DecoroutinatorMetadataInfoResolveStrategy.SYSTEM_RESOURCE_AND_CLASS.name
-        ))
-    }.resolveFunction
