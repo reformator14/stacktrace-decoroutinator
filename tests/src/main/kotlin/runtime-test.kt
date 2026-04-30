@@ -27,6 +27,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.random.Random
 
+@Suppress("ConvertLongToDuration")
 open class RuntimeTest {
     @Retention(AnnotationRetention.BINARY)
     @Target(AnnotationTarget.FUNCTION)
@@ -276,6 +277,19 @@ open class RuntimeTest {
             opcode = 193 // INSTANCEOF
         )
         assertTrue(checkedItem in buffer)
+    }
+
+    @Junit4Test @Junit5Test
+    fun selfInstanceofSuspendFunction() = runBlocking {
+        class SelfInstanceof {
+            @Suppress("USELESS_CAST")
+            suspend fun check() {
+                yield()
+                val self = this as? SelfInstanceof
+                check(self != null)
+            }
+        }
+        SelfInstanceof().check()
     }
 
     data class TraceOpcodeItem(val className: String, val methodName: String, val opcode: Int)
