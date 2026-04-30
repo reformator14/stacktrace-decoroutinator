@@ -57,8 +57,8 @@ Multi-module Gradle project (Kotlin DSL) with ~40 submodules. Key layout:
 | `spec-method-builder` | Generates auxiliary "spec methods" via ASM |
 | `mh-invoker`, `mh-invoker-jvm`, `mh-invoker-android` | MethodHandle-based spec method invocation |
 | `runtime-settings` | Runtime configuration/feature flags |
-| `jvm` | JVM runtime API (`DecoroutinatorJvmApi.install()`) |
-| `jvm-agent` | Java agent JAR (uses ByteBuddy) |
+| `jvm` | JVM runtime API (`DecoroutinatorJvmApi.install()`); uses ByteBuddy to obtain an `Instrumentation` instance |
+| `jvm-agent` | Java agent JAR |
 | `jvm-agent-common` | Shared agent transformation logic |
 | `gradle-plugin` | Gradle plugin for build-time bytecode transformation |
 | `intrinsics` | Compiler intrinsics for compile-time optimizations |
@@ -85,8 +85,8 @@ Each property mirrors the Gradle dependency scope of the original module (`api` 
 
 ### Three installation methods (JVM):
 1. **Gradle plugin** (build-time) — transforms bytecode during compilation
-2. **Java agent** (runtime) — uses ByteBuddy to retransform loaded classes
-3. **Programmatic API** (runtime) — `DecoroutinatorJvmApi.install()`
+2. **Java agent** (runtime) — registers a `ClassFileTransformer` via `java.lang.instrument`
+3. **Programmatic API** (runtime) — `DecoroutinatorJvmApi.install()`; uses ByteBuddy to obtain an `Instrumentation` instance, then registers the same transformer as the agent
 
 ### Core flow:
 ```
@@ -100,7 +100,7 @@ Custom `_plugins/bytecode-processor` Gradle plugin applies compile-time transfor
 
 ### Key conventions:
 - Source files are often named by their content (e.g., `api-jvm.kt`, `awakener.kt`, `provider-impl.kt`) rather than by class name
-- Version is set once in root `build.gradle.kts` (`version = "2.6.2-SNAPSHOT"`)
+- Version is set once in root `build.gradle.kts` (the `allprojects { version = "..." }` block)
 - All published modules use the group `dev.reformator.stacktracedecoroutinator`
 - Dependencies are managed via `gradle/libs.versions.toml` version catalog
 - Kotlin incremental compilation is disabled (`kotlin.incremental=false` in `gradle.properties`)
@@ -126,6 +126,8 @@ Custom `_plugins/bytecode-processor` Gradle plugin applies compile-time transfor
 **`Method.invoke` wraps checked exceptions in `InvocationTargetException`**: When calling a protected/private method via reflection (e.g., `ClassLoader.findClass`), any checked exception thrown by the method is wrapped in `InvocationTargetException`. Direct `catch (e: ClassNotFoundException)` at the call site of `Method.invoke(...)` will NOT catch it — you must catch `InvocationTargetException` and rethrow `e.cause`. See `generator-android/specMethodsFactory-generator-android.kt`'s `ClassLoader.findClass` extension for the canonical pattern.
 
 **`ArtifactWalker.onFile` stream ownership**: The `reader: () -> InputStream` lambda creates a new stream per call. **The caller owns the stream and must close it** — neither `ZipArtifactBuilder.addFile` nor `DirectoryArtifact.addFile` closes the `body` parameter. Always wrap in `reader().use { ... }` or `(expr).use { ... }`.
+
+**`classBodyResolver` must not trigger class loading**: `transformClassBody`'s `classBodyResolver: (className: String) -> InputStream?` parameter is called during class transformation (inside a `ClassFileTransformer` callback). Implementations must use `ClassLoader.getResourceAsStream` (reads raw bytes) rather than `Class.forName`/`ClassLoader.loadClass`, because class loading from within a class-loading callback causes recursive loading and `ClassCircularityError`. The `className` argument is a dotted binary name (e.g., `com.example.Foo$Bar`); in the agent path, convert to a path with `className.internalName + ".class"`. This is why the enum `DecoroutinatorMetadataInfoResolveStrategy` (and its `CLASS`/`SYSTEM_RESOURCE_AND_CLASS` strategies) was removed in #81.
 
 **`tailCallDeoptimize` NONE_LABEL vs UNKNOWN_LABEL distinction**: Both sentinels have bit 31 set, but `tailCallDeoptimize` in `provider-impl.kt` treats them differently. The guard `label != NONE_LABEL && label and Int.MIN_VALUE != 0` means: NONE_LABEL (class has no metadata, `_elementsByLabel == null`) → condition is false → wrap the completion anyway (safe, since no re-entry risk). UNKNOWN_LABEL (field inaccessible) → condition is true → skip wrapping, treating it as "possibly executing" (conservative, avoids wrapping a running coroutine). This asymmetry is intentional: unknown metadata is conservative in the "wrap" direction; inaccessible field is conservative in the "don't wrap" direction.
 
