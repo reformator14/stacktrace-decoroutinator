@@ -84,8 +84,6 @@ These methods do nothing except call each other sequentially in coroutine call s
 
 Thus, if the coroutine throws an exception, the stack trace reflects the full coroutine call chain.
 
-Check out [the Decoroutinator playground](https://decoroutinator.reformator.dev/playground/).
-
 ## JVM
 There are three ways to enable Decoroutinator on the JVM:
 1. If you build your project with Gradle, apply the Gradle plugin with id `dev.reformator.stacktracedecoroutinator`.
