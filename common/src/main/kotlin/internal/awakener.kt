@@ -59,8 +59,9 @@ private inline fun CoroutineStackFrame.getElementAndSpecMethod(
     val cache = (this as? ContinuationCached)?.`$decoroutinator$cache`
     if (cache != null) {
         val specMethod = cache.specMethod ?: run {
-            val specMethod = specMethodsFactory.getSpecMethodHandle(cache.element) ?:
-                methodHandleInvoker.unknownSpecMethodHandle
+            val specMethod = cache.element
+                ?.let { specMethodsFactory.getSpecMethodHandle(it) }
+                ?: methodHandleInvoker.unknownSpecMethodHandle
             cache.specMethod = specMethod
             specMethod
         }
@@ -92,20 +93,6 @@ private fun BaseContinuation.getElementsAndSpecMethods(): List<ElementAndSpecMet
             frame = frame.callerFrame
         }
     }
-
-private fun CoroutineStackFrame.getNormalizedStackTraceElement(): StackTraceElement? {
-    val element = getStackTraceElement()
-    return when {
-        element != null -> element
-        fillUnknownElementsWithClassName -> StackTraceElement(
-            javaClass.name,
-            Continuation<*>::resumeWith.name,
-            null,
-            UNKNOWN_LINE_NUMBER
-        )
-        else -> null
-    }
-}
 
 private fun BaseContinuation.stdlibAwake(accessor: BaseContinuationAccessor, result: Any?) {
     var newResult = result

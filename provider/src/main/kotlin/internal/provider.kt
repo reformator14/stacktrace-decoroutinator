@@ -18,6 +18,9 @@ interface DecoroutinatorProvider {
     fun getElementFactoryStacktraceElement(baseContinuation: Any): StackTraceElement?
     val fillUnknownElementsWithClassName: Boolean
     val isUsingElementCacheForManualContinuationGetElementMethodEnabled: Boolean
+    fun getCoroutineStackFrameStackTraceElement(coroutineStackFrame: Any): StackTraceElement?
+    val nullElementSpecCache: SpecCache
+    val isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled: Boolean
 }
 
 internal val provider: DecoroutinatorProvider =
@@ -34,8 +37,7 @@ private class NoopProvider: DecoroutinatorProvider {
     override val baseContinuationAccessor: BaseContinuationAccessor
         get() = error("not supported")
 
-    override fun prepareBaseContinuationAccessor(lookup: MethodHandles.Lookup): BaseContinuationAccessor =
-        error("not supported")
+    override fun prepareBaseContinuationAccessor(lookup: MethodHandles.Lookup) = error("not supported")
 
     override fun awakeBaseContinuation(
         accessor: BaseContinuationAccessor,
@@ -58,13 +60,20 @@ private class NoopProvider: DecoroutinatorProvider {
     override val isUsingElementFactoryForBaseContinuationEnabled: Boolean
         get() = false
 
-    override fun getElementFactoryStacktraceElement(baseContinuation: Any): StackTraceElement =
-        error("not supported")
+    override fun getElementFactoryStacktraceElement(baseContinuation: Any) = error("not supported")
 
     override val fillUnknownElementsWithClassName: Boolean
         get() = false
 
     override val isUsingElementCacheForManualContinuationGetElementMethodEnabled: Boolean
+        get() = false
+
+    override fun getCoroutineStackFrameStackTraceElement(coroutineStackFrame: Any) = error("not supported")
+
+    override val nullElementSpecCache: SpecCache
+        get() = error("not supported")
+
+    override val isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled: Boolean
         get() = false
 }
 

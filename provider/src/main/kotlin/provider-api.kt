@@ -56,11 +56,6 @@ annotation class DecoroutinatorTransformed(
 interface ContinuationCached {
     @Suppress("unused", "PropertyName")
     val `$decoroutinator$cache`: SpecCache?
-
-    @Suppress("unused", "PropertyName")
-    @get:MethodNameConstant("continuationCachedGetCacheElementMethodName")
-    val `$decoroutinator$cacheElement`: StackTraceElement?
-        get() = `$decoroutinator$cache`?.element
 }
 
 interface BaseContinuationExtractor: ContinuationCached {
@@ -79,18 +74,46 @@ interface BaseContinuationExtractor: ContinuationCached {
 interface ManualContinuation: ContinuationCached {
     @Suppress("PropertyName")
     @get:MethodNameConstant("manualContinuationGetCacheFieldMethodName")
-    val `$decoroutinator$cacheField`: SpecCache?
+    val `$decoroutinator$cacheField`: SpecCache
 
+    @get:MethodNameConstant("manualContinuationGetCacheMethodName")
     override val `$decoroutinator$cache`: SpecCache?
         get() {
-            val cache = `$decoroutinator$cacheField` ?: return null
-            return if (javaClass.name == cache.element.className) cache else null
+            if (!provider.fillUnknownElementsWithClassName) return provider.nullElementSpecCache
+
+            val cache = `$decoroutinator$cacheField`
+            if (javaClass.name != cache.element!!.className) return null
+
+            return cache
+        }
+}
+
+interface LazilyCachedContinuation: ContinuationCached {
+    @Suppress("PropertyName")
+    @get:MethodNameConstant("lazilyCachedContinuationGetCacheFieldMethodName")
+    @set:MethodNameConstant("lazilyCachedContinuationSetCacheFieldMethodName")
+    var `$decoroutinator$cacheField`: SpecCache?
+
+    override val `$decoroutinator$cache`: SpecCache
+        get() {
+            val cacheField = `$decoroutinator$cacheField`
+            return if (cacheField == null) {
+                val element = provider.getCoroutineStackFrameStackTraceElement(this)
+                val result = if (element == null) {
+                    if (provider.fillUnknownElementsWithClassName) {
+                        SpecCache(javaClass.name, "resumeWith", null, -1)
+                    } else provider.nullElementSpecCache
+                } else SpecCache(element)
+                `$decoroutinator$cacheField` = result
+                result
+            } else cacheField
         }
 }
 
 @Suppress("unused")
 class SpecCache(
-    val element: StackTraceElement
+    @get:MethodNameConstant("specCacheGetElementMethodName")
+    val element: StackTraceElement?
 ) {
     var specMethod: MethodHandle? = null
 
@@ -141,6 +164,11 @@ val fillUnknownElementsWithClassName: Boolean
 val isUsingElementCacheForManualContinuationGetElementMethodEnabled: Boolean
     @MethodNameConstant("isUsingElementCacheForManualContinuationGetElementMethodEnabledMethodName")
     get() = provider.isUsingElementCacheForManualContinuationGetElementMethodEnabled
+
+@Suppress("unused")
+val isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled: Boolean
+    @MethodNameConstant("isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabledMethodName")
+    get() = provider.isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled
 
 val providerApiClass: Class<*>
     @GetOwnerClass get() { fail() }

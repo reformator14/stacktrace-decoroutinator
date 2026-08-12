@@ -212,6 +212,7 @@ private fun getThrowInvalidLineNumberInstructions() = InsnList().apply {
     add(InsnNode(Opcodes.ATHROW))
 }
 
+@Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
 private fun getResumeNextAndReturnInstructions(lineNumbers: List<Int>) = InsnList().apply {
     add(VarInsnNode(Opcodes.ALOAD, SPEC_VAR_INDEX))
     add(VarInsnNode(Opcodes.ALOAD, RESULT_VAR_INDEX))
@@ -243,7 +244,7 @@ private fun getResumeNextAndReturnInstructions(lineNumbers: List<Int>) = InsnLis
         0,
         null,
         1,
-        arrayOf(Type.getType(Object::class.java).internalName)
+        arrayOf(Type.getInternalName(Object::class.java))
     ))
     add(InsnNode(Opcodes.ARETURN))
     add(invalidLabel)

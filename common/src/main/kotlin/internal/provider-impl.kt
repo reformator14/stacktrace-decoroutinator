@@ -2,7 +2,16 @@
 
 package dev.reformator.stacktracedecoroutinator.common.internal
 
+import dev.reformator.stacktracedecoroutinator.common.internal.isUsingElementCacheForManualContinuationGetElementMethodEnabled
+    as cachedIsUsingElementCacheForManualContinuationGetElementMethodEnabled
+import dev.reformator.stacktracedecoroutinator.common.internal.isUsingElementFactoryForBaseContinuationEnabled
+    as cachedIsUsingElementFactoryForBaseContinuationEnabled
+import dev.reformator.stacktracedecoroutinator.common.internal.isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled
+    as cachedIsUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled
+import dev.reformator.stacktracedecoroutinator.common.internal.fillUnknownElementsWithClassName
+    as cachedFillUnknownElementsWithClassName
 import dev.reformator.stacktracedecoroutinator.intrinsics.BaseContinuation
+import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
 import dev.reformator.stacktracedecoroutinator.provider.BaseContinuationExtractor
 import dev.reformator.stacktracedecoroutinator.provider.ContinuationCached
 import dev.reformator.stacktracedecoroutinator.provider.SpecCache
@@ -12,6 +21,7 @@ import java.lang.invoke.MethodHandles
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.coroutines.Continuation
+import kotlin.coroutines.jvm.internal.CoroutineStackFrame
 
 internal class Provider: DecoroutinatorProvider {
     private val prepareBaseContinuationAccessorLock = ReentrantLock()
@@ -65,18 +75,40 @@ internal class Provider: DecoroutinatorProvider {
     }
 
     override val isUsingElementFactoryForBaseContinuationEnabled: Boolean
-        get() = dev.reformator.stacktracedecoroutinator.common.internal.isUsingElementFactoryForBaseContinuationEnabled
+        get() = cachedIsUsingElementFactoryForBaseContinuationEnabled
 
-    override fun getElementFactoryStacktraceElement(baseContinuation: Any): StackTraceElement? =
-        if (baseContinuation is ContinuationCached) {
-            baseContinuation.`$decoroutinator$cache`?.element
-        } else {
-            stacktraceElementsFactory.getStacktraceElement(baseContinuation as BaseContinuation)
-        }
+    override fun getElementFactoryStacktraceElement(baseContinuation: Any): StackTraceElement? {
+        (baseContinuation as? ContinuationCached)?.`$decoroutinator$cache`?.let { return it.element }
+        return stacktraceElementsFactory.getStacktraceElement(baseContinuation as BaseContinuation)
+    }
 
     override val fillUnknownElementsWithClassName: Boolean
-        get() = dev.reformator.stacktracedecoroutinator.common.internal.fillUnknownElementsWithClassName
+        get() = cachedFillUnknownElementsWithClassName
 
     override val isUsingElementCacheForManualContinuationGetElementMethodEnabled: Boolean
-        get() = dev.reformator.stacktracedecoroutinator.common.internal.isUsingElementCacheForManualContinuationGetElementMethodEnabled
+        get() = cachedIsUsingElementCacheForManualContinuationGetElementMethodEnabled
+
+    override fun getCoroutineStackFrameStackTraceElement(coroutineStackFrame: Any): StackTraceElement? =
+        (coroutineStackFrame as CoroutineStackFrame).getStackTraceElement()
+
+    override val nullElementSpecCache = SpecCache(null).also { cache ->
+        cache.specMethod = methodHandleInvoker.unknownSpecMethodHandle
+    }
+
+    override val isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled: Boolean
+        get() = cachedIsUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled
+}
+
+internal fun CoroutineStackFrame.getNormalizedStackTraceElement(): StackTraceElement? {
+    val element = getStackTraceElement()
+    return when {
+        element != null -> element
+        cachedFillUnknownElementsWithClassName -> StackTraceElement(
+            javaClass.name,
+            Continuation<*>::resumeWith.name,
+            null,
+            UNKNOWN_LINE_NUMBER
+        )
+        else -> null
+    }
 }

@@ -10,4 +10,5 @@ import dev.reformator.bytecodeprocessor.intrinsics.ChangeClassName
 import dev.reformator.bytecodeprocessor.intrinsics.fail
 import org.gradle.api.Project
 
-internal fun initGroovyDsl(@Suppress("unused") target: Project): Unit = fail()
+@Suppress("UNUSED_PARAMETER")
+internal fun initGroovyDsl(target: Project): Unit = fail()
