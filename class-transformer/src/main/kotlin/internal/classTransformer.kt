@@ -16,6 +16,7 @@ import dev.reformator.stacktracedecoroutinator.intrinsics.LABEL_FIELD_NAME
 import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
 import dev.reformator.stacktracedecoroutinator.provider.BaseContinuationExtractor
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorTransformed
+import dev.reformator.stacktracedecoroutinator.provider.LazilyCachedContinuation
 import dev.reformator.stacktracedecoroutinator.provider.ManualContinuation
 import dev.reformator.stacktracedecoroutinator.provider.SpecCache
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessor
@@ -35,6 +36,7 @@ import java.io.InputStream
 import java.lang.invoke.MethodHandles
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.jvm.internal.CoroutineStackFrame
+import kotlin.jvm.java
 
 class ClassBodyTransformationStatus(
     val updatedBody: ByteArray?,
@@ -68,7 +70,11 @@ fun transformClassBody(
             node.transformBaseContinuation()
             doTransformation = true
         } else {
-            if (node.tryAddBaseContinuationExtractor() || node.tryAddManualContinuation(lineNumbersBySpecMethodName)) {
+            if (
+                node.tryAddBaseContinuationExtractor() ||
+                node.tryAddManualContinuation(lineNumbersBySpecMethodName) ||
+                node.tryAddLazilyCachedContinuation()
+            ) {
                 doTransformation = true
             }
 
@@ -106,8 +112,14 @@ private val manualContinuationsInternalClassNames =
         "kotlinx.coroutines.internal.ScopeCoroutine"
     ).map { it.internalName }.toHashSet()
 
+private val lazilyCachedContinuationsInternalClassNames =
+    sequenceOf(
+        "kotlinx.coroutines.debug.internal.DebugProbesImpl\$CoroutineOwner"
+    ).map { it.internalName }.toHashSet()
+
 private const val baseContinuationCachesFieldName = "\$decoroutinator\$caches"
 private const val manualContinuationCacheFieldName = "\$decoroutinator\$cache"
+private const val lazilyCachedContinuationCacheFieldName = "\$decoroutinator\$cache"
 
 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
 private fun Metadata.getNonSuspendFunctionSignatures(): List<JvmMethodSignature> {
@@ -305,6 +317,24 @@ private fun ClassNode.tryAddManualContinuation(
         }
     }
 
+    updateGetStackTraceElementMethod(
+        isUsingElementCacheForGetElementMethodEnabledMethodName = isUsingElementCacheForManualContinuationGetElementMethodEnabledMethodName,
+        getSpecCacheMethodOwnerInterfaceClass = ManualContinuation::class.java,
+        getSpecCacheMethodName = manualContinuationGetCacheMethodName
+    )
+
+    lineNumbersBySpecMethodName.computeIfAbsent(Continuation<*>::resumeWith.name) {
+        hashSetOf(UNKNOWN_LINE_NUMBER)
+    }.add(UNKNOWN_LINE_NUMBER)
+
+    return true
+}
+
+private fun ClassNode.updateGetStackTraceElementMethod(
+    isUsingElementCacheForGetElementMethodEnabledMethodName: String,
+    getSpecCacheMethodOwnerInterfaceClass: Class<*>,
+    getSpecCacheMethodName: String,
+) {
     val getStackTraceElementMethod = methods.find { method ->
         method.name == CoroutineStackFrame::getStackTraceElement.name && !method.isStatic &&
         method.desc == "()${Type.getDescriptor(StackTraceElement::class.java)}" &&
@@ -313,31 +343,103 @@ private fun ClassNode.tryAddManualContinuation(
 
     @Suppress("IfThenToSafeAccess")
     if (getStackTraceElementMethod != null) {
-        getStackTraceElementMethod.instructions.insertBefore(getStackTraceElementMethod.instructions.first, InsnList().apply {
-            add(MethodInsnNode(
-                Opcodes.INVOKESTATIC,
-                Type.getInternalName(providerApiClass),
-                isUsingElementCacheForManualContinuationGetElementMethodEnabledMethodName,
-                "()${Type.BOOLEAN_TYPE.descriptor}"
-            ))
-            val disabledLabel = LabelNode()
-            add(JumpInsnNode(Opcodes.IFEQ, disabledLabel))
+        getStackTraceElementMethod.instructions.insertBefore(
+            getStackTraceElementMethod.instructions.first,
+            InsnList().apply {
+                add(MethodInsnNode(
+                    Opcodes.INVOKESTATIC,
+                    Type.getInternalName(providerApiClass),
+                    isUsingElementCacheForGetElementMethodEnabledMethodName,
+                    "()${Type.BOOLEAN_TYPE.descriptor}"
+                ))
+                val disabledLabel = LabelNode()
+                add(JumpInsnNode(Opcodes.IFEQ, disabledLabel))
+
+                add(VarInsnNode(Opcodes.ALOAD, 0))
+                add(MethodInsnNode(
+                    Opcodes.INVOKEINTERFACE,
+                    Type.getInternalName(getSpecCacheMethodOwnerInterfaceClass),
+                    getSpecCacheMethodName,
+                    "()${Type.getDescriptor(SpecCache::class.java)}"
+                ))
+                add(InsnNode(Opcodes.DUP))
+                val cacheIsNullLabel = LabelNode()
+                add(JumpInsnNode(Opcodes.IFNULL, cacheIsNullLabel))
+
+                add(MethodInsnNode(
+                    Opcodes.INVOKEVIRTUAL,
+                    Type.getInternalName(SpecCache::class.java),
+                    specCacheGetElementMethodName,
+                    "()${Type.getDescriptor(StackTraceElement::class.java)}"
+                ))
+                add(InsnNode(Opcodes.ARETURN))
+
+                add(cacheIsNullLabel)
+                add(FrameNode(
+                    Opcodes.F_SAME1,
+                    0,
+                    null,
+                    1,
+                    arrayOf(Type.getInternalName(SpecCache::class.java))
+                ))
+                add(InsnNode(Opcodes.POP))
+                add(disabledLabel)
+                add(FrameNode(Opcodes.F_SAME, 0, null, 0, null))
+            }
+        )
+    }
+}
+
+private fun ClassNode.tryAddLazilyCachedContinuation(): Boolean {
+    if (isInterface || name !in lazilyCachedContinuationsInternalClassNames) return false
+
+    interfaces = interfaces.orEmpty() + Type.getInternalName(LazilyCachedContinuation::class.java)
+
+    fields = fields.orEmpty() + FieldNode(
+        Opcodes.ASM9,
+        Opcodes.ACC_PRIVATE or Opcodes.ACC_SYNTHETIC,
+        lazilyCachedContinuationCacheFieldName,
+        Type.getDescriptor(SpecCache::class.java),
+        null,
+        null
+    )
+
+    methods = methods.orEmpty() + MethodNode(Opcodes.ASM9).apply {
+        access = Opcodes.ACC_PUBLIC or Opcodes.ACC_SYNTHETIC
+        name = lazilyCachedContinuationGetCacheFieldMethodName
+        desc = "()${Type.getDescriptor(SpecCache::class.java)}"
+        instructions = InsnList().apply {
             add(VarInsnNode(Opcodes.ALOAD, 0))
-            add(MethodInsnNode(
-                Opcodes.INVOKEVIRTUAL,
-                this@tryAddManualContinuation.name,
-                continuationCachedGetCacheElementMethodName,
-                "()${Type.getDescriptor(StackTraceElement::class.java)}"
+            add(FieldInsnNode(
+                Opcodes.GETFIELD,
+                this@tryAddLazilyCachedContinuation.name,
+                lazilyCachedContinuationCacheFieldName,
+                Type.getDescriptor(SpecCache::class.java)
             ))
             add(InsnNode(Opcodes.ARETURN))
-            add(disabledLabel)
-            add(FrameNode(Opcodes.F_SAME, 0, null, 0, null))
-        })
+        }
+    } + MethodNode(Opcodes.ASM9).apply {
+        access = Opcodes.ACC_PUBLIC or Opcodes.ACC_SYNTHETIC
+        name = lazilyCachedContinuationSetCacheFieldMethodName
+        desc = "(${Type.getDescriptor(SpecCache::class.java)})V"
+        instructions = InsnList().apply {
+            add(VarInsnNode(Opcodes.ALOAD, 0))
+            add(VarInsnNode(Opcodes.ALOAD, 1))
+            add(FieldInsnNode(
+                Opcodes.PUTFIELD,
+                this@tryAddLazilyCachedContinuation.name,
+                lazilyCachedContinuationCacheFieldName,
+                Type.getDescriptor(SpecCache::class.java)
+            ))
+            add(InsnNode(Opcodes.RETURN))
+        }
     }
 
-    lineNumbersBySpecMethodName.computeIfAbsent(Continuation<*>::resumeWith.name) {
-        hashSetOf(UNKNOWN_LINE_NUMBER)
-    }.add(UNKNOWN_LINE_NUMBER)
+    updateGetStackTraceElementMethod(
+        isUsingElementCacheForGetElementMethodEnabledMethodName = isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabledMethodName,
+        getSpecCacheMethodOwnerInterfaceClass = LazilyCachedContinuation::class.java,
+        getSpecCacheMethodName = lazilyCachedContinuationGetCacheFieldMethodName
+    )
 
     return true
 }
@@ -832,9 +934,6 @@ private val debugMetadataMethodNameMethodName: String
 private val debugMetadataClassNameMethodName: String
     @LoadConstant("debugMetadataClassNameMethodName") get() = fail()
 
-private val continuationCachedGetCacheElementMethodName: String
-    @LoadConstant("continuationCachedGetCacheElementMethodName") get() = fail()
-
 private val isDecoroutinatorEnabledMethodName: String
     @LoadConstant("isDecoroutinatorEnabledMethodName") get() = fail()
 
@@ -891,3 +990,18 @@ private val fillUnknownElementsWithClassNameMethodName: String
 
 private val isUsingElementCacheForManualContinuationGetElementMethodEnabledMethodName: String
     @LoadConstant("isUsingElementCacheForManualContinuationGetElementMethodEnabledMethodName") get() = fail()
+
+private val manualContinuationGetCacheMethodName: String
+    @LoadConstant("manualContinuationGetCacheMethodName") get() = fail()
+
+private val lazilyCachedContinuationGetCacheFieldMethodName: String
+    @LoadConstant("lazilyCachedContinuationGetCacheFieldMethodName") get() = fail()
+
+private val lazilyCachedContinuationSetCacheFieldMethodName: String
+    @LoadConstant("lazilyCachedContinuationSetCacheFieldMethodName") get() = fail()
+
+private val specCacheGetElementMethodName: String
+    @LoadConstant("specCacheGetElementMethodName") get() = fail()
+
+private val isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabledMethodName: String
+    @LoadConstant("isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabledMethodName") get() = fail()

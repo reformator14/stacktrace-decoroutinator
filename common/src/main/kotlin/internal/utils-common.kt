@@ -112,7 +112,7 @@ internal class TailCallDeoptimizedContinuation(
     override fun invokeSuspend(result: Any?): Any? =
         result
 
-    override fun getStackTraceElement(): StackTraceElement =
+    override fun getStackTraceElement(): StackTraceElement? =
         `$decoroutinator$cache`.element
 }
 

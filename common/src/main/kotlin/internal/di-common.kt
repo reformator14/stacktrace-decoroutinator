@@ -78,6 +78,15 @@ internal val isUsingElementFactoryForBaseContinuationEnabled: Boolean =
         ).toBoolean()
     }
 
+internal val isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled =
+    fillUnknownElementsWithClassName &&
+    getRuntimeSettingsValue({ isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled }) {
+        System.getProperty(
+            "dev.reformator.stacktracedecoroutinator.isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled",
+            "true"
+        ).toBoolean()
+    }
+
 @Suppress("ObjectPropertyName")
 private val _transformedClassesRegistry: TransformedClassesRegistry? =
     if (enabled) TransformedClassesRegistryImpl() else null

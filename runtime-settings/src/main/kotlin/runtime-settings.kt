@@ -31,6 +31,9 @@ interface DecoroutinatorRuntimeSettingsProvider {
     val isUsingElementCacheForManualContinuationGetElementMethodEnabled: Boolean
         get() = defaultValue()
 
+    val isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled: Boolean
+        get() = defaultValue()
+
     // JVM Agent settings
 
     val isBaseContinuationRedefinitionAllowed: Boolean
