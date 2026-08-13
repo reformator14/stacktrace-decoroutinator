@@ -33,6 +33,8 @@ object LoadConstantProcessor: Processor {
             }
             return value1 + value2
         }
+        override fun isEmpty(value: Map<String, String>): Boolean =
+            value.isEmpty()
     }
 
     object MethodKeyContextKey: BytecodeProcessorContext.Key<Map<MethodKey, String>> {
@@ -48,6 +50,8 @@ object LoadConstantProcessor: Processor {
             }
             return value1 + value2
         }
+        override fun isEmpty(value: Map<MethodKey, String>): Boolean =
+            value.isEmpty()
     }
 
     data class MethodKey(

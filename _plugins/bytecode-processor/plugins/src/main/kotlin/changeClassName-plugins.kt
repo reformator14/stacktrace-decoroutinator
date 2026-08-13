@@ -28,6 +28,8 @@ object ChangeClassNameProcessor: Processor {
             }
             return value1 + value2
         }
+        override fun isEmpty(value: Map<String, String>): Boolean =
+            value.isEmpty()
     }
 
     fun add(context: BytecodeProcessorContext, replacedClassNamesByOriginalName: Map<String, String>) {

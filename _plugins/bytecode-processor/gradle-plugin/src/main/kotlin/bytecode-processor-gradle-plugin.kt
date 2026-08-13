@@ -56,6 +56,8 @@ open class BytecodeProcessorPluginExtension {
     var dependentProjects: Collection<Project> = emptyList()
     var processors: Collection<Processor> = emptyList()
     var skipUpdate = false
+
+    @Suppress("unused")
     fun initContext(action: BytecodeProcessorContext.() -> Unit) {
         initContextTasks.add(action)
     }
@@ -337,10 +339,14 @@ value class MapperBytecodeProcessorContext private constructor(
         if (keyNode.isEmpty()) return key.default
         val keyType = key.jacksonType
         if (keyNode.size > 1) {
-            keyNode = keyNode.asSequence()
+            val merged = keyNode.asSequence()
                 .map { objectMapper.convertValue<T>(it, keyType) }
                 .reduce(key::merge)
-                .let { listOf(objectMapper.convertValue(it, JsonNode::class.java)) }
+            if (key.isEmpty(merged)) {
+                root.remove(key.id)
+                return merged
+            }
+            keyNode = listOf(objectMapper.convertValue(merged, JsonNode::class.java))
             root[key.id] = keyNode
         }
         return objectMapper.convertValue(keyNode[0], key.jacksonType)
@@ -348,7 +354,11 @@ value class MapperBytecodeProcessorContext private constructor(
 
     override fun <T: Any> merge(key: BytecodeProcessorContext.Key<T>, value: T): T {
         val newValue = key.merge(this[key], value)
-        root[key.id] = listOf(objectMapper.convertValue(newValue, JsonNode::class.java))
+        if (key.isEmpty(newValue)) {
+            root.remove(key.id)
+        } else {
+            root[key.id] = listOf(objectMapper.convertValue(newValue, JsonNode::class.java))
+        }
         return newValue
     }
 

@@ -29,6 +29,8 @@ object GetOwnerClassProcessor: Processor {
             get() = emptySet()
         override fun merge(value1: Set<Key>, value2: Set<Key>): Set<Key> =
             value1 + value2
+        override fun isEmpty(value: Set<Key>): Boolean =
+            value.isEmpty()
     }
 
     data class Key(

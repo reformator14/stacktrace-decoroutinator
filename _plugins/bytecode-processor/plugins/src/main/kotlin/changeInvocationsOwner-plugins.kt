@@ -27,6 +27,8 @@ object ChangeInvocationsOwnerProcessor: Processor {
             }
             return value1 + value2
         }
+        override fun isEmpty(value: Map<Key, String>): Boolean =
+            value.isEmpty()
     }
 
     data class Key(

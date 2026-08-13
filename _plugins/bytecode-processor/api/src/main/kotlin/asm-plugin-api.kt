@@ -26,6 +26,7 @@ interface BytecodeProcessorContext {
         val id: String
         val default: T
         fun merge(value1: T, value2: T): T
+        fun isEmpty(value: T): Boolean
     }
 
     operator fun <T: Any> get(key: Key<T>): T
@@ -44,10 +45,15 @@ value class BytecodeProcessorContextImpl private constructor(
         values[key.id]?.let { it as T } ?: key.default
 
     @Suppress("UNCHECKED_CAST")
-    override fun <T: Any> merge(key: BytecodeProcessorContext.Key<T>, value: T): T =
-        values.merge(key.id, value) { value1, value2 ->
-            key.merge(value1 as T, value2 as T)
-        } as T
+    override fun <T: Any> merge(key: BytecodeProcessorContext.Key<T>, value: T): T {
+        val newValue = key.merge(get(key), value)
+        if (key.isEmpty(newValue)) {
+            values.remove(key.id)
+        } else {
+            values[key.id] = newValue
+        }
+        return newValue
+    }
 }
 
 fun interface Processor {
