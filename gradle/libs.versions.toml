@@ -1,14 +1,14 @@
 [versions]
 kotlin-build = "1.9.0"
 #noinspection UnusedVersionCatalogEntry
-kotlin-latest = "2.4.0-Beta2"
+kotlin-latest = "2.4.20-RC"
 #noinspection AndroidGradlePluginVersion
 agp-build = "8.12.0"
 #noinspection UnusedVersionCatalogEntry
-agp-latest = "9.2.0"
+agp-latest = "9.3.1"
 #noinspection NewerVersionAvailable
 coroutines-build = "1.8.1"
-coroutines-latest = "1.11.0-rc01"
+coroutines-latest = "1.11.0"
 #noinspection NewerVersionAvailable
 jackson = "2.19.2"
 plugin-shadow = "9.2.2"
@@ -19,7 +19,7 @@ android-compile-sdk = "36"
 jupiter = "5.10.5"
 
 [libraries]
-asm-utils = { group = "org.ow2.asm", name = "asm-util", version = "9.9.1" }
+asm-utils = { group = "org.ow2.asm", name = "asm-util", version = "9.10.1" }
 dalvik-dx = { group = "com.jakewharton.android.repackaged", name = "dalvik-dx", version = "16.0.1" }
 #noinspection GradleDependency
 androidx-test-runner = { group = "androidx.test", name = "runner", version = "1.5.2" }
@@ -29,7 +29,7 @@ androidx-test-monitor = { group = "androidx.test", name = "monitor", version = "
 kotlin-logging-jvm = { group = "io.github.oshai", name = "kotlin-logging-jvm", version = "7.0.0" }
 #noinspection GradleDependency
 kotlin-gradle-plugin-api = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin-api", version = "1.7.0" }
-byte-buddy-agent = { group = "net.bytebuddy", name = "byte-buddy-agent", version = "1.18.8" }
+byte-buddy-agent = { group = "net.bytebuddy", name = "byte-buddy-agent", version = "1.18.11" }
 #noinspection NewerVersionAvailable
 ktor-io-jvm = { group = "io.ktor", name = "ktor-io-jvm", version = "2.0.1" }
 jupiter-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "jupiter" }
@@ -46,6 +46,7 @@ coroutines-debug-latest = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 jackson-core = { group = "com.fasterxml.jackson.core", name = "jackson-core", version.ref = "jackson" }
 jackson-kotlin = { group = "com.fasterxml.jackson.module", name = "jackson-module-kotlin", version.ref = "jackson" }
 kotlin-metadata-jvm = { group = "dev.reformator.kotlin-metadata-jvm-repack", name = "kotlin-metadata-jvm-repack", version = "0.9.0-3" }
+#noinspection NewerVersionAvailable
 ant = { group = "org.apache.ant", name = "ant", version = "1.10.15" }
 android-gradle-plugin-build = { group = "com.android.tools.build", name = "gradle", version.ref = "agp-build" }
 #noinspection NewerVersionAvailable

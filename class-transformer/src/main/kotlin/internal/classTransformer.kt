@@ -109,7 +109,14 @@ fun transformClassBody(
 
 private val manualContinuationsInternalClassNames =
     sequenceOf(
-        "kotlinx.coroutines.internal.ScopeCoroutine"
+        "kotlinx.coroutines.internal.ScopeCoroutine",
+        "kotlinx.coroutines.DispatchedCoroutine",
+        "kotlinx.coroutines.flow.internal.SafeCollector",
+        "kotlinx.coroutines.UndispatchedCoroutine",
+        "kotlinx.coroutines.TimeoutCoroutine",
+        "kotlinx.coroutines.SupervisorCoroutine",
+        "kotlinx.coroutines.flow.internal.FlowCoroutine",
+        "kotlin.coroutines.intrinsics.IntrinsicsKt__IntrinsicsJvmKt\$createCoroutineUnintercepted$\$inlined\$createCoroutineFromSuspendFunction\$IntrinsicsKt__IntrinsicsJvmKt$1"
     ).map { it.internalName }.toHashSet()
 
 private val lazilyCachedContinuationsInternalClassNames =
@@ -242,10 +249,7 @@ private fun ClassNode.tryAddBaseContinuationExtractor(): Boolean {
 private fun ClassNode.tryAddManualContinuation(
     lineNumbersBySpecMethodName: MutableMap<String, MutableSet<Int>>
 ): Boolean {
-    if (isInterface || (
-        name !in manualContinuationsInternalClassNames &&
-        superName !in manualContinuationsInternalClassNames
-    )) return false
+    if (isInterface || name !in manualContinuationsInternalClassNames) return false
 
     interfaces = interfaces.orEmpty() + Type.getInternalName(ManualContinuation::class.java)
 
