@@ -34,23 +34,26 @@ annotation class DecoroutinatorTransformed(
     @get:JvmName("fn")
     val fileName: String = "",
 
-    @Suppress("unused")
-    @get:MethodNameConstant("decoroutinatorTransformedMethodNamesMethodName")
-    @get:JvmName("mn")
-    val methodNames: Array<String> = [],
-
-    @Suppress("unused")
-    @get:MethodNameConstant("decoroutinatorTransformedLineNumbersCountsMethodName")
-    @get:JvmName("lnc")
-    val lineNumbersCounts: IntArray = [],
-
-    @get:MethodNameConstant("decoroutinatorTransformedLineNumbersMethodName")
-    @get:JvmName("ln")
-    val lineNumbers: IntArray = [],
+    @get:MethodNameConstant("decoroutinatorTransformedClassNameMethodName")
+    @get:JvmName("cn")
+    val className: String = "",
 
     @get:MethodNameConstant("decoroutinatorTransformedSkipSpecMethodsMethodName")
     @get:JvmName("ssm")
     val skipSpecMethods: Boolean = false
+)
+
+@Suppress("unused")
+@Target(AnnotationTarget.FUNCTION)
+@Retention
+annotation class DecoroutinatorSpecMethod(
+    @get:MethodNameConstant("decoroutinatorSpecMethodMethodNameMethodName")
+    @get:JvmName("mn")
+    val methodName: String,
+
+    @get:MethodNameConstant("decoroutinatorSpecMethodLineNumbersMethodName")
+    @get:JvmName("ln")
+    val lineNumbers: IntArray
 )
 
 interface ContinuationCached {

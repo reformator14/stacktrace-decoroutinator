@@ -5,6 +5,7 @@ package dev.reformator.stacktracedecoroutinator.gradleplugin
 
 import dev.reformator.stacktracedecoroutinator.intrinsics.PROVIDER_MODULE_NAME
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpec
+import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpecMethod
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorTransformed
 import dev.reformator.stacktracedecoroutinator.provider.internal.AndroidKeep
 import dev.reformator.stacktracedecoroutinator.provider.internal.AndroidLegacyKeep
@@ -630,16 +631,18 @@ private fun Project.setGeneratingProguardFiles(legacyAndroidCompatibility: Boole
         @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") val proguardRules = """
             # Decoroutinator ProGuard rules
             -keep,allowobfuscation @interface ${DecoroutinatorTransformed::class.java.name}
+            -keep,allowobfuscation @interface ${DecoroutinatorSpecMethod::class.java.name}
             -keepattributes RuntimeVisibleAnnotations,LineNumberTable,SourceFile
-            -keepclasseswithmembers,allowshrinking @${DecoroutinatorTransformed::class.java.name} class * {
+            -keep,allowshrinking @${DecoroutinatorTransformed::class.java.name} class * { }
+            -keepclasseswithmembers,allowshrinking,allowobfuscation @${DecoroutinatorTransformed::class.java.name} class * {
                 static *(${DecoroutinatorSpec::class.java.name}, ${Object::class.java.name});
             }
-            -keepclassmembers @${DecoroutinatorTransformed::class.java.name} class * {
+            -keepclassmembers,allowobfuscation @${DecoroutinatorTransformed::class.java.name} class * {
                 static *(${DecoroutinatorSpec::class.java.name}, ${Object::class.java.name});
             }
             -keep,allowobfuscation interface ${DecoroutinatorSpec::class.java.name} { *; }
             -keep @${AndroidKeep::class.java.name} class * { *; }
-            
+
         """.trimIndent()
         val legacyProguardRules = proguardRules + """
             -keep @${AndroidLegacyKeep::class.java.name} class * { *; }

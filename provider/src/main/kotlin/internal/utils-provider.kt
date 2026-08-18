@@ -20,6 +20,7 @@ val nextSpecMethodName: String = DecoroutinatorSpec::class.java.methods
     .find { it.returnType == DecoroutinatorSpec::class.java }!!
     .name
 
+@Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
 val resumeNextMethodName: String = DecoroutinatorSpec::class.java.methods
     .find { it.returnType == Object::class.java && it.parameterCount == 1 }!!
     .name
@@ -27,3 +28,7 @@ val resumeNextMethodName: String = DecoroutinatorSpec::class.java.methods
 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
 val String.internalName: String
     get() = (this as java.lang.String).replace('.', '/')
+
+@Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+val String.binaryName: String
+    get() = (this as java.lang.String).replace('/', '.')

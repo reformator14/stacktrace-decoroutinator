@@ -13,11 +13,18 @@ import java.lang.invoke.VarHandle
 interface TransformedClassesRegistry {
     class TransformedClassSpec(
         val transformedClass: Class<*>,
+        val className: String,
         val fileName: String?,
         val lookup: MethodHandles.Lookup,
-        val lineNumbersByMethod: Map<String, IntArray>,
+        val methods: List<Method>,
         val skipSpecMethods: Boolean
-    )
+    ) {
+        class Method(
+            val methodName: String,
+            val realMethodName: String,
+            val lineNumbers: IntArray
+        )
+    }
 
     fun interface Listener {
         fun onNewTransformedClass(spec: TransformedClassSpec)
@@ -35,12 +42,14 @@ fun interface SpecMethodsFactory {
 }
 
 data class TransformationMetadata(
+    val className: String,
     val fileName: String?,
     val methods: List<Method>,
     val skipSpecMethods: Boolean
 ) {
     class Method(
         val name: String,
+        val realName: String,
         val lineNumbers: IntArray
     )
 }

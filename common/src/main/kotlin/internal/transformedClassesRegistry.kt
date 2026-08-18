@@ -2,6 +2,7 @@
 
 package dev.reformator.stacktracedecoroutinator.common.internal
 
+import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpecMethod
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorTransformed
 import java.lang.invoke.MethodHandles
 import java.lang.reflect.GenericSignatureFormatError
@@ -33,13 +34,19 @@ internal class TransformedClassesRegistryImpl: TransformedClassesRegistry {
         val clazz: Class<*> = lookup.lookupClass()
         val loader = clazz.classLoader ?: ClassLoader.getSystemClassLoader()
         val meta = try {
-            clazz.getDeclaredAnnotation(DecoroutinatorTransformed::class.java)?.let { transformedAnnotation ->
-                parseTransformationMetadata(
-                    fileNamePresent = transformedAnnotation.fileNamePresent,
-                    fileName = transformedAnnotation.fileName,
-                    methodNames = transformedAnnotation.methodNames.toList(),
-                    lineNumbersCounts = transformedAnnotation.lineNumbersCounts.toList(),
-                    lineNumbers = transformedAnnotation.lineNumbers.toList(),
+            clazz.getDeclaredAnnotation(DecoroutinatorTransformed::class.java)?.let { transformedAnnotation: DecoroutinatorTransformed ->
+                TransformationMetadata(
+                    className = transformedAnnotation.className,
+                    fileName = if (transformedAnnotation.fileNamePresent) transformedAnnotation.fileName else null,
+                    methods = clazz.declaredMethods.mapNotNull { method ->
+                        method.getDeclaredAnnotation(DecoroutinatorSpecMethod::class.java)?.let { specMethodAnnotation: DecoroutinatorSpecMethod ->
+                            TransformationMetadata.Method(
+                                name = specMethodAnnotation.methodName,
+                                realName = method.name,
+                                lineNumbers = specMethodAnnotation.lineNumbers
+                            )
+                        }
+                    },
                     skipSpecMethods = transformedAnnotation.skipSpecMethods
                 )
             }
@@ -58,22 +65,20 @@ internal class TransformedClassesRegistryImpl: TransformedClassesRegistry {
             }
         }
         if (meta != null) {
-            val transformedClassSpec = run {
-                val lineNumbersByMethod = meta.methods.associateTo(
-                    if (meta.methods.size < methodsNumberThreshold) {
-                        CompactMap()
-                    } else {
-                        newHashMapForSize(meta.methods.size)
-                    }
-                ) { it.name to it.lineNumbers }
-                TransformedClassesRegistry.TransformedClassSpec(
-                    transformedClass = clazz,
-                    fileName = meta.fileName,
-                    lookup = lookup,
-                    lineNumbersByMethod = lineNumbersByMethod,
-                    skipSpecMethods = meta.skipSpecMethods
-                )
-            }
+            val transformedClassSpec = TransformedClassesRegistry.TransformedClassSpec(
+                transformedClass = clazz,
+                className = meta.className,
+                fileName = meta.fileName,
+                lookup = lookup,
+                methods = meta.methods.map {
+                    TransformedClassesRegistry.TransformedClassSpec.Method(
+                        methodName = it.name,
+                        realMethodName = it.realName,
+                        lineNumbers = it.lineNumbers
+                    )
+                },
+                skipSpecMethods = meta.skipSpecMethods
+            )
             _transformedClasses[clazz] = transformedClassSpec
             callListeners(transformedClassSpec)
         }

@@ -143,10 +143,16 @@ internal object SpecMethodsFactoryImpl: SpecMethodsFactory {
 
     private fun register(spec: TransformedClassesRegistry.TransformedClassSpec) {
         if (spec.skipSpecMethods) return
-        val methodsByName = spec.lineNumbersByMethod.mapValuesCompact(methodsNumberThreshold) { (methodName, lineNumbers) ->
-            val specMethod = spec.lookup.findStatic(spec.transformedClass, methodName, specMethodType)
-            MethodSpec(
-                lineNumbers = lineNumbers,
+        val methodsByName = spec.methods.associateTo(
+            if (spec.methods.size < methodsNumberThreshold) {
+                CompactMap()
+            } else {
+                newHashMapForSize(spec.methods.size)
+            }
+        ) { method ->
+            val specMethod = spec.lookup.findStatic(spec.transformedClass, method.realMethodName, specMethodType)
+            method.methodName to MethodSpec(
+                lineNumbers = method.lineNumbers,
                 handle = specMethod
             )
         }
@@ -155,7 +161,7 @@ internal object SpecMethodsFactoryImpl: SpecMethodsFactory {
             methodsByName = methodsByName
         )
         classSpecsByNameUpdateLock.withLock {
-            classSpecsByName[spec.transformedClass.name] = classSpec
+            classSpecsByName[spec.className] = classSpec
         }
     }
 }

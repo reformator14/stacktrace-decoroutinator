@@ -4,6 +4,7 @@ import java.io.File
 import kotlin.math.min
 
 class R8Retrace {
+    @Suppress("unused")
     constructor(mappingFile: File) {
         mappingFile.bufferedReader().use { reader ->
             classesByObfuscatedName = buildClassesByObfuscatedName(reader.lineSequence().iterator())
@@ -69,7 +70,8 @@ class R8Retrace {
 
     fun getPossibleUnobfuscatedFrames(obfuscatedFrame: StackTraceElement): Collection<StackTraceElement> {
         val clazz = classesByObfuscatedName[obfuscatedFrame.className] ?: return emptySet()
-        val list = clazz.methods.asSequence()
+
+        clazz.methods.asSequence()
             .filter { it.obfuscatedName == obfuscatedFrame.methodName }
             .filter { it.obfuscatedLineStart <= obfuscatedFrame.lineNumber && obfuscatedFrame.lineNumber <= it.obfuscatedLineEnd }
             .map { method ->
@@ -84,14 +86,27 @@ class R8Retrace {
                 )
             }
             .toList()
-        return list.ifEmpty {
-            listOf(StackTraceElement(
-                clazz.originalName,
-                obfuscatedFrame.methodName,
-                clazz.fileName,
-                obfuscatedFrame.lineNumber
-            ))
-        }
+            .let { if (it.isNotEmpty()) return it }
+
+        clazz.methods.asSequence()
+            .filter { it.obfuscatedName == obfuscatedFrame.methodName }
+            .map { method ->
+                StackTraceElement(
+                    clazz.originalName,
+                    method.originalName,
+                    clazz.fileName,
+                    -1
+                )
+            }
+            .toList()
+            .let { if (it.isNotEmpty()) return it }
+
+        return listOf(StackTraceElement(
+            clazz.originalName,
+            obfuscatedFrame.methodName,
+            clazz.fileName,
+            obfuscatedFrame.lineNumber
+        ))
     }
 
     private class ClassSpec(

@@ -59,28 +59,6 @@ inline fun assert(check: () -> Boolean) {
     }
 }
 
-fun parseTransformationMetadata(
-    fileNamePresent: Boolean?,
-    fileName: String?,
-    methodNames: List<String>?,
-    lineNumbersCounts: List<Int>?,
-    lineNumbers: List<Int>?,
-    skipSpecMethods: Boolean?
-): TransformationMetadata {
-    val lineNumberIterator = lineNumbers.orEmpty().iterator()
-    return TransformationMetadata(
-        fileName = if (fileNamePresent == null || fileNamePresent) fileName!! else null,
-        methods =
-            methodNames.orEmpty().mapIndexed { index, methodName ->
-                TransformationMetadata.Method(
-                    name = methodName,
-                    lineNumbers = IntArray(lineNumbersCounts!![index]) { lineNumberIterator.next() }
-                )
-            },
-        skipSpecMethods = skipSpecMethods ?: false
-    )
-}
-
 private fun <T: Any> loadService(type: Class<T>): T? {
     val iter: Iterator<T> = ServiceLoader.load(type).iterator()
     while (true) {

@@ -15,11 +15,13 @@ import dev.reformator.stacktracedecoroutinator.intrinsics.BaseContinuation
 import dev.reformator.stacktracedecoroutinator.intrinsics.LABEL_FIELD_NAME
 import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
 import dev.reformator.stacktracedecoroutinator.provider.BaseContinuationExtractor
+import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpecMethod
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorTransformed
 import dev.reformator.stacktracedecoroutinator.provider.LazilyCachedContinuation
 import dev.reformator.stacktracedecoroutinator.provider.ManualContinuation
 import dev.reformator.stacktracedecoroutinator.provider.SpecCache
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessor
+import dev.reformator.stacktracedecoroutinator.provider.internal.binaryName
 import dev.reformator.stacktracedecoroutinator.provider.internal.internalName
 import dev.reformator.stacktracedecoroutinator.provider.internal.providerInternalApiClass
 import dev.reformator.stacktracedecoroutinator.provider.providerApiClass
@@ -559,16 +561,29 @@ private fun ClassNode.generateSpecMethodsAndTransformAnnotation(
     version = maxOf(version, Opcodes.V1_7)
     if (!skipSpecMethods) {
         lineNumbersBySpecMethodName.forEach { (methodName, lineNumbers) ->
-            methods.add(buildSpecMethodNode(
+            val specMethodNode = buildSpecMethodNode(
                 methodName = methodName,
                 lineNumbers = lineNumbers,
                 makePrivate = makePrivate,
                 makeFinal = makeFinal
-            ))
+            )
+            specMethodNode.visibleAnnotations = specMethodNode.visibleAnnotations.orEmpty() +
+                AnnotationNode(Opcodes.ASM9, Type.getDescriptor(DecoroutinatorSpecMethod::class.java)).apply {
+                    values = buildList {
+                        add(decoroutinatorSpecMethodMethodNameMethodName)
+                        add(methodName)
+
+                        add(decoroutinatorSpecMethodLineNumbersMethodName)
+                        add(lineNumbers.sorted())
+                    }
+                }
+            methods.add(specMethodNode)
         }
     }
 
-    if (!skipSpecMethods && lineNumbersBySpecMethodName.isNotEmpty()) {
+    val addLookupRegistration = !skipSpecMethods && lineNumbersBySpecMethodName.isNotEmpty()
+
+    if (addLookupRegistration) {
         val clinit = getOrCreateClinitMethod()
         clinit.instructions.insertBefore(
             clinit.instructions.first,
@@ -578,25 +593,18 @@ private fun ClassNode.generateSpecMethodsAndTransformAnnotation(
 
     visibleAnnotations = visibleAnnotations.orEmpty() +
         AnnotationNode(Opcodes.ASM9, Type.getDescriptor(DecoroutinatorTransformed::class.java)).apply {
-            val lineNumbers = lineNumbersBySpecMethodName.entries.toList()
             values = buildList {
-                if (sourceFile != null) {
-                    add(decoroutinatorTransformedFileNameMethodName)
-                    add(sourceFile)
-                } else {
-                    add(decoroutinatorTransformedFileNamePresentMethodName)
-                    add(false)
-                }
+                if (addLookupRegistration) {
+                    if (sourceFile != null) {
+                        add(decoroutinatorTransformedFileNameMethodName)
+                        add(sourceFile)
+                    } else {
+                        add(decoroutinatorTransformedFileNamePresentMethodName)
+                        add(false)
+                    }
 
-                if (lineNumbers.isNotEmpty()) {
-                    add(decoroutinatorTransformedMethodNamesMethodName)
-                    add(lineNumbers.map { it.key })
-
-                    add(decoroutinatorTransformedLineNumbersCountsMethodName)
-                    add(lineNumbers.map { it.value.size })
-
-                    add(decoroutinatorTransformedLineNumbersMethodName)
-                    add(lineNumbers.flatMap { it.value })
+                    add(decoroutinatorTransformedClassNameMethodName)
+                    add(name.binaryName)
                 }
 
                 if (skipSpecMethods) {
@@ -968,17 +976,17 @@ private val decoroutinatorTransformedFileNamePresentMethodName: String
 private val decoroutinatorTransformedFileNameMethodName: String
     @LoadConstant("decoroutinatorTransformedFileNameMethodName") get() = fail()
 
-private val decoroutinatorTransformedMethodNamesMethodName: String
-    @LoadConstant("decoroutinatorTransformedMethodNamesMethodName") get() = fail()
-
-private val decoroutinatorTransformedLineNumbersCountsMethodName: String
-    @LoadConstant("decoroutinatorTransformedLineNumbersCountsMethodName") get() = fail()
-
-private val decoroutinatorTransformedLineNumbersMethodName: String
-    @LoadConstant("decoroutinatorTransformedLineNumbersMethodName") get() = fail()
+private val decoroutinatorTransformedClassNameMethodName: String
+    @LoadConstant("decoroutinatorTransformedClassNameMethodName") get() = fail()
 
 private val decoroutinatorTransformedSkipSpecMethodsMethodName: String
     @LoadConstant("decoroutinatorTransformedSkipSpecMethodsMethodName") get() = fail()
+
+private val decoroutinatorSpecMethodMethodNameMethodName: String
+    @LoadConstant("decoroutinatorSpecMethodMethodNameMethodName") get() = fail()
+
+private val decoroutinatorSpecMethodLineNumbersMethodName: String
+    @LoadConstant("decoroutinatorSpecMethodLineNumbersMethodName") get() = fail()
 
 private val isTailCallDeoptimizationEnabledMethodName: String
     @LoadConstant("isTailCallDeoptimizationEnabledMethodName") get() = fail()

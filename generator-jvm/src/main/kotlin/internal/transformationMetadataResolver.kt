@@ -7,7 +7,7 @@ import dev.reformator.bytecodeprocessor.intrinsics.fail
 import dev.reformator.stacktracedecoroutinator.common.internal.TransformationMetadata
 import dev.reformator.stacktracedecoroutinator.common.internal.AnnotationMetadataResolver
 import dev.reformator.stacktracedecoroutinator.common.internal.KotlinDebugMetadata
-import dev.reformator.stacktracedecoroutinator.common.internal.parseTransformationMetadata
+import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.decoroutinatorSpecMethodAnnotation
 import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.decoroutinatorTransformedAnnotation
 import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.getClassNode
 import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.getField
@@ -21,17 +21,22 @@ class AnnotationMetadataResolverImpl: AnnotationMetadataResolver {
         val transformedAnnotation = clazz.decoroutinatorTransformedAnnotation ?: return null
         val fileNamePresent = transformedAnnotation.getField(decoroutinatorTransformedFileNamePresentMethodName) as Boolean?
         val fileName = transformedAnnotation.getField(decoroutinatorTransformedFileNameMethodName) as String?
-        val methodNames = transformedAnnotation.getField(decoroutinatorTransformedMethodNamesMethodName) as List<String> ?
-        val lineNumbersCounts = transformedAnnotation.getField(decoroutinatorTransformedLineNumbersCountsMethodName) as List<Int>?
-        val lineNumbers = transformedAnnotation.getField(decoroutinatorTransformedLineNumbersMethodName) as List<Int>?
+        val className = transformedAnnotation.getField(decoroutinatorTransformedClassNameMethodName) as String?
         val skipSpecMethods = transformedAnnotation.getField(decoroutinatorTransformedSkipSpecMethodsMethodName) as Boolean?
-        return parseTransformationMetadata(
-            fileNamePresent = fileNamePresent,
-            fileName = fileName,
-            methodNames = methodNames,
-            lineNumbersCounts = lineNumbersCounts,
-            lineNumbers = lineNumbers,
-            skipSpecMethods = skipSpecMethods
+        val methods = clazz.methods.orEmpty().mapNotNull { methodNode ->
+            methodNode.decoroutinatorSpecMethodAnnotation?.let { specMethodAnnotation ->
+                TransformationMetadata.Method(
+                    name = specMethodAnnotation.getField(decoroutinatorSpecMethodMethodNameMethodName) as String,
+                    realName = methodNode.name,
+                    lineNumbers = (specMethodAnnotation.getField(decoroutinatorSpecMethodLineNumbersMethodName) as List<Int>).toIntArray()
+                )
+            }
+        }
+        return TransformationMetadata(
+            className = className.orEmpty(),
+            fileName = if (fileNamePresent == null || fileNamePresent) fileName else null,
+            methods = methods,
+            skipSpecMethods = skipSpecMethods ?: false
         )
     }
 
@@ -54,17 +59,17 @@ private val decoroutinatorTransformedFileNamePresentMethodName: String
 private val decoroutinatorTransformedFileNameMethodName: String
     @LoadConstant("decoroutinatorTransformedFileNameMethodName") get() = fail()
 
-private val decoroutinatorTransformedMethodNamesMethodName: String
-    @LoadConstant("decoroutinatorTransformedMethodNamesMethodName") get() = fail()
-
-private val decoroutinatorTransformedLineNumbersCountsMethodName: String
-    @LoadConstant("decoroutinatorTransformedLineNumbersCountsMethodName") get() = fail()
-
-private val decoroutinatorTransformedLineNumbersMethodName: String
-    @LoadConstant("decoroutinatorTransformedLineNumbersMethodName") get() = fail()
+private val decoroutinatorTransformedClassNameMethodName: String
+    @LoadConstant("decoroutinatorTransformedClassNameMethodName") get() = fail()
 
 private val decoroutinatorTransformedSkipSpecMethodsMethodName: String
     @LoadConstant("decoroutinatorTransformedSkipSpecMethodsMethodName") get() = fail()
+
+private val decoroutinatorSpecMethodMethodNameMethodName: String
+    @LoadConstant("decoroutinatorSpecMethodMethodNameMethodName") get() = fail()
+
+private val decoroutinatorSpecMethodLineNumbersMethodName: String
+    @LoadConstant("decoroutinatorSpecMethodLineNumbersMethodName") get() = fail()
 
 private val debugMetadataFileNameMethodName: String
     @LoadConstant("debugMetadataFileNameMethodName") get() = fail()
