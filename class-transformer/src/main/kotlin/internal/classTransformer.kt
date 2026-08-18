@@ -118,7 +118,9 @@ private val manualContinuationsInternalClassNames =
         "kotlinx.coroutines.TimeoutCoroutine",
         "kotlinx.coroutines.SupervisorCoroutine",
         "kotlinx.coroutines.flow.internal.FlowCoroutine",
-        "kotlin.coroutines.intrinsics.IntrinsicsKt__IntrinsicsJvmKt\$createCoroutineUnintercepted$\$inlined\$createCoroutineFromSuspendFunction\$IntrinsicsKt__IntrinsicsJvmKt$1"
+        "kotlinx.coroutines.internal.DispatchedContinuation",
+        "kotlin.coroutines.intrinsics.IntrinsicsKt__IntrinsicsJvmKt\$createCoroutineUnintercepted$\$inlined\$createCoroutineFromSuspendFunction\$IntrinsicsKt__IntrinsicsJvmKt$1",
+        "io.ktor.util.pipeline.SuspendFunctionGun\$continuation$1"
     ).map { it.internalName }.toHashSet()
 
 private val lazilyCachedContinuationsInternalClassNames =
