@@ -163,8 +163,7 @@ plugins {
     id("dev.reformator.stacktracedecoroutinator") version "2.6.4"
 }
 ```
-Note that Decoroutinator uses the [MethodHandle API](https://developer.android.com/reference/java/lang/invoke/MethodHandle), which requires Android API 26 (Android 8) or higher. Stack trace recovery does not work on older Android versions.
-
+Note that Decoroutinator uses the [MethodHandle API](https://developer.android.com/reference/java/lang/invoke/MethodHandle), which requires Android API 26 (Android 8) or higher. Decoroutinator detects this automatically at runtime — on older Android versions it disables stack trace recovery instead of failing, so it's always safe to include.
 ## Embedding DebugProbes
 Decoroutinator also allows embedding [DebugProbes](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-debug/kotlinx.coroutines.debug/-debug-probes/) into your Android application.
 DebugProbes is a mechanism for dumping coroutine state and stack traces at runtime, useful for debugging.
@@ -185,8 +184,8 @@ stacktraceDecoroutinator {
 }
 ```
 
-## Using the Gradle Plugin on Android with Minification Enabled
-Add the following ProGuard configuration to your `build.gradle.kts`:
+## Using the Gradle Plugin on Android with R8/ProGuard Minification Enabled
+When minification (R8/ProGuard) is enabled, it can strip or rename code that Decoroutinator needs at runtime, breaking stack trace recovery. Add Decoroutinator's generated rules to your release build config to prevent that:
 ```kotlin
 android {
     buildTypes {
