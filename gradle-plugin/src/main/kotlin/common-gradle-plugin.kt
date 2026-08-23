@@ -633,12 +633,12 @@ private fun Project.setGeneratingProguardFiles(legacyAndroidCompatibility: Boole
             -keep,allowobfuscation @interface ${DecoroutinatorTransformed::class.java.name}
             -keep,allowobfuscation @interface ${DecoroutinatorSpecMethod::class.java.name}
             -keepattributes RuntimeVisibleAnnotations,LineNumberTable,SourceFile
-            -keep,allowshrinking @${DecoroutinatorTransformed::class.java.name} class * { }
-            -keepclasseswithmembers,allowshrinking,allowobfuscation @${DecoroutinatorTransformed::class.java.name} class * {
-                static *(${DecoroutinatorSpec::class.java.name}, ${Object::class.java.name});
-            }
+            -keep,allowobfuscation,allowshrinking @${DecoroutinatorTransformed::class.java.name} class *
             -keepclassmembers,allowobfuscation @${DecoroutinatorTransformed::class.java.name} class * {
                 static *(${DecoroutinatorSpec::class.java.name}, ${Object::class.java.name});
+            }
+            -keepclassmembers @${DecoroutinatorTransformed::class.java.name} class * {
+                static <clinit>();
             }
             -keep,allowobfuscation interface ${DecoroutinatorSpec::class.java.name} { *; }
             -keep @${AndroidKeep::class.java.name} class * { *; }
