@@ -80,7 +80,7 @@ fun transformClassBody(
         if (node.name == BASE_CONTINUATION_CLASS_NAME.internalName) {
             node.transformBaseContinuation()
             if (mode.allowChangingClassLayout) {
-                assert(node.trySetSpecImplAsBaseClass())
+                @Suppress("AssertionSideEffect") assert(node.trySetSpecImplAsBaseClass(true))
             } else {
                 preserveClassLayout = true
             }
@@ -93,7 +93,18 @@ fun transformClassBody(
             ) {
                 if (mode.allowChangingClassLayout) {
                     doTransformation = true
-                    node.trySetSpecImplAsBaseClass()
+                    node.trySetSpecImplAsBaseClass(true)
+                } else {
+                    preserveClassLayout = true
+                }
+            }
+
+            if (
+                node.name in specHoldersInternalClassNames &&
+                node.trySetSpecImplAsBaseClass(mode.allowChangingClassLayout)
+            ) {
+                if (mode.allowChangingClassLayout) {
+                    doTransformation = true
                 } else {
                     preserveClassLayout = true
                 }
@@ -163,12 +174,18 @@ private val manualContinuationsInternalClassNames =
         "kotlinx.coroutines.flow.internal.FlowCoroutine",
         "kotlinx.coroutines.internal.DispatchedContinuation",
         "kotlin.coroutines.intrinsics.IntrinsicsKt__IntrinsicsJvmKt\$createCoroutineUnintercepted$\$inlined\$createCoroutineFromSuspendFunction\$IntrinsicsKt__IntrinsicsJvmKt$1",
-        "io.ktor.util.pipeline.SuspendFunctionGun\$continuation$1"
+        "io.ktor.util.pipeline.SuspendFunctionGun\$continuation$1",
+        "kotlinx.coroutines.flow.internal.StackFrameContinuation"
     ).map { it.internalName }.toHashSet()
 
 private val lazilyCachedContinuationsInternalClassNames =
     sequenceOf(
         "kotlinx.coroutines.debug.internal.DebugProbesImpl\$CoroutineOwner"
+    ).map { it.internalName }.toHashSet()
+
+private val specHoldersInternalClassNames =
+    sequenceOf(
+        "kotlinx.coroutines.JobSupport"
     ).map { it.internalName }.toHashSet()
 
 private const val baseContinuationCachesFieldName = "\$decoroutinator\$caches"
@@ -512,9 +529,10 @@ private val ClassNode.isInterface: Boolean
     get() = access and Opcodes.ACC_INTERFACE != 0
 
 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
-private fun ClassNode.trySetSpecImplAsBaseClass(): Boolean {
+private fun ClassNode.trySetSpecImplAsBaseClass(apply: Boolean): Boolean {
     if (isInterface) return false
     if (superName != Type.getInternalName(Object::class.java)) return false
+    if (!apply) return true
     superName = Type.getInternalName(DecoroutinatorSpecImpl::class.java)
     methods.orEmpty().forEach { method ->
         if (method.name == "<init>") {
