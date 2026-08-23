@@ -8,7 +8,7 @@ import dev.reformator.bytecodeprocessor.intrinsics.ownerClass
 import dev.reformator.stacktracedecoroutinator.classtransformer.internal.ClassBodyTransformationStatus
 import dev.reformator.stacktracedecoroutinator.classtransformer.internal.noClassBodyTransformationStatus
 import dev.reformator.stacktracedecoroutinator.classtransformer.internal.transformClassBody
-import dev.reformator.stacktracedecoroutinator.intrinsics.BASE_CONTINUATION_CLASS_NAME
+import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorTransformed
 import dev.reformator.stacktracedecoroutinator.provider.internal.internalName
 import dev.reformator.stacktracedecoroutinator.provider.providerApiClass
 import java.io.ByteArrayInputStream
@@ -81,25 +81,20 @@ private class DecoroutinatorClassFileTransformer(
             return noClassBodyTransformationStatus
         }
 
-        if (classBeingRedefined != null) {
-            val isRedefinitionAllowed = run {
-                if (!inst.isRedefineClassesSupported) return@run false
-                if (classBeingRedefined.name == BASE_CONTINUATION_CLASS_NAME) {
-                    isBaseContinuationRedefinitionAllowed
-                } else {
-                    isRedefinitionAllowed
-                }
-            }
-
-            if (!isRedefinitionAllowed) return noClassBodyTransformationStatus
+        if (classBeingRedefined != null && !inst.isRedefineClassesSupported) {
+            return noClassBodyTransformationStatus
         }
 
         return transformClassBody(
             classBody = ByteArrayInputStream(classfileBuffer),
-            skipSpecMethods = false,
             classBodyResolver = metadataResolver@{ className ->
                 val path = "${className.internalName}.class"
                 loader.getResourceAsStream(path)
+            },
+            mode = if (classBeingRedefined == null || isRedefinitionChangingClassLayoutAllowed) {
+                DecoroutinatorTransformed.Mode.FULL
+            } else {
+                DecoroutinatorTransformed.Mode.PRESERVE_CLASS_LAYOUT
             }
         )
     }

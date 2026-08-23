@@ -14,7 +14,9 @@ import dev.reformator.stacktracedecoroutinator.intrinsics.BASE_CONTINUATION_CLAS
 import dev.reformator.stacktracedecoroutinator.intrinsics.BaseContinuation
 import dev.reformator.stacktracedecoroutinator.intrinsics.LABEL_FIELD_NAME
 import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
+import dev.reformator.stacktracedecoroutinator.intrinsics.assert
 import dev.reformator.stacktracedecoroutinator.provider.BaseContinuationExtractor
+import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpecImpl
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpecMethod
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorTransformed
 import dev.reformator.stacktracedecoroutinator.provider.LazilyCachedContinuation
@@ -48,14 +50,19 @@ class ClassBodyTransformationStatus(
 fun transformClassBody(
     classBody: InputStream,
     classBodyResolver: (className: String) -> InputStream?,
-    skipSpecMethods: Boolean
+    mode: DecoroutinatorTransformed.Mode
 ): ClassBodyTransformationStatus {
     val node = getClassNode(classBody) ?: return noClassBodyTransformationStatus
     node.decoroutinatorTransformedAnnotation?.let { transformedAnnotation ->
-        val annotationSkipSpecMethods =
-            transformedAnnotation.getField(decoroutinatorTransformedSkipSpecMethodsMethodName) as Boolean?
-        if (skipSpecMethods != (annotationSkipSpecMethods ?: false)) {
-            error("class [${node.name}] is already transformed but skipSpecMethods = [$annotationSkipSpecMethods]")
+        val currentMode = run {
+            @Suppress("UNCHECKED_CAST", "UnsafeCastWithReturn")
+            val values = transformedAnnotation.getField(decoroutinatorTransformedModeMethodName) as Array<String>?
+                ?: return@run DecoroutinatorTransformed.Mode.FULL
+            DecoroutinatorTransformed.Mode.valueOf(values[1])
+        }
+        if (currentMode.ordinal > mode.ordinal) {
+            error("Class '${node.name.binaryName}' is already transformed with weaker mode '$currentMode', " +
+                    "cannot transform with stronger mode '$mode'")
         }
         return readProviderClassBodyTransformationStatus
     }
@@ -63,6 +70,8 @@ fun transformClassBody(
     var doTransformation = false
     val lineNumbersBySpecMethodName: MutableMap<String, MutableSet<Int>> = HashMap()
     val tailCallCaches: MutableList<TailCallDeoptimizeMethodNameAndLineNumber> = ArrayList()
+    var preserveClassLayout = false
+    var skipSpecMethods = false
 
     val metadataAnnotation = node.kotlinMetadataAnnotation ?: return noClassBodyTransformationStatus
     val xi = metadataAnnotation.getField("xi") as Int?
@@ -70,14 +79,24 @@ fun transformClassBody(
     if (xi == null || xi and (1 shl 7) == 0) {
         if (node.name == BASE_CONTINUATION_CLASS_NAME.internalName) {
             node.transformBaseContinuation()
+            if (mode.allowChangingClassLayout) {
+                assert(node.trySetSpecImplAsBaseClass())
+            } else {
+                preserveClassLayout = true
+            }
             doTransformation = true
         } else {
             if (
-                node.tryAddBaseContinuationExtractor() ||
-                node.tryAddManualContinuation(lineNumbersBySpecMethodName) ||
-                node.tryAddLazilyCachedContinuation()
+                node.tryAddBaseContinuationExtractor(mode.allowChangingClassLayout) ||
+                node.tryAddManualContinuation(mode.allowChangingClassLayout, lineNumbersBySpecMethodName) ||
+                node.tryAddLazilyCachedContinuation(mode.allowChangingClassLayout)
             ) {
-                doTransformation = true
+                if (mode.allowChangingClassLayout) {
+                    doTransformation = true
+                    node.trySetSpecImplAsBaseClass()
+                } else {
+                    preserveClassLayout = true
+                }
             }
 
             @Suppress("UNCHECKED_CAST")
@@ -95,13 +114,37 @@ fun transformClassBody(
                 classBodyResolver = classBodyResolver,
                 lineNumbersBySpecMethodName = lineNumbersBySpecMethodName,
                 notSuspendFunctionSignatures = notSuspendFunctionSignatures,
-                tailCallCaches = tailCallCaches
+                tailCallCaches = tailCallCaches,
+                allowChangingClassLayout = mode.allowChangingClassLayout
             )) doTransformation = true
         }
     }
     return if (doTransformation) {
-        node.generateSpecMethodsAndTransformAnnotation(skipSpecMethods, lineNumbersBySpecMethodName)
-        node.saveTailCallCaches(tailCallCaches)
+        if (tailCallCaches.isNotEmpty()) {
+            if (mode.allowChangingClassLayout) {
+                node.saveTailCallCaches(tailCallCaches)
+            } else {
+                preserveClassLayout = true
+            }
+        }
+
+        if (lineNumbersBySpecMethodName.isNotEmpty()) {
+            if (mode.allowSpecMethods) {
+                node.generateSpecMethods(lineNumbersBySpecMethodName)
+            } else {
+                skipSpecMethods = true
+            }
+        }
+
+        node.generateTransformAnnotation(
+            addFileAndClassName = lineNumbersBySpecMethodName.isNotEmpty() && mode.allowSpecMethods,
+            mode = when {
+                preserveClassLayout -> DecoroutinatorTransformed.Mode.PRESERVE_CLASS_LAYOUT
+                skipSpecMethods -> DecoroutinatorTransformed.Mode.SKIP_SPEC_METHODS
+                else -> DecoroutinatorTransformed.Mode.FULL
+            }
+        )
+
         ClassBodyTransformationStatus(
             updatedBody = node.classBody,
             needReadProviderModule = true
@@ -132,6 +175,12 @@ private const val baseContinuationCachesFieldName = "\$decoroutinator\$caches"
 private const val manualContinuationCacheFieldName = "\$decoroutinator\$cache"
 private const val lazilyCachedContinuationCacheFieldName = "\$decoroutinator\$cache"
 
+private val DecoroutinatorTransformed.Mode.allowChangingClassLayout: Boolean
+    get() = this != DecoroutinatorTransformed.Mode.PRESERVE_CLASS_LAYOUT
+
+private val DecoroutinatorTransformed.Mode.allowSpecMethods: Boolean
+    get() = this == DecoroutinatorTransformed.Mode.FULL
+
 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
 private fun Metadata.getNonSuspendFunctionSignatures(): List<JvmMethodSignature> {
     val functions = when(val metadata = KotlinClassMetadata.readLenient(this)) {
@@ -149,7 +198,7 @@ private fun Metadata.getNonSuspendFunctionSignatures(): List<JvmMethodSignature>
         .toList()
 }
 
-private fun ClassNode.tryAddBaseContinuationExtractor(): Boolean {
+private fun ClassNode.tryAddBaseContinuationExtractor(apply: Boolean): Boolean {
     val debugMetadata = kotlinDebugMetadataAnnotation ?: return false
 
     if (
@@ -159,6 +208,8 @@ private fun ClassNode.tryAddBaseContinuationExtractor(): Boolean {
             || field.access and Opcodes.ACC_STATIC != 0
         }
     ) return false
+
+    if (!apply) return true
 
     interfaces = interfaces.orEmpty() + Type.getInternalName(BaseContinuationExtractor::class.java)
 
@@ -251,9 +302,12 @@ private fun ClassNode.tryAddBaseContinuationExtractor(): Boolean {
 
 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
 private fun ClassNode.tryAddManualContinuation(
+    apply: Boolean,
     lineNumbersBySpecMethodName: MutableMap<String, MutableSet<Int>>
 ): Boolean {
     if (isInterface || name !in manualContinuationsInternalClassNames) return false
+
+    if (!apply) return true
 
     interfaces = interfaces.orEmpty() + Type.getInternalName(ManualContinuation::class.java)
 
@@ -398,8 +452,10 @@ private fun ClassNode.updateGetStackTraceElementMethod(
     }
 }
 
-private fun ClassNode.tryAddLazilyCachedContinuation(): Boolean {
+private fun ClassNode.tryAddLazilyCachedContinuation(apply: Boolean): Boolean {
     if (isInterface || name !in lazilyCachedContinuationsInternalClassNames) return false
+
+    if (!apply) return true
 
     interfaces = interfaces.orEmpty() + Type.getInternalName(LazilyCachedContinuation::class.java)
 
@@ -454,6 +510,31 @@ private fun ClassNode.tryAddLazilyCachedContinuation(): Boolean {
 
 private val ClassNode.isInterface: Boolean
     get() = access and Opcodes.ACC_INTERFACE != 0
+
+@Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+private fun ClassNode.trySetSpecImplAsBaseClass(): Boolean {
+    if (isInterface) return false
+    if (superName != Type.getInternalName(Object::class.java)) return false
+    superName = Type.getInternalName(DecoroutinatorSpecImpl::class.java)
+    methods.orEmpty().forEach { method ->
+        if (method.name == "<init>") {
+            val instructions = method.instructions
+            if (instructions != null) {
+                instructions.forEach { instruction ->
+                    if (
+                        instruction is MethodInsnNode &&
+                        instruction.opcode == Opcodes.INVOKESPECIAL &&
+                        instruction.name == "<init>" &&
+                        instruction.owner == Type.getInternalName(Object::class.java)
+                    ) {
+                        instruction.owner = Type.getInternalName(DecoroutinatorSpecImpl::class.java)
+                    }
+                }
+            }
+        }
+    }
+    return true
+}
 
 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
 private fun ClassNode.transformBaseContinuation() {
@@ -553,50 +634,41 @@ private val readProviderClassBodyTransformationStatus = ClassBodyTransformationS
     needReadProviderModule = true
 )
 
-private fun ClassNode.generateSpecMethodsAndTransformAnnotation(
-    skipSpecMethods: Boolean,
-    lineNumbersBySpecMethodName: Map<String, Set<Int>>
-) {
+private fun ClassNode.generateSpecMethods(lineNumbersBySpecMethodName: Map<String, Set<Int>>) {
+    assert { lineNumbersBySpecMethodName.isNotEmpty() }
     val isPrivateMethodsInInterfacesSupported = version >= Opcodes.V9
     val makePrivate = !isInterface || isPrivateMethodsInInterfacesSupported
     val makeFinal = !isInterface
     version = maxOf(version, Opcodes.V1_7)
-    if (!skipSpecMethods) {
-        lineNumbersBySpecMethodName.forEach { (methodName, lineNumbers) ->
-            val specMethodNode = buildSpecMethodNode(
-                methodName = methodName,
-                lineNumbers = lineNumbers,
-                makePrivate = makePrivate,
-                makeFinal = makeFinal
-            )
-            specMethodNode.visibleAnnotations = specMethodNode.visibleAnnotations.orEmpty() +
-                AnnotationNode(Opcodes.ASM9, Type.getDescriptor(DecoroutinatorSpecMethod::class.java)).apply {
-                    values = buildList {
-                        add(decoroutinatorSpecMethodMethodNameMethodName)
-                        add(methodName)
-
-                        add(decoroutinatorSpecMethodLineNumbersMethodName)
-                        add(lineNumbers.sorted())
-                    }
-                }
-            methods.add(specMethodNode)
-        }
-    }
-
-    val addLookupRegistration = !skipSpecMethods && lineNumbersBySpecMethodName.isNotEmpty()
-
-    if (addLookupRegistration) {
-        val clinit = getOrCreateClinitMethod()
-        clinit.instructions.insertBefore(
-            clinit.instructions.first,
-            buildCallRegisterLookupInstructions()
+    methods = methods.orEmpty() + lineNumbersBySpecMethodName.map { (methodName, lineNumbers) ->
+        val specMethodNode = buildSpecMethodNode(
+            methodName = methodName,
+            lineNumbers = lineNumbers,
+            makePrivate = makePrivate,
+            makeFinal = makeFinal
         )
-    }
+        specMethodNode.visibleAnnotations = specMethodNode.visibleAnnotations.orEmpty() +
+            AnnotationNode(Opcodes.ASM9, Type.getDescriptor(DecoroutinatorSpecMethod::class.java)).apply {
+                values = buildList {
+                    add(decoroutinatorSpecMethodMethodNameMethodName)
+                    add(methodName)
 
+                    add(decoroutinatorSpecMethodLineNumbersMethodName)
+                    add(lineNumbers.sorted())
+                }
+            }
+        specMethodNode
+    }
+    getOrCreateClinitMethod().instructions.apply {
+        insertBefore(first, buildCallRegisterLookupInstructions())
+    }
+}
+
+private fun ClassNode.generateTransformAnnotation(addFileAndClassName: Boolean, mode: DecoroutinatorTransformed.Mode) {
     visibleAnnotations = visibleAnnotations.orEmpty() +
         AnnotationNode(Opcodes.ASM9, Type.getDescriptor(DecoroutinatorTransformed::class.java)).apply {
             values = buildList {
-                if (addLookupRegistration) {
+                if (addFileAndClassName) {
                     if (sourceFile != null) {
                         add(decoroutinatorTransformedFileNameMethodName)
                         add(sourceFile)
@@ -604,21 +676,22 @@ private fun ClassNode.generateSpecMethodsAndTransformAnnotation(
                         add(decoroutinatorTransformedFileNamePresentMethodName)
                         add(false)
                     }
-
                     add(decoroutinatorTransformedClassNameMethodName)
                     add(name.binaryName)
                 }
-
-                if (skipSpecMethods) {
-                    add(decoroutinatorTransformedSkipSpecMethodsMethodName)
-                    add(true)
+                if (mode != DecoroutinatorTransformed.Mode.FULL) {
+                    add(decoroutinatorTransformedModeMethodName)
+                    add(arrayOf(
+                        Type.getDescriptor(DecoroutinatorTransformed.Mode::class.java),
+                        mode.name
+                    ))
                 }
             }
         }
 }
 
 private fun ClassNode.saveTailCallCaches(tailCallCaches: List<TailCallDeoptimizeMethodNameAndLineNumber>) {
-    if (tailCallCaches.isEmpty()) return
+    assert { tailCallCaches.isNotEmpty() }
 
     val fieldAccess = (if (isInterface) Opcodes.ACC_PUBLIC else Opcodes.ACC_PRIVATE) or Opcodes.ACC_STATIC or
             Opcodes.ACC_FINAL or Opcodes.ACC_SYNTHETIC
@@ -694,7 +767,8 @@ private fun ClassNode.tryTransformSuspendMethods(
     classBodyResolver: (className: String) -> InputStream?,
     lineNumbersBySpecMethodName: MutableMap<String, MutableSet<Int>>,
     tailCallCaches: MutableList<TailCallDeoptimizeMethodNameAndLineNumber>,
-    notSuspendFunctionSignatures: Collection<JvmMethodSignature>
+    notSuspendFunctionSignatures: Collection<JvmMethodSignature>,
+    allowChangingClassLayout: Boolean
 ): Boolean {
     var needTransformation = false
 
@@ -714,7 +788,8 @@ private fun ClassNode.tryTransformSuspendMethods(
             notSuspendFunctionSignatures = notSuspendFunctionSignatures,
             classBodyResolver = classBodyResolver,
             lineNumbersBySpecMethodName = lineNumbersBySpecMethodName,
-            tailCallCaches = tailCallCaches
+            tailCallCaches = tailCallCaches,
+            allowChangingClassLayout = allowChangingClassLayout
         )) needTransformation = true
     }
 
@@ -755,7 +830,8 @@ private fun tryTransformSuspendMethod(
     notSuspendFunctionSignatures: Collection<JvmMethodSignature>,
     classBodyResolver: (className: String) -> InputStream?,
     lineNumbersBySpecMethodName: MutableMap<String, MutableSet<Int>>,
-    tailCallCaches: MutableList<TailCallDeoptimizeMethodNameAndLineNumber>
+    tailCallCaches: MutableList<TailCallDeoptimizeMethodNameAndLineNumber>,
+    allowChangingClassLayout: Boolean
 ): Boolean {
     if (method.instructions == null || method.instructions.size() == 0) return false
 
@@ -860,12 +936,27 @@ private fun tryTransformSuspendMethod(
     }.add(lineNumber)
 
     method.instructions.insert(loadCompletionInstruction, InsnList().apply {
-        add(FieldInsnNode(
-            Opcodes.GETSTATIC,
-            clazz.name,
-            cacheFieldName,
-            Type.getDescriptor(SpecCache::class.java)
-        ))
+        if (allowChangingClassLayout) {
+            add(FieldInsnNode(
+                Opcodes.GETSTATIC,
+                clazz.name,
+                cacheFieldName,
+                Type.getDescriptor(SpecCache::class.java)
+            ))
+        } else {
+            add(TypeInsnNode(Opcodes.NEW, Type.getInternalName(SpecCache::class.java)))
+            add(InsnNode(Opcodes.DUP))
+            add(LdcInsnNode(clazz.name.binaryName))
+            add(LdcInsnNode(method.name))
+            add(if (clazz.sourceFile == null) InsnNode(Opcodes.ACONST_NULL) else LdcInsnNode(clazz.sourceFile))
+            add(LdcInsnNode(lineNumber))
+            add(MethodInsnNode(
+                Opcodes.INVOKESPECIAL,
+                Type.getInternalName(SpecCache::class.java),
+                "<init>",
+                "(${Type.getDescriptor(String::class.java)}${Type.getDescriptor(String::class.java)}${Type.getDescriptor(String::class.java)}${Type.INT_TYPE.descriptor})${Type.VOID_TYPE.descriptor}"
+            ))
+        }
         add(MethodInsnNode(
             Opcodes.INVOKESTATIC,
             Type.getInternalName(providerApiClass),
@@ -888,14 +979,14 @@ private val MethodNode.isSynthetic: Boolean
     get() = access and Opcodes.ACC_SYNTHETIC != 0
 
 private fun ClassNode.getOrCreateClinitMethod(): MethodNode =
-    methods.firstOrNull {
+    methods?.firstOrNull {
         it.name == "<clinit>" && it.desc == "()${Type.VOID_TYPE.descriptor}" && it.isStatic
     } ?: MethodNode(Opcodes.ASM9).apply {
         name = "<clinit>"
         desc = "()${Type.VOID_TYPE.descriptor}"
         access = Opcodes.ACC_STATIC or Opcodes.ACC_SYNTHETIC
         instructions.add(InsnNode(Opcodes.RETURN))
-        methods.add(this)
+        methods = methods.orEmpty() + this
     }
 
 private val registerTransformedClassMethodName: String
@@ -981,8 +1072,8 @@ private val decoroutinatorTransformedFileNameMethodName: String
 private val decoroutinatorTransformedClassNameMethodName: String
     @LoadConstant("decoroutinatorTransformedClassNameMethodName") get() = fail()
 
-private val decoroutinatorTransformedSkipSpecMethodsMethodName: String
-    @LoadConstant("decoroutinatorTransformedSkipSpecMethodsMethodName") get() = fail()
+private val decoroutinatorTransformedModeMethodName: String
+    @LoadConstant("decoroutinatorTransformedModeMethodName") get() = fail()
 
 private val decoroutinatorSpecMethodMethodNameMethodName: String
     @LoadConstant("decoroutinatorSpecMethodMethodNameMethodName") get() = fail()

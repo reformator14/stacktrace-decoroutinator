@@ -22,9 +22,10 @@ dependencies {
     compileOnly(libs.bytecode.processor.intrinsics)
     compileOnly(project(":intrinsics"))
 
+    api(project(":stacktrace-decoroutinator-provider"))
+
     implementation(libs.asm.utils)
     implementation(libs.kotlin.metadata.jvm)
-    implementation(project(":stacktrace-decoroutinator-provider"))
     implementation(project(":stacktrace-decoroutinator-spec-method-builder"))
 }
 

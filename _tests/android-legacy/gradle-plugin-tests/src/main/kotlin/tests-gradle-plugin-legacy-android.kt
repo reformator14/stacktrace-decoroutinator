@@ -125,6 +125,22 @@ open class LegacyAndroidTest {
         val status = DecoroutinatorCommonApi.getStatus { it() }
         assertFalse(status.successful, status.description)
     }
+
+    @Test
+    fun checkAllClassesLoaded() = runBlocking {
+        fun tailCallDeopt() { }
+
+        suspend fun rec(depth: Int) {
+            if (depth == 0) {
+                yield()
+            } else {
+                rec(depth - 1)
+            }
+            tailCallDeopt()
+        }
+
+        rec(5)
+    }
 }
 
 private fun setRetraceMappings() {

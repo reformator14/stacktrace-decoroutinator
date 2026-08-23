@@ -56,3 +56,28 @@ annotation class DebugMetadata(
     @Suppress("unused")
     val className: String = ""
 )
+
+inline fun ifAssertionEnabled(check: () -> Unit) {
+    if (_Assertions.ENABLED) {
+        check()
+    }
+}
+
+inline fun assert(check: () -> Boolean) {
+    ifAssertionEnabled {
+        if (!check()) {
+            throw AssertionError()
+        }
+    }
+}
+
+@ChangeClassName(
+    toName = "kotlin._Assertions",
+    deleteAfterChanging = true
+)
+@PublishedApi
+@Suppress("ClassName")
+internal object _Assertions {
+    @JvmField
+    val ENABLED: Boolean = fail()
+}

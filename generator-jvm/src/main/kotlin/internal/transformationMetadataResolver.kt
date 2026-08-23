@@ -22,7 +22,6 @@ class AnnotationMetadataResolverImpl: AnnotationMetadataResolver {
         val fileNamePresent = transformedAnnotation.getField(decoroutinatorTransformedFileNamePresentMethodName) as Boolean?
         val fileName = transformedAnnotation.getField(decoroutinatorTransformedFileNameMethodName) as String?
         val className = transformedAnnotation.getField(decoroutinatorTransformedClassNameMethodName) as String?
-        val skipSpecMethods = transformedAnnotation.getField(decoroutinatorTransformedSkipSpecMethodsMethodName) as Boolean?
         val methods = clazz.methods.orEmpty().mapNotNull { methodNode ->
             methodNode.decoroutinatorSpecMethodAnnotation?.let { specMethodAnnotation ->
                 TransformationMetadata.Method(
@@ -35,8 +34,7 @@ class AnnotationMetadataResolverImpl: AnnotationMetadataResolver {
         return TransformationMetadata(
             className = className.orEmpty(),
             fileName = if (fileNamePresent == null || fileNamePresent) fileName else null,
-            methods = methods,
-            skipSpecMethods = skipSpecMethods ?: false
+            methods = methods
         )
     }
 
@@ -61,9 +59,6 @@ private val decoroutinatorTransformedFileNameMethodName: String
 
 private val decoroutinatorTransformedClassNameMethodName: String
     @LoadConstant("decoroutinatorTransformedClassNameMethodName") get() = fail()
-
-private val decoroutinatorTransformedSkipSpecMethodsMethodName: String
-    @LoadConstant("decoroutinatorTransformedSkipSpecMethodsMethodName") get() = fail()
 
 private val decoroutinatorSpecMethodMethodNameMethodName: String
     @LoadConstant("decoroutinatorSpecMethodMethodNameMethodName") get() = fail()

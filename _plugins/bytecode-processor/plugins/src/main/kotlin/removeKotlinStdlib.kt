@@ -9,7 +9,9 @@ import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.FieldInsnNode
 import org.objectweb.asm.tree.InsnNode
+import org.objectweb.asm.tree.LdcInsnNode
 import org.objectweb.asm.tree.MethodInsnNode
+import org.objectweb.asm.tree.VarInsnNode
 import java.util.Objects
 import kotlin.jvm.internal.Intrinsics
 import kotlin.reflect.KFunction
@@ -29,7 +31,14 @@ object RemoveKotlinStdlibProcessor: Processor {
                                 instruction.name in intrinsicCheckNotNullWithMessageMethodNames
                                 && instruction.desc == "(${Type.getDescriptor(Object::class.java)}${Type.getDescriptor(String::class.java)})V"
                             ) {
-                                method.instructions.insert(instruction, InsnNode(Opcodes.POP2))
+                                val prev = instruction.previous
+                                val prevPrev = prev?.previous
+                                if (prev is LdcInsnNode && prev.cst is String && prevPrev is VarInsnNode && prevPrev.opcode == Opcodes.ALOAD) {
+                                    method.instructions.remove(prev)
+                                    method.instructions.remove(prevPrev)
+                                } else {
+                                    method.instructions.insert(instruction, InsnNode(Opcodes.POP2))
+                                }
                                 method.instructions.remove(instruction)
                                 clazz.markModified()
                             } else if (
@@ -61,7 +70,7 @@ object RemoveKotlinStdlibProcessor: Processor {
                             && instruction.name == "ENABLED"
                             && instruction.desc == Type.BOOLEAN_TYPE.descriptor
                         ) {
-                            method.instructions.insert(instruction, InsnNode(Opcodes.ICONST_1))
+                            method.instructions.insert(instruction, InsnNode(Opcodes.ICONST_0))
                             method.instructions.remove(instruction)
                             clazz.markModified()
                         }

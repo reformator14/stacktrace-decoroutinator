@@ -5,6 +5,7 @@ package dev.reformator.decoroutinatortransformbasecontinuation
 import dev.reformator.stacktracedecoroutinator.classtransformer.internal.transformClassBody
 import dev.reformator.stacktracedecoroutinator.intrinsics.BASE_CONTINUATION_CLASS_NAME
 import dev.reformator.stacktracedecoroutinator.intrinsics.PROVIDER_MODULE_NAME
+import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorTransformed
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.transform.InputArtifact
@@ -64,8 +65,8 @@ internal abstract class DecoroutinatorTransformBaseContinuationAction: Transform
                             output.write(input.getInputStream(entry).use { classBody ->
                                 transformClassBody(
                                     classBody = classBody,
-                                    skipSpecMethods = false,
-                                    classBodyResolver = { error("no need") }
+                                    classBodyResolver = { error("no need") },
+                                    mode = DecoroutinatorTransformed.Mode.PRESERVE_CLASS_LAYOUT
                                 ).updatedBody!!
                             })
                         } else if (entry.name.endsWith("/module-info.class")) {

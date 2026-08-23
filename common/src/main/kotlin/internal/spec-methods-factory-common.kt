@@ -3,6 +3,7 @@
 package dev.reformator.stacktracedecoroutinator.common.internal
 
 import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
+import dev.reformator.stacktracedecoroutinator.intrinsics.assert
 import java.lang.invoke.MethodHandle
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -142,7 +143,6 @@ internal object SpecMethodsFactoryImpl: SpecMethodsFactory {
     )
 
     private fun register(spec: TransformedClassesRegistry.TransformedClassSpec) {
-        if (spec.skipSpecMethods) return
         val methodsByName = spec.methods.associateTo(
             if (spec.methods.size < methodsNumberThreshold) {
                 CompactMap()

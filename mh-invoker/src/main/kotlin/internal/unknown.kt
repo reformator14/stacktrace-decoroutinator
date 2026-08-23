@@ -16,12 +16,15 @@ internal val unknownSpecClass: Class<*>
 
 @Suppress("unused")
 private fun unknown(spec: DecoroutinatorSpec, result: Any?): Any? {
-    val updatedResult = if (!spec.isLastSpec) {
-        spec.nextSpecHandle.invokeExact(spec.nextSpec, result)
+    val updatedResult = if (!spec.`$decoroutinator$isLastSpec`()) {
+        spec.`$decoroutinator$getNextSpecHandle`().invokeExact(
+            spec.`$decoroutinator$getNextSpec`(),
+            result
+        )
     } else {
         result
     }
-    return spec.resumeNext(updatedResult)
+    return spec.`$decoroutinator$resumeNext`(updatedResult)
 }
 
 internal fun getUnknownSpecMethodHandle(): MethodHandle =

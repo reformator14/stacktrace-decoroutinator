@@ -36,10 +36,7 @@ interface DecoroutinatorRuntimeSettingsProvider {
 
     // JVM Agent settings
 
-    val isBaseContinuationRedefinitionAllowed: Boolean
-        get() = defaultValue()
-
-    val isRedefinitionAllowed: Boolean
+    val isRedefinitionChangingClassLayoutAllowed: Boolean
         get() = defaultValue()
 
     // Embedded Debug Probes settings

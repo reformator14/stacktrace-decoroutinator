@@ -18,16 +18,21 @@ repositories {
 
 dependencies {
     compileOnly(libs.bytecode.processor.intrinsics)
+    compileOnly(project(":intrinsics"))
 
     implementation(project(":stacktrace-decoroutinator-provider"))
     implementation(project(":stacktrace-decoroutinator-common"))
 }
 
 bytecodeProcessor {
+    dependentProjects = listOf(
+        project(":intrinsics")
+    )
     processors = listOf(
         GetOwnerClassProcessor,
         RemoveKotlinStdlibProcessor,
-        MakeStaticProcessor
+        MakeStaticProcessor,
+        ChangeClassNameProcessor
     )
 }
 

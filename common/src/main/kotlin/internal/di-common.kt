@@ -1,5 +1,6 @@
 package dev.reformator.stacktracedecoroutinator.common.internal
 
+import dev.reformator.stacktracedecoroutinator.intrinsics.assert
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessorProvider
 import dev.reformator.stacktracedecoroutinator.provider.internal.AndroidKeep
 import dev.reformator.stacktracedecoroutinator.runtimesettings.internal.getRuntimeSettingsValue

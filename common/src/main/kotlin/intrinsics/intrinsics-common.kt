@@ -19,17 +19,6 @@ internal class FailureResult {
     @JvmField val exception: Throwable = fail()
 }
 
-@ChangeClassName(
-    toName = "kotlin._Assertions",
-    deleteAfterChanging = true
-)
-@PublishedApi
-@Suppress("ClassName")
-internal object _Assertions {
-    @JvmField
-    val ENABLED: Boolean = fail()
-}
-
 @Suppress("UnusedReceiverParameter")
 internal val Any?.toResult: Result<*>
     @SkipInvocations get() { fail() }

@@ -6,8 +6,10 @@ import dev.reformator.stacktracedecoroutinator.common.intrinsics.FailureResult
 import dev.reformator.stacktracedecoroutinator.common.intrinsics.toResult
 import dev.reformator.stacktracedecoroutinator.intrinsics.BaseContinuation
 import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
+import dev.reformator.stacktracedecoroutinator.intrinsics.assert
 import dev.reformator.stacktracedecoroutinator.provider.ContinuationCached
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpec
+import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpecImpl
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessor
 import java.lang.invoke.MethodHandle
 import kotlin.contracts.ExperimentalContracts
@@ -19,12 +21,38 @@ import kotlin.coroutines.jvm.internal.CoroutineStackFrame
 import kotlin.math.max
 
 internal fun BaseContinuation.awake(accessor: BaseContinuationAccessor, result: Any?) {
-    val isRecoveryExplicitStacktraceNeeded = recoveryExplicitStacktrace && result.toResult.isFailure
-    val elementsAndSpecMethods = if (isRecoveryExplicitStacktraceNeeded) getElementsAndSpecMethods() else null
-    if (isRecoveryExplicitStacktraceNeeded) {
+    val spec: DecoroutinatorSpec?
+    val specMethod: MethodHandle?
+    val baseContinuation: BaseContinuation?
+    val completion: Continuation<Any?>
+    if (recoveryExplicitStacktrace && result.toResult.isFailure) {
+        val stackTraceElements = buildList {
+            add(getElement())
+            buildSpecInfo(
+                accessor = accessor,
+                stackTraceElementConsumer = { add(it) },
+                specInfoConsumer = { gotSpec, gotSpecMethod, gotBaseContinuation, gotCompletion ->
+                    spec = gotSpec
+                    specMethod = gotSpecMethod
+                    baseContinuation = gotBaseContinuation
+                    completion = gotCompletion
+                }
+            )
+        }
         recoveryExplicitStacktrace(
             exception = (result as FailureResult).exception,
-            elementsAndSpecMethods = elementsAndSpecMethods!!
+            elements = stackTraceElements
+        )
+    } else {
+        buildSpecInfo(
+            accessor = accessor,
+            stackTraceElementConsumer = { },
+            specInfoConsumer = { gotSpec, gotSpecMethod, gotBaseContinuation, gotCompletion ->
+                spec = gotSpec
+                specMethod = gotSpecMethod
+                baseContinuation = gotBaseContinuation
+                completion = gotCompletion
+            }
         )
     }
 
@@ -36,11 +64,27 @@ internal fun BaseContinuation.awake(accessor: BaseContinuationAccessor, result: 
         return
     }
 
-    callSpecMethods(
-        accessor = accessor,
-        elementsAndSpecMethods = elementsAndSpecMethods,
-        result = result
-    )
+    val specResult = if (spec != null) {
+        val specResult = methodHandleInvoker.callSpecMethod(
+            handle = specMethod!!,
+            spec = spec,
+            result = result
+        )
+        if (specResult === COROUTINE_SUSPENDED) return
+        specResult
+    } else {
+        result
+    }
+
+    val baseContinuationResult = if (baseContinuation != null) {
+        val baseContinuationResult = baseContinuation.callInvokeSuspend(accessor, specResult)
+        if (baseContinuationResult === COROUTINE_SUSPENDED) return
+        baseContinuationResult
+    } else {
+        specResult
+    }
+
+    completion.resumeWith(baseContinuationResult.toResult)
 }
 
 @Suppress("MayBeConstant", "RedundantSuppression")
@@ -74,25 +118,10 @@ private inline fun CoroutineStackFrame.getElementAndSpecMethod(
     }
 }
 
-private class ElementAndSpecMethod(
-    val element: StackTraceElement?,
-    val specMethod: MethodHandle
-)
-
-private fun BaseContinuation.getElementsAndSpecMethods(): List<ElementAndSpecMethod> =
-    buildList {
-        var frame: CoroutineStackFrame? = this@getElementsAndSpecMethods
-        while (frame != null) {
-            val element: StackTraceElement?
-            val specMethod: MethodHandle
-            frame.getElementAndSpecMethod { gotElement, gotSpecMethod ->
-                element = gotElement
-                specMethod = gotSpecMethod
-            }
-            add(ElementAndSpecMethod(element, specMethod))
-            frame = frame.callerFrame
-        }
-    }
+private fun CoroutineStackFrame.getElement(): StackTraceElement? {
+    (this as? ContinuationCached)?.`$decoroutinator$cache`?.let { return it.element }
+    return getNormalizedStackTraceElement()
+}
 
 private fun BaseContinuation.stdlibAwake(accessor: BaseContinuationAccessor, result: Any?) {
     var newResult = result
@@ -108,102 +137,99 @@ private fun BaseContinuation.stdlibAwake(accessor: BaseContinuationAccessor, res
     baseContinuation.completion!!.resumeWith(newResult.toResult)
 }
 
-private fun BaseContinuation.callSpecMethods(
+@OptIn(ExperimentalContracts::class)
+private inline fun BaseContinuation.buildSpecInfo(
     accessor: BaseContinuationAccessor,
-    elementsAndSpecMethods: List<ElementAndSpecMethod>?,
-    result: Any?
+    crossinline stackTraceElementConsumer: (StackTraceElement?) -> Unit,
+    specInfoConsumer: (
+        spec: DecoroutinatorSpec?,
+        specMethod: MethodHandle?,
+        baseContinuation: BaseContinuation?,
+        completion: Continuation<Any?>
+    ) -> Unit
 ) {
-    var spec: DecoroutinatorSpec? = null
-    var specMethod: MethodHandle? = null
-    var baseContinuation: BaseContinuation? = this //next
-    var elementIndex = 1
-    var frame: CoroutineStackFrame? = null //current
-    var completion: Continuation<Any?> = this
-    while (true) {
-        val currentBaseContinuation = baseContinuation
-        val element: StackTraceElement?
-        val elementSpecMethod: MethodHandle
+    contract { callsInPlace(specInfoConsumer, InvocationKind.EXACTLY_ONCE) }
 
-        if (elementsAndSpecMethods != null) {
-            if (elementIndex == elementsAndSpecMethods.size) {
-                if (currentBaseContinuation != null) {
-                    completion = currentBaseContinuation.completion!!
+    var spec: DecoroutinatorSpec? = null // chain built so far; head = most recently (outermost) built spec
+    var specMethod: MethodHandle? = null // spec method matching `spec`'s element; becomes the next spec's nextSpecHandle
+    var baseContinuation: BaseContinuation? = this
+    var frame: CoroutineStackFrame? = null
+    var completion: Continuation<Any?>? = null // set once, when we leave the BaseContinuation chain; asserted non-null below
+    // suppression is valid because BaseContinuationImpl can be reparented onto DecoroutinatorSpecImpl by class-transformer
+    @Suppress("CAST_NEVER_SUCCEEDS") var specHolder: DecoroutinatorSpecImpl? = this as? DecoroutinatorSpecImpl
+
+    while (true) {
+        val currentElement: StackTraceElement?
+        val currentSpecMethod: MethodHandle
+        val currentBaseContinuation: BaseContinuation?
+        val currentFrame: CoroutineStackFrame?
+        val currentSpecHolder: DecoroutinatorSpecImpl?
+
+        val baseContinuationCopy = baseContinuation
+        if (baseContinuationCopy != null) {
+            val completionCopy = baseContinuationCopy.completion!!
+            if (completionCopy is BaseContinuation) {
+                completionCopy.getElementAndSpecMethod { gotElement, gotSpecMethod ->
+                    currentElement = gotElement
+                    currentSpecMethod = gotSpecMethod
                 }
-                break
+                currentBaseContinuation = completionCopy
+                currentFrame = null
             } else {
-                if (currentBaseContinuation != null) {
-                    completion = currentBaseContinuation.completion!!
-                    baseContinuation = completion as? BaseContinuation
-                }
-                val elementAndSpecMethod = elementsAndSpecMethods[elementIndex++]
-                element = elementAndSpecMethod.element
-                elementSpecMethod = elementAndSpecMethod.specMethod
-            }
-        } else if (currentBaseContinuation != null) {
-            val currentCompletion = currentBaseContinuation.completion!!
-            if (currentCompletion is BaseContinuation) {
-                baseContinuation = currentCompletion
-                currentCompletion.getElementAndSpecMethod { gotElement, gotSpecMethod ->
-                    element = gotElement
-                    elementSpecMethod = gotSpecMethod
-                }
-            } else {
-                completion = currentCompletion
-                if (currentCompletion is CoroutineStackFrame) {
-                    baseContinuation = null
-                    frame = currentCompletion.callerFrame
-                    currentCompletion.getElementAndSpecMethod { gotElement, gotSpecMethod ->
-                        element = gotElement
-                        elementSpecMethod = gotSpecMethod
+                completion = completionCopy
+                if (completionCopy is CoroutineStackFrame) {
+                    completionCopy.getElementAndSpecMethod { gotElement, gotSpecMethod ->
+                        currentElement = gotElement
+                        currentSpecMethod = gotSpecMethod
                     }
+                    currentBaseContinuation = null
+                    currentFrame = completionCopy.callerFrame
                 } else break
             }
+            currentSpecHolder = completionCopy as? DecoroutinatorSpecImpl
         } else {
-            val currentFrame = frame ?: break
-            frame = currentFrame.callerFrame
-            currentFrame.getElementAndSpecMethod { gotElement, gotSpecMethod ->
-                element = gotElement
-                elementSpecMethod = gotSpecMethod
-            }
+            val frameCopy = frame
+            if (frameCopy != null) {
+                frameCopy.getElementAndSpecMethod { gotElement, gotSpecMethod ->
+                    currentElement = gotElement
+                    currentSpecMethod = gotSpecMethod
+                }
+                currentBaseContinuation = null
+                currentFrame = frameCopy.callerFrame
+                currentSpecHolder = frameCopy as? DecoroutinatorSpecImpl
+            } else break
         }
 
-        spec = DecoroutinatorSpecImpl(
-            accessor = accessor,
-            lineNumber =
-                @Suppress("IfThenToElvis") if (element == null) {
-                    UNKNOWN_LINE_NUMBER
-                } else {
-                    element.normalizedLineNumber
-                },
-            _nextSpec = spec,
-            _nextSpecHandle = specMethod,
-            nextContinuation = currentBaseContinuation
-        )
+        stackTraceElementConsumer(currentElement)
 
-        specMethod = elementSpecMethod
+        // currentSpecHolder is always the object getElementAndSpecMethod was just called on, above -
+        // a fresh object every iteration, so it backs at most one spec below (immediately if specHolder
+        // was null, one iteration later otherwise) and is never double-used. It need NOT equal
+        // currentBaseContinuation/currentFrame (see CLAUDE.md's `buildSpecInfo`'s `specHolder` entry).
+        @Suppress("KotlinConstantConditions")
+        spec = specHolder.let { specHolderCopy ->
+            if (specHolderCopy != null) {
+                specHolder = currentSpecHolder
+                specHolderCopy
+            } else {
+                currentSpecHolder ?: DecoroutinatorSpecImpl()
+            }
+        }.apply {
+            @Suppress("IfThenToElvis")
+            `$decoroutinator$init`(
+                accessor = accessor,
+                lineNumber = if (currentElement == null) UNKNOWN_LINE_NUMBER else currentElement.normalizedLineNumber,
+                nextSpec = spec,
+                nextSpecHandle = specMethod,
+                nextContinuation = baseContinuation
+            )
+        }
+        specMethod = currentSpecMethod
+        baseContinuation = currentBaseContinuation
+        frame = currentFrame
     }
 
-    val specResult = if (spec != null) {
-        val specResult = methodHandleInvoker.callSpecMethod(
-            handle = specMethod!!,
-            spec = spec,
-            result = result
-        )
-        if (specResult === COROUTINE_SUSPENDED) return
-        specResult
-    } else {
-        result
-    }
-
-    val baseContinuationResult = if (baseContinuation != null) {
-        val baseContinuationResult = baseContinuation.callInvokeSuspend(accessor, specResult)
-        if (baseContinuationResult === COROUTINE_SUSPENDED) return
-        baseContinuationResult
-    } else {
-        specResult
-    }
-
-    completion.resumeWith(baseContinuationResult.toResult)
+    specInfoConsumer(spec, specMethod, baseContinuation, completion!!)
 }
 
 private fun boundaryStackTraceElement(time: UInt): StackTraceElement =
@@ -212,25 +238,22 @@ private fun boundaryStackTraceElement(time: UInt): StackTraceElement =
 private fun currentTime(): UInt =
     System.currentTimeMillis().toUInt()
 
-private fun recoveryExplicitStacktrace(
-    exception: Throwable,
-    elementsAndSpecMethods: List<ElementAndSpecMethod>
-) {
+private fun recoveryExplicitStacktrace(exception: Throwable, elements: List<StackTraceElement?>) {
     val trace = exception.stackTrace
     exception.stackTrace = run {
         val boundaryIndex = trace.indexOfFirst { it === boundaryStacktraceElement }
         if (boundaryIndex == -1) {
-            return@run Array(trace.size + elementsAndSpecMethods.size + 2) {
+            return@run Array(trace.size + elements.size + 2) {
                 if (it < trace.size) {
                     trace[it]
                 } else if (it == trace.size) {
                     boundaryStacktraceElement
                 } else {
                     val framesIndex = it - trace.size - 1
-                    if (framesIndex < elementsAndSpecMethods.size) {
-                        elementsAndSpecMethods[framesIndex].element ?: unknownStacktraceElement
+                    if (framesIndex < elements.size) {
+                        elements[framesIndex] ?: unknownStacktraceElement
                     } else {
-                        assert { framesIndex == elementsAndSpecMethods.size }
+                        assert { framesIndex == elements.size }
                         boundaryStackTraceElement(currentTime())
                     }
                 }
@@ -247,17 +270,17 @@ private fun recoveryExplicitStacktrace(
                 trace[lastBoundaryIndex].lineNumber.toUInt() < time - recoveryExplicitStacktraceTimeoutMs
         val prefixEndIndex = (if (erasePreviousBoundaries) boundaryIndex else lastBoundaryIndex) + 1
 
-        Array(prefixEndIndex + elementsAndSpecMethods.size + trace.size - lastBoundaryIndex) {
+        Array(prefixEndIndex + elements.size + trace.size - lastBoundaryIndex) {
             if (it < prefixEndIndex) {
                 trace[it]
             } else {
                 val framesIndex = it - prefixEndIndex
-                if (framesIndex < elementsAndSpecMethods.size) {
-                    elementsAndSpecMethods[framesIndex].element ?: unknownStacktraceElement
-                } else if (framesIndex == elementsAndSpecMethods.size) {
+                if (framesIndex < elements.size) {
+                    elements[framesIndex] ?: unknownStacktraceElement
+                } else if (framesIndex == elements.size) {
                     boundaryStackTraceElement(time)
                 } else {
-                    val suffixIndex = framesIndex - elementsAndSpecMethods.size
+                    val suffixIndex = framesIndex - elements.size
                     trace[lastBoundaryIndex + suffixIndex]
                 }
             }

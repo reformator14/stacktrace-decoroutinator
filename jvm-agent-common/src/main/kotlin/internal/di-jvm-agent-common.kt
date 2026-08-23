@@ -4,18 +4,10 @@ package dev.reformator.stacktracedecoroutinator.jvmagentcommon.internal
 
 import dev.reformator.stacktracedecoroutinator.runtimesettings.internal.getRuntimeSettingsValue
 
-internal val isBaseContinuationRedefinitionAllowed =
-    getRuntimeSettingsValue({ isBaseContinuationRedefinitionAllowed }) {
+internal val isRedefinitionChangingClassLayoutAllowed =
+    getRuntimeSettingsValue({ isRedefinitionChangingClassLayoutAllowed }) {
         System.getProperty(
-            "dev.reformator.stacktracedecoroutinator.isBaseContinuationRedefinitionAllowed",
-            "true"
-        ).toBoolean()
-    }
-
-internal val isRedefinitionAllowed =
-    getRuntimeSettingsValue({ isRedefinitionAllowed }) {
-        System.getProperty(
-            "dev.reformator.stacktracedecoroutinator.isRedefinitionAllowed",
+            "dev.reformator.stacktracedecoroutinator.isRedefinitionChangingClassLayoutAllowed",
             "false"
         ).toBoolean()
     }

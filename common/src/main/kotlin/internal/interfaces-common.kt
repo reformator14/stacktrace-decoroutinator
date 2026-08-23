@@ -16,8 +16,7 @@ interface TransformedClassesRegistry {
         val className: String,
         val fileName: String?,
         val lookup: MethodHandles.Lookup,
-        val methods: List<Method>,
-        val skipSpecMethods: Boolean
+        val methods: List<Method>
     ) {
         class Method(
             val methodName: String,
@@ -44,8 +43,7 @@ fun interface SpecMethodsFactory {
 data class TransformationMetadata(
     val className: String,
     val fileName: String?,
-    val methods: List<Method>,
-    val skipSpecMethods: Boolean
+    val methods: List<Method>
 ) {
     class Method(
         val name: String,

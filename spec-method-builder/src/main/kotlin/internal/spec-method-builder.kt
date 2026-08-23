@@ -15,6 +15,7 @@ import org.objectweb.asm.tree.*
 import java.lang.StringBuilder
 import java.lang.invoke.MethodHandle
 
+@Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
 fun buildSpecMethodNode(
     methodName: String,
     lineNumbers: Set<Int>,
@@ -82,6 +83,7 @@ private fun getGotoIfLastSpecInstructions(
     add(JumpInsnNode(Opcodes.IFNE, label))
 }
 
+@Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
 private fun getInvokeNextSpecMethodInstructions(
     invalidLineNumberLabel: LabelNode,
     lineNumbers: List<Int>
@@ -107,7 +109,7 @@ private fun getInvokeNextSpecMethodInstructions(
         add(FrameNode(
             Opcodes.F_FULL,
             3,
-            arrayOf(
+            arrayOf<Any>(
                 Type.getType(DecoroutinatorSpec::class.java).internalName,
                 Type.getType(Object::class.java).internalName,
                 Opcodes.INTEGER,
@@ -131,7 +133,7 @@ private fun getInvokeNextSpecMethodInstructions(
     add(FrameNode(
         Opcodes.F_FULL,
         3,
-        arrayOf(
+        arrayOf<Any>(
             Type.getType(DecoroutinatorSpec::class.java).internalName,
             Type.getType(Object::class.java).internalName,
             Opcodes.INTEGER,
@@ -221,7 +223,7 @@ private fun getResumeNextAndReturnInstructions(lineNumbers: List<Int>) = InsnLis
         add(FrameNode(
             Opcodes.F_FULL,
             3,
-            arrayOf(
+            arrayOf<Any>(
                 Type.getType(DecoroutinatorSpec::class.java).internalName,
                 Type.getType(Object::class.java).internalName,
                 Opcodes.INTEGER,
@@ -251,7 +253,7 @@ private fun getResumeNextAndReturnInstructions(lineNumbers: List<Int>) = InsnLis
     add(FrameNode(
         Opcodes.F_FULL,
         3,
-        arrayOf(
+        arrayOf<Any>(
             Type.getType(DecoroutinatorSpec::class.java).internalName,
             Type.getType(Object::class.java).internalName,
             Opcodes.INTEGER,

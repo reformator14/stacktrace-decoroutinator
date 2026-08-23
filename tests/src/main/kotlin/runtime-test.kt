@@ -242,6 +242,20 @@ open class RuntimeTest {
     }
 
     @Junit4Test @Junit5Test
+    fun withContextMustNotDuplicateDispatchedCoroutineFrame(): Unit = runBlocking {
+        withContext(Dispatchers.Default) {
+            yield()
+            val dispatchedCoroutineFrameCount = Exception().stackTrace.count { element ->
+                element.getPossibleUnobfuscatedFrames().any { unobfuscated ->
+                    unobfuscated.className == "kotlinx.coroutines.DispatchedCoroutine" &&
+                    unobfuscated.methodName == "resumeWith"
+                }
+            }
+            assertEquals(1, dispatchedCoroutineFrameCount)
+        }
+    }
+
+    @Junit4Test @Junit5Test
     fun duplicateEntityJarTest() = runBlocking {
         val trace = duplicateEntityJarTailCallDeoptimizedTest {
             yield()

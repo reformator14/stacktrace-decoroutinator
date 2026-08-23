@@ -3,61 +3,21 @@
 package dev.reformator.stacktracedecoroutinator.common.internal
 
 import dev.reformator.stacktracedecoroutinator.common.intrinsics.ContinuationImpl
-import dev.reformator.stacktracedecoroutinator.common.intrinsics._Assertions
 import dev.reformator.stacktracedecoroutinator.common.intrinsics.createFailure
 import dev.reformator.stacktracedecoroutinator.common.intrinsics.probeCoroutineResumed
 import dev.reformator.stacktracedecoroutinator.intrinsics.BaseContinuation
 import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
 import dev.reformator.stacktracedecoroutinator.provider.ContinuationCached
-import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpec
 import dev.reformator.stacktracedecoroutinator.provider.SpecCache
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessor
+import dev.reformator.stacktracedecoroutinator.provider.internal.callInvokeSuspend
 import dev.reformator.stacktracedecoroutinator.provider.internal.internalName
 import java.io.InputStream
-import java.lang.invoke.MethodHandle
 import java.util.ServiceLoader
 import java.util.concurrent.locks.Lock
 import kotlin.concurrent.withLock
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
-
-internal class DecoroutinatorSpecImpl(
-    private val accessor: BaseContinuationAccessor,
-    override val lineNumber: Int,
-    private val _nextSpec: DecoroutinatorSpec?,
-    private val _nextSpecHandle: MethodHandle?,
-    private val nextContinuation: BaseContinuation?
-): DecoroutinatorSpec {
-    override val isLastSpec: Boolean
-        get() = _nextSpec == null
-
-    override val nextSpecHandle: MethodHandle
-        get() = _nextSpecHandle!!
-
-    override val nextSpec: DecoroutinatorSpec
-        get() = _nextSpec!!
-
-    override fun resumeNext(result: Any?): Any? =
-        if (nextContinuation != null && result !== COROUTINE_SUSPENDED) {
-            nextContinuation.callInvokeSuspend(accessor, result)
-        } else {
-            result
-        }
-}
-
-inline fun ifAssertionEnabled(check: () -> Unit) {
-    if (_Assertions.ENABLED) {
-        check()
-    }
-}
-
-inline fun assert(check: () -> Boolean) {
-    ifAssertionEnabled {
-        if (!check()) {
-            throw AssertionError()
-        }
-    }
-}
 
 private fun <T: Any> loadService(type: Class<T>): T? {
     val iter: Iterator<T> = ServiceLoader.load(type).iterator()
@@ -193,23 +153,18 @@ internal fun <K, V> newHashMapForSize(size: Int): MutableMap<K, V> =
 private fun getHashMapCapacityForSize(size: Int): Int =
     if (size < 3) 3 else (size * 4 / 3 + 1)
 
-@Suppress("NOTHING_TO_INLINE")
-internal inline fun BaseContinuation.callInvokeSuspend(
-    accessor: BaseContinuationAccessor,
-    result: Any?
-): Any? {
-    probeCoroutineResumed(this)
-    val newResult = try {
-        accessor.invokeSuspend(this, result)
-    } catch (exception: Throwable) {
-        createFailure(exception)
-    }
-    if (newResult === COROUTINE_SUSPENDED) {
-        return newResult
-    }
-    accessor.releaseIntercepted(this)
-    return newResult
-}
-
 internal val StackTraceElement.normalizedLineNumber: Int
     get() = if (lineNumber < 0) UNKNOWN_LINE_NUMBER else lineNumber
+
+internal fun BaseContinuation.callInvokeSuspend(
+    accessor: BaseContinuationAccessor,
+    result: Any?
+): Any? =
+    callInvokeSuspend(
+        baseContinuation = this,
+        accessor = accessor,
+        result = result,
+        probeCoroutineResumed = ::probeCoroutineResumed,
+        createFailure = ::createFailure,
+        coroutineSuspendedMarker = COROUTINE_SUSPENDED
+    )

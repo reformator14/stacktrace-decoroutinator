@@ -46,8 +46,7 @@ internal class TransformedClassesRegistryImpl: TransformedClassesRegistry {
                                 lineNumbers = specMethodAnnotation.lineNumbers
                             )
                         }
-                    },
-                    skipSpecMethods = transformedAnnotation.skipSpecMethods
+                    }
                 )
             }
         // https://youtrack.jetbrains.com/issue/KT-25337
@@ -76,8 +75,7 @@ internal class TransformedClassesRegistryImpl: TransformedClassesRegistry {
                         realMethodName = it.realName,
                         lineNumbers = it.lineNumbers
                     )
-                },
-                skipSpecMethods = meta.skipSpecMethods
+                }
             )
             _transformedClasses[clazz] = transformedClassSpec
             callListeners(transformedClassSpec)

@@ -7,18 +7,85 @@ import dev.reformator.bytecodeprocessor.intrinsics.GetOwnerClass
 import dev.reformator.bytecodeprocessor.intrinsics.MethodNameConstant
 import dev.reformator.bytecodeprocessor.intrinsics.fail
 import dev.reformator.stacktracedecoroutinator.provider.internal.AndroidLegacyKeep
+import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessor
+import dev.reformator.stacktracedecoroutinator.provider.internal.callInvokeSuspend
 import dev.reformator.stacktracedecoroutinator.provider.internal.provider
+import java.io.Serializable
 import java.lang.invoke.MethodHandle
 import java.lang.invoke.MethodHandles
 
-@Suppress("unused")
+@Suppress("unused", "PropertyName", "FunctionName")
 @AndroidLegacyKeep
 interface DecoroutinatorSpec {
-    val lineNumber: Int
-    val isLastSpec: Boolean
-    val nextSpecHandle: MethodHandle
-    val nextSpec: DecoroutinatorSpec
-    fun resumeNext(result: Any?): Any?
+    fun `$decoroutinator$getLineNumber`(): Int
+    fun `$decoroutinator$isLastSpec`(): Boolean
+    fun `$decoroutinator$getNextSpecHandle`(): MethodHandle
+    fun `$decoroutinator$getNextSpec`(): DecoroutinatorSpec
+    fun `$decoroutinator$resumeNext`(result: Any?): Any?
+}
+
+@Suppress("FunctionName", "PrivatePropertyName")
+open class DecoroutinatorSpecImpl: DecoroutinatorSpec, Serializable {
+    @Transient private var `$decoroutinator$accessor`: BaseContinuationAccessor? = null
+    @Transient private var `$decoroutinator$lineNumber`: Int = 0
+    @Transient private var `$decoroutinator$nextSpec`: DecoroutinatorSpec? = null
+    @Transient private var `$decoroutinator$nextSpecHandle`: MethodHandle? = null
+    @Transient private var `$decoroutinator$nextContinuation`: Any? = null
+
+    fun `$decoroutinator$init`(
+        accessor: BaseContinuationAccessor,
+        lineNumber: Int,
+        nextSpec: DecoroutinatorSpec?,
+        nextSpecHandle: MethodHandle?,
+        nextContinuation: Any?
+    ) {
+        `$decoroutinator$accessor` = accessor
+        `$decoroutinator$lineNumber` = lineNumber
+        `$decoroutinator$nextSpec` = nextSpec
+        `$decoroutinator$nextSpecHandle` = nextSpecHandle
+        `$decoroutinator$nextContinuation` = nextContinuation
+    }
+
+    final override fun `$decoroutinator$getLineNumber`(): Int {
+        val result = `$decoroutinator$lineNumber`
+        `$decoroutinator$lineNumber` = 0
+        return result
+    }
+
+    final override fun `$decoroutinator$isLastSpec`(): Boolean =
+        `$decoroutinator$nextSpec` == null
+
+    final override fun `$decoroutinator$getNextSpecHandle`(): MethodHandle {
+        val result = `$decoroutinator$nextSpecHandle`!!
+        `$decoroutinator$nextSpecHandle` = null
+        return result
+    }
+
+    final override fun `$decoroutinator$getNextSpec`(): DecoroutinatorSpec {
+        val result = `$decoroutinator$nextSpec`!!
+        `$decoroutinator$nextSpec` = null
+        return result
+    }
+
+    final override fun `$decoroutinator$resumeNext`(result: Any?): Any? {
+        val accessorCopy = `$decoroutinator$accessor`!!
+        `$decoroutinator$accessor` = null
+        val nextContinuationCopy = `$decoroutinator$nextContinuation`
+        if (nextContinuationCopy != null) {
+            `$decoroutinator$nextContinuation` = null
+            if (result !== provider.coroutineSuspendedMarker) {
+                return callInvokeSuspend(
+                    baseContinuation = nextContinuationCopy,
+                    accessor = accessorCopy,
+                    result = result,
+                    probeCoroutineResumed = provider::probeCoroutineResumed,
+                    createFailure = provider::createFailure,
+                    coroutineSuspendedMarker = provider.coroutineSuspendedMarker
+                )
+            }
+        }
+        return result
+    }
 }
 
 @Suppress("unused")
@@ -38,10 +105,14 @@ annotation class DecoroutinatorTransformed(
     @get:JvmName("cn")
     val className: String = "",
 
-    @get:MethodNameConstant("decoroutinatorTransformedSkipSpecMethodsMethodName")
-    @get:JvmName("ssm")
-    val skipSpecMethods: Boolean = false
-)
+    @get:MethodNameConstant("decoroutinatorTransformedModeMethodName")
+    @get:JvmName("m")
+    val mode: Mode = Mode.FULL
+) {
+    enum class Mode {
+        FULL, SKIP_SPEC_METHODS, PRESERVE_CLASS_LAYOUT
+    }
+}
 
 @Suppress("unused")
 @Target(AnnotationTarget.FUNCTION)

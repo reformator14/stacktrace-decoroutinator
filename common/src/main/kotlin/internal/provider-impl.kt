@@ -10,6 +10,8 @@ import dev.reformator.stacktracedecoroutinator.common.internal.isUsingElementCac
     as cachedIsUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled
 import dev.reformator.stacktracedecoroutinator.common.internal.fillUnknownElementsWithClassName
     as cachedFillUnknownElementsWithClassName
+import dev.reformator.stacktracedecoroutinator.common.intrinsics.createFailure as intrinsicsCreateFailure
+import dev.reformator.stacktracedecoroutinator.common.intrinsics.probeCoroutineResumed as intrinsicsProbeCoroutineResumed
 import dev.reformator.stacktracedecoroutinator.intrinsics.BaseContinuation
 import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
 import dev.reformator.stacktracedecoroutinator.provider.BaseContinuationExtractor
@@ -19,6 +21,7 @@ import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuatio
 import dev.reformator.stacktracedecoroutinator.provider.internal.DecoroutinatorProvider
 import java.lang.invoke.MethodHandles
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.concurrent.withLock
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.jvm.internal.CoroutineStackFrame
@@ -97,6 +100,16 @@ internal class Provider: DecoroutinatorProvider {
 
     override val isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled: Boolean
         get() = cachedIsUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled
+
+    override val coroutineSuspendedMarker: Any
+        get() = COROUTINE_SUSPENDED
+
+    override fun probeCoroutineResumed(frameContinuation: Any) {
+        intrinsicsProbeCoroutineResumed(frameContinuation as Continuation<*>)
+    }
+
+    override fun createFailure(exception: Throwable): Any =
+        intrinsicsCreateFailure(exception)
 }
 
 internal fun CoroutineStackFrame.getNormalizedStackTraceElement(): StackTraceElement? {

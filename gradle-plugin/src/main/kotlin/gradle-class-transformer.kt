@@ -8,6 +8,7 @@ import dev.reformator.bytecodeprocessor.intrinsics.fail
 import dev.reformator.stacktracedecoroutinator.classtransformer.internal.transformClassBody
 import dev.reformator.stacktracedecoroutinator.intrinsics.BASE_CONTINUATION_CLASS_NAME
 import dev.reformator.stacktracedecoroutinator.intrinsics.PROVIDER_MODULE_NAME
+import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorTransformed
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessorProvider
 import dev.reformator.stacktracedecoroutinator.provider.internal.internalName
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -168,7 +169,11 @@ internal fun Artifact.transform(
                                     .toList()
                                 getFileReader(metadataClassPath)?.invoke()
                             },
-                            skipSpecMethods = skipSpecMethods
+                            mode = if (skipSpecMethods) {
+                                DecoroutinatorTransformed.Mode.SKIP_SPEC_METHODS
+                            } else {
+                                DecoroutinatorTransformed.Mode.FULL
+                            }
                         )
                     }
                     readProviderModule = readProviderModule || transformationStatus.needReadProviderModule
