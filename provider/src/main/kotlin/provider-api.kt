@@ -151,14 +151,14 @@ interface ManualContinuation: ContinuationCached {
     val `$decoroutinator$cacheField`: SpecCache
 
     @Suppress("PropertyName")
-    @get:MethodNameConstant("manualContinuationGetClassFieldMethodName")
-    val `$decoroutinator$classField`: Class<*>
+    @get:MethodNameConstant("manualContinuationGetClassMethodName")
+    val `$decoroutinator$class`: Class<*>
 
     @get:MethodNameConstant("manualContinuationGetCacheMethodName")
     override val `$decoroutinator$cache`: SpecCache?
         get() = when {
             !provider.fillUnknownElementsWithClassName -> provider.nullElementSpecCache
-            javaClass !== `$decoroutinator$classField` -> null
+            javaClass !== `$decoroutinator$class` -> null
             else -> `$decoroutinator$cacheField`
         }
 }

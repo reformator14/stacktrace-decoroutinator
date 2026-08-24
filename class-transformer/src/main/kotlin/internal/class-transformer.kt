@@ -190,7 +190,6 @@ private val specHoldersInternalClassNames =
 
 private const val baseContinuationCachesFieldName = "\$decoroutinator\$caches"
 private const val manualContinuationCacheFieldName = "\$decoroutinator\$cache"
-private const val manualContinuationClassFieldName = "\$decoroutinator\$class"
 private const val lazilyCachedContinuationCacheFieldName = "\$decoroutinator\$cache"
 
 private val DecoroutinatorTransformed.Mode.allowChangingClassLayout: Boolean
@@ -336,13 +335,6 @@ private fun ClassNode.tryAddManualContinuation(
         Type.getDescriptor(SpecCache::class.java),
         null,
         null
-    ) + FieldNode(
-        Opcodes.ASM9,
-        Opcodes.ACC_PRIVATE or Opcodes.ACC_STATIC or Opcodes.ACC_FINAL or Opcodes.ACC_SYNTHETIC,
-        manualContinuationClassFieldName,
-        Type.getDescriptor(Class::class.java),
-        null,
-        null
     )
 
     getOrCreateClinitMethod().apply {
@@ -378,13 +370,6 @@ private fun ClassNode.tryAddManualContinuation(
                 manualContinuationCacheFieldName,
                 Type.getDescriptor(SpecCache::class.java)
             ))
-            add(LdcInsnNode(Type.getObjectType(this@tryAddManualContinuation.name)))
-            add(FieldInsnNode(
-                Opcodes.PUTSTATIC,
-                this@tryAddManualContinuation.name,
-                manualContinuationClassFieldName,
-                Type.getDescriptor(Class::class.java)
-            ))
             add(disabledLabel)
             add(FrameNode(Opcodes.F_SAME, 0, null, 0, null))
         })
@@ -405,15 +390,10 @@ private fun ClassNode.tryAddManualContinuation(
         }
     } + MethodNode(Opcodes.ASM9).apply {
         access = Opcodes.ACC_PUBLIC or Opcodes.ACC_SYNTHETIC
-        name = manualContinuationGetClassFieldMethodName
+        name = manualContinuationGetClassMethodName
         desc = "()${Type.getDescriptor(Class::class.java)}"
         instructions = InsnList().apply {
-            add(FieldInsnNode(
-                Opcodes.GETSTATIC,
-                this@tryAddManualContinuation.name,
-                manualContinuationClassFieldName,
-                Type.getDescriptor(Class::class.java)
-            ))
+            add(LdcInsnNode(Type.getObjectType(this@tryAddManualContinuation.name)))
             add(InsnNode(Opcodes.ARETURN))
         }
     }
@@ -1130,8 +1110,8 @@ private val tailCallDeoptimizeMethodName: String
 private val manualContinuationGetCacheFieldMethodName: String
     @LoadConstant("manualContinuationGetCacheFieldMethodName") get() = fail()
 
-private val manualContinuationGetClassFieldMethodName: String
-    @LoadConstant("manualContinuationGetClassFieldMethodName") get() = fail()
+private val manualContinuationGetClassMethodName: String
+    @LoadConstant("manualContinuationGetClassMethodName") get() = fail()
 
 private val fillUnknownElementsWithClassNameMethodName: String
     @LoadConstant("fillUnknownElementsWithClassNameMethodName") get() = fail()
