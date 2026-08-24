@@ -1,8 +1,10 @@
 import dev.reformator.bytecodeprocessor.api.BytecodeProcessorContextImpl
 import dev.reformator.bytecodeprocessor.api.applyBytecodeProcessors
+import dev.reformator.bytecodeprocessor.gradleplugin.BytecodeProcessorPluginExtension
 import dev.reformator.bytecodeprocessor.plugins.*
 import org.apache.commons.io.output.ByteArrayOutputStream
 import org.gradle.kotlin.dsl.named
+import org.gradle.kotlin.dsl.the
 import org.jetbrains.dokka.gradle.AbstractDokkaTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
@@ -43,72 +45,98 @@ bytecodeProcessor {
     )
 }
 
-fun File.clearDir() {
-    listFiles()!!.forEach {
-        if (it.isDirectory) {
-            it.deleteRecursively()
-        } else {
-            it.delete()
-        }
-    }
-}
-
-val File.isClass: Boolean
-    get() = isFile && name.endsWith(".class") && name != "module-info.class"
-
-fun File.copyClassesTo(output: File) {
-    walk().filter { it.isClass }.forEach { file ->
-        val outputFile = output.resolve(file.relativeTo(this))
-        outputFile.parentFile.mkdirs()
-        file.copyTo(outputFile)
-    }
-}
-
-val File.classNameSequence: Sequence<String>
-    get() = walk().filter { it.isClass }.map {
-        it.relativeTo(this).path.removeSuffix(".class").replace(File.separator, ".")
-    }
-
-fun File.zipDirectoryToArray(): ByteArray {
-    val bufferOutput = ByteArrayOutputStream()
-    ZipOutputStream(bufferOutput).use { output ->
-        walk().forEach { file ->
-            val entryName = file.toRelativeString(this).replace(File.separator, "/")
-            if (file.isDirectory) {
-                output.putNextEntry(ZipEntry("$entryName/").also {
-                    it.method = ZipEntry.DEFLATED
-                })
-            } else {
-                val buffer = file.readBytes()
-                output.putNextEntry(ZipEntry(entryName).also {
-                    it.method = ZipEntry.DEFLATED
-                    it.size = buffer.size.toLong()
-                })
-                output.write(buffer)
-            }
-        }
-    }
-    return bufferOutput.toByteArray()
-}
+// All helpers below are local to this task registration (not top-level in the script) so that
+// fillConstantProcessorTask's doLast - an execution-time closure the configuration cache must be able
+// to serialize - doesn't implicitly capture the build script object. A top-level fun/val in a
+// .gradle.kts file is compiled as a member of the synthetic script class, so calling it from doLast
+// would otherwise require serializing that script instance, which the configuration cache rejects.
+// executionState is resolved here, at project (script) scope, rather than inside the task registration
+// lambda below - `the<T>()` there would resolve against the Task's own (empty) extension container,
+// not the project's, since `this` inside tasks.register's lambda is the Task.
+val bytecodeProcessorExecutionState = the<BytecodeProcessorPluginExtension>().executionState
 
 val fillConstantProcessorTask: TaskProvider<*> = tasks.register("fillConstantProcessor") {
     val mhInvokerProject = project(":stacktrace-decoroutinator-mh-invoker")
     val mhInvokerCompileKotlinTask = mhInvokerProject.tasks.named<KotlinJvmCompile>("compileKotlin")
     dependsOn(mhInvokerCompileKotlinTask)
+    val mhInvokerDestinationDirectory = mhInvokerCompileKotlinTask.flatMap { it.destinationDirectory }
+    val executionState = bytecodeProcessorExecutionState
+
+    fun File.clearDir() {
+        listFiles()!!.forEach {
+            if (it.isDirectory) {
+                it.deleteRecursively()
+            } else {
+                it.delete()
+            }
+        }
+    }
+
+    // Kotlin doesn't allow local *extension properties* (only local extension functions), so these
+    // are functions (isClass(), classNameSequence()) rather than the more idiomatic `val X.y` form.
+    fun File.isClass(): Boolean =
+        isFile && name.endsWith(".class") && name != "module-info.class"
+
+    fun File.copyClassesTo(output: File) {
+        walk().filter { it.isClass() }.forEach { file ->
+            val outputFile = output.resolve(file.relativeTo(this))
+            outputFile.parentFile.mkdirs()
+            file.copyTo(outputFile)
+        }
+    }
+
+    fun File.classNameSequence(): Sequence<String> =
+        walk().filter { it.isClass() }.map {
+            it.relativeTo(this).path.removeSuffix(".class").replace(File.separator, ".")
+        }
+
+    fun File.zipDirectoryToArray(): ByteArray {
+        val bufferOutput = ByteArrayOutputStream()
+        ZipOutputStream(bufferOutput).use { output ->
+            walk().forEach { file ->
+                val entryName = file.toRelativeString(this).replace(File.separator, "/")
+                if (file.isDirectory) {
+                    output.putNextEntry(ZipEntry("$entryName/").also {
+                        it.method = ZipEntry.DEFLATED
+                    })
+                } else {
+                    val buffer = file.readBytes()
+                    output.putNextEntry(ZipEntry(entryName).also {
+                        it.method = ZipEntry.DEFLATED
+                        it.size = buffer.size.toLong()
+                    })
+                    output.write(buffer)
+                }
+            }
+        }
+        return bufferOutput.toByteArray()
+    }
+
+    fun File.renameClasses(namePrefixes: List<String>, prefixAppend: String) {
+        val changeClassNameParameters = classNameSequence().associateWith { className ->
+            val prefix = namePrefixes.first { className.startsWith(it) }
+            "${prefix}${prefixAppend}${className.removePrefix(prefix)}"
+        }
+        applyBytecodeProcessors(
+            processors = listOf(ChangeClassNameProcessor),
+            context = BytecodeProcessorContextImpl().apply {
+                ChangeClassNameProcessor.add(this, changeClassNameParameters)
+            }
+        )
+    }
+
     doLast {
         val tempDir = temporaryDir
         tempDir.clearDir()
-        mhInvokerCompileKotlinTask.get().destinationDirectory.get().asFile.copyClassesTo(tempDir)
+        mhInvokerDestinationDirectory.get().asFile.copyClassesTo(tempDir)
         tempDir.renameClasses(
             namePrefixes = listOf("dev.reformator.stacktracedecoroutinator.mhinvoker", "dcunknown"),
             prefixAppend = "jvm"
         )
-        bytecodeProcessor {
-            initContext {
-                LoadConstantProcessor.addValues(this, mapOf(
-                    "regularMethodHandleJarBase64" to Base64.getEncoder().encodeToString(tempDir.zipDirectoryToArray())
-                ))
-            }
+        executionState.initContext {
+            LoadConstantProcessor.addValues(this, mapOf(
+                "regularMethodHandleJarBase64" to Base64.getEncoder().encodeToString(tempDir.zipDirectoryToArray())
+            ))
         }
     }
 }
@@ -181,17 +209,4 @@ publishing {
 signing {
     useGpgCmd()
     sign(publishing.publications[mavenPublicationName])
-}
-
-fun File.renameClasses(namePrefixes: List<String>, prefixAppend: String) {
-    val changeClassNameParameters = classNameSequence.associateWith { className ->
-        val prefix = namePrefixes.first { className.startsWith(it) }
-        "${prefix}${prefixAppend}${className.removePrefix(prefix)}"
-    }
-    applyBytecodeProcessors(
-        processors = listOf(ChangeClassNameProcessor),
-        context = BytecodeProcessorContextImpl().apply {
-            ChangeClassNameProcessor.add(this, changeClassNameParameters)
-        }
-    )
 }

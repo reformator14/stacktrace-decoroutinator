@@ -1,8 +1,10 @@
 import com.android.build.gradle.internal.tasks.factory.dependsOn
 import dev.reformator.bytecodeprocessor.api.Processor
+import dev.reformator.bytecodeprocessor.gradleplugin.BytecodeProcessorPluginExtension
 import dev.reformator.bytecodeprocessor.plugins.GetCurrentFileNameProcessor
 import dev.reformator.bytecodeprocessor.plugins.GetOwnerClassProcessor
 import dev.reformator.bytecodeprocessor.plugins.LoadConstantProcessor
+import org.gradle.kotlin.dsl.the
 import java.net.URLClassLoader
 
 plugins {
@@ -50,8 +52,16 @@ val copyTestSourcesTask: TaskProvider<*> = tasks.register("copyTestSources") {
     inputs.dir(javaSourcesDir)
     inputs.dir(kotlinSourcesDir)
 
-    outputs.dir(javaOutputDir)
-    outputs.dir(kotlinOutputDir)
+    // Captured into locals rather than referenced directly inside doLast below: javaOutputDir/
+    // kotlinOutputDir are top-level vals in this script, which the Kotlin script compiler turns into
+    // members of the synthetic script class - referencing them from doLast (an execution-time closure
+    // the configuration cache must serialize) would implicitly capture the script instance itself,
+    // which the configuration cache rejects.
+    val javaOutputDirLocal = javaOutputDir
+    val kotlinOutputDirLocal = kotlinOutputDir
+
+    outputs.dir(javaOutputDirLocal)
+    outputs.dir(kotlinOutputDirLocal)
 
     doLast {
         fun copy(from: Provider<Directory>, to: Provider<Directory>) {
@@ -72,8 +82,8 @@ val copyTestSourcesTask: TaskProvider<*> = tasks.register("copyTestSources") {
                 }
             }
         }
-        copy(javaSourcesDir, javaOutputDir)
-        copy(kotlinSourcesDir, kotlinOutputDir)
+        copy(javaSourcesDir, javaOutputDirLocal)
+        copy(kotlinSourcesDir, kotlinOutputDirLocal)
     }
 }
 tasks.compileJava.dependsOn(copyTestSourcesTask)
@@ -93,7 +103,13 @@ bytecodeProcessor {
     )
 }
 
+// Resolved here, at project (script) scope, rather than inside the task registration lambda below -
+// `the<T>()` there would resolve against the Task's own (empty) extension container, not the
+// project's, since `this` inside tasks.register's lambda is the Task.
+val bytecodeProcessorExecutionState = the<BytecodeProcessorPluginExtension>().executionState
+
 val fillConstantProcessorTask: TaskProvider<*> = tasks.register("fillConstantProcessor") {
+    val executionState = bytecodeProcessorExecutionState
     val rootDependenciesLoaderShadowJarFile = rootDependenciesLoader.rootPath.dir("tests")
         .map { it.dir("custom-loader") }
         .map { it.dir("build") }
@@ -121,15 +137,13 @@ val fillConstantProcessorTask: TaskProvider<*> = tasks.register("fillConstantPro
             .getConstructor()
             .newInstance() as Processor
 
-        bytecodeProcessor {
-            initContext {
-                LoadConstantProcessor.addValues(
-                    context = this,
-                    valuesByKeys = mapOf("customLoaderJarUri" to customLoaderJarUri)
-                )
-            }
-            processors += addOpcodeTraceProcessor
+        executionState.initContext {
+            LoadConstantProcessor.addValues(
+                context = this,
+                valuesByKeys = mapOf("customLoaderJarUri" to customLoaderJarUri)
+            )
         }
+        executionState.processors += addOpcodeTraceProcessor
     }
 }
 bytecodeProcessorInitTask.dependsOn(fillConstantProcessorTask)

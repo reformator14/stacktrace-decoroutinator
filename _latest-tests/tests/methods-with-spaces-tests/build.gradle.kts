@@ -52,8 +52,16 @@ val copySourcesTask: TaskProvider<*> = tasks.register("copySources") {
     inputs.dir(javaSourcesDir)
     inputs.dir(kotlinSourcesDir)
 
-    outputs.dir(javaOutputDir)
-    outputs.dir(kotlinOutputDir)
+    // Captured into locals rather than referenced directly inside doLast below: javaOutputDir/
+    // kotlinOutputDir are top-level vals in this script, which the Kotlin script compiler turns into
+    // members of the synthetic script class - referencing them from doLast (an execution-time closure
+    // the configuration cache must serialize) would implicitly capture the script instance itself,
+    // which the configuration cache rejects.
+    val javaOutputDirLocal = javaOutputDir
+    val kotlinOutputDirLocal = kotlinOutputDir
+
+    outputs.dir(javaOutputDirLocal)
+    outputs.dir(kotlinOutputDirLocal)
 
     doLast {
         fun copy(from: Provider<Directory>, to: Provider<Directory>) {
@@ -74,8 +82,8 @@ val copySourcesTask: TaskProvider<*> = tasks.register("copySources") {
                 }
             }
         }
-        copy(javaSourcesDir, javaOutputDir)
-        copy(kotlinSourcesDir, kotlinOutputDir)
+        copy(javaSourcesDir, javaOutputDirLocal)
+        copy(kotlinSourcesDir, kotlinOutputDirLocal)
     }
 }
 tasks.compileJava.dependsOn(copySourcesTask)

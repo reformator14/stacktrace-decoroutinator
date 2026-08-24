@@ -51,18 +51,24 @@ internal const val EXTENSION_NAME = "bytecodeProcessor"
 internal const val INIT_TASK_NAME = "bytecodeProcessorInit"
 internal const val MERGE_CONTEXTS_TASK_NAME = "bytecodeProcessorMergeContexts"
 
-
 open class BytecodeProcessorPluginExtension {
+    // Project-free holder
+    internal class State {
+        internal var processors: Collection<Processor> = emptyList()
+        internal var skipUpdate = false
+        internal val initContextTasks = mutableListOf<BytecodeProcessorContext.() -> Unit>()
+    }
+    internal val state = State()
+
     var dependentProjects: Collection<Project> = emptyList()
-    var processors: Collection<Processor> = emptyList()
-    var skipUpdate = false
+
+    var processors: Collection<Processor> by state::processors
+    var skipUpdate: Boolean by state::skipUpdate
 
     @Suppress("unused")
     fun initContext(action: BytecodeProcessorContext.() -> Unit) {
-        initContextTasks.add(action)
+        state.initContextTasks.add(action)
     }
-
-    internal val initContextTasks = mutableListOf<BytecodeProcessorContext.() -> Unit>()
 }
 
 @CacheableTask
@@ -97,12 +103,13 @@ abstract class BytecodeProcessorMergeContextsNoModifierTask(): BytecodeProcessor
 class BytecodeProcessorPlugin : Plugin<Project> {
     override fun apply(target: Project) = with(target) {
         val extension = extensions.create(EXTENSION_NAME, BytecodeProcessorPluginExtension::class.java)
+        val extensionState = extension.state
 
         val loadDependentProjectsTask = tasks.register(
             INIT_TASK_NAME,
             BytecodeProcessorMergeContextsTask::class.java,
             *arrayOf({ context: MapperBytecodeProcessorContext ->
-                extension.initContextTasks.forEach { context.it() }
+                extensionState.initContextTasks.forEach { context.it() }
             })
         )
         loadDependentProjectsTask.configure { task ->
@@ -148,14 +155,15 @@ class BytecodeProcessorPlugin : Plugin<Project> {
                 }
                 task.outputs.file(contextFile)
                 contextFiles.add(contextFile)
+                val loadDependentProjectsContextFile = loadDependentProjectsTask.flatMap { it.mergedContextsFile }
                 task.doLast { _ ->
                     val context = MapperBytecodeProcessorContext.read(
-                        from = loadDependentProjectsTask.get().mergedContextsFile.get().asFile
+                        from = loadDependentProjectsContextFile.get().asFile
                     )
                     dir.get().asFile.applyBytecodeProcessors(
-                        processors = extension.processors,
+                        processors = extensionState.processors,
                         context = context,
-                        skipUpdate = extension.skipUpdate
+                        skipUpdate = extensionState.skipUpdate
                     )
                     contextFileAsJavaFile.delete()
                     context.write(contextFileAsJavaFile)
