@@ -87,8 +87,8 @@ Thus, if the coroutine throws an exception, the stack trace reflects the full co
 ## JVM
 There are three ways to enable Decoroutinator on the JVM:
 1. If you build your project with Gradle, apply the Gradle plugin with id `dev.reformator.stacktracedecoroutinator`.
-2. Add `-javaagent:/path/to/stacktrace-decoroutinator-jvm-agent-2.6.4.jar` to your JVM startup arguments. The corresponding dependency is `dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-jvm-agent:2.6.4`.
-3. Add the dependency `dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-jvm:2.6.4` and call `DecoroutinatorJvmApi.install()`.
+2. Add `-javaagent:/path/to/stacktrace-decoroutinator-jvm-agent-2.6.5.jar` to your JVM startup arguments. The corresponding dependency is `dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-jvm-agent:2.6.5`.
+3. Add the dependency `dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-jvm:2.6.5` and call `DecoroutinatorJvmApi.install()`.
 
 The first option generates auxiliary methods at build time; the other two use the Java instrumentation API at runtime.
 
@@ -160,7 +160,7 @@ java.lang.Exception: exception at 1764729227496
 For Android, the only supported option is to apply the Gradle plugin to your application project:
 ```kotlin
 plugins {
-    id("dev.reformator.stacktracedecoroutinator") version "2.6.4"
+    id("dev.reformator.stacktracedecoroutinator") version "2.6.5"
 }
 ```
 Note that Decoroutinator uses the [MethodHandle API](https://developer.android.com/reference/java/lang/invoke/MethodHandle), which requires Android API 26 (Android 8) or higher. Decoroutinator detects this automatically at runtime — on older Android versions it disables stack trace recovery instead of failing, so it's always safe to include.
