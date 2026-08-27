@@ -79,10 +79,10 @@ fun transformClassBody(
     if (xi == null || xi and (1 shl 7) == 0) {
         if (node.name == BASE_CONTINUATION_CLASS_NAME.internalName) {
             node.transformBaseContinuation()
-            if (mode.allowChangingClassLayout) {
-                @Suppress("AssertionSideEffect") assert(node.trySetSpecImplAsBaseClass(true))
-            } else {
-                preserveClassLayout = true
+            if (node.trySetSpecImplAsBaseClass(mode.allowChangingClassLayout)) {
+                if (!mode.allowChangingClassLayout) {
+                    preserveClassLayout = true
+                }
             }
             doTransformation = true
         } else {
