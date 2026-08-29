@@ -75,6 +75,7 @@ android-application = { id = "com.android.application" }
 android-library = { id = "com.android.library" }
 bytecode-processor = { id = "dev.reformator.bytecode-processor" }
 force-variant-java-version = { id = "dev.reformator.force-variant-java-version" }
+delete-signature-checksums = { id = "dev.reformator.delete-signature-checksums" }
 decoroutinator-transform-base-continuation = { id = "dev.reformator.decoroutinator-transform-base-continuation" }
 decoroutinator = { id = "dev.reformator.stacktracedecoroutinator" }
 root-dependencies-loader = { id = "dev.reformator.root-dependencies-loader" }

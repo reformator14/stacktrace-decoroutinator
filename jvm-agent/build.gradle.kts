@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.shadow)
     `maven-publish`
     signing
+    alias(libs.plugins.delete.signature.checksums)
     alias(libs.plugins.force.variant.java.version)
 }
 

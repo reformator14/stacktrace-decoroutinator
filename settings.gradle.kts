@@ -2,6 +2,7 @@ rootProject.name = "stacktrace-decoroutinator"
 
 includeBuild("_plugins/bytecode-processor")
 includeBuild("_plugins/force-variant-java-version")
+includeBuild("_plugins/delete-signature-checksums")
 
 pluginManagement {
     repositories {
@@ -12,6 +13,7 @@ pluginManagement {
 
     includeBuild("_plugins/bytecode-processor")
     includeBuild("_plugins/force-variant-java-version")
+    includeBuild("_plugins/delete-signature-checksums")
 }
 
 plugins {

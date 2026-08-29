@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.dokka)
     `maven-publish`
     signing
+    alias(libs.plugins.delete.signature.checksums)
     alias(libs.plugins.force.variant.java.version)
 }
 
