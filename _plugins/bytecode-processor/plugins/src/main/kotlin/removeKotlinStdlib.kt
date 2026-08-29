@@ -7,6 +7,7 @@ import dev.reformator.bytecodeprocessor.api.ProcessingDirectory
 import dev.reformator.bytecodeprocessor.api.Processor
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
+import org.objectweb.asm.tree.AbstractInsnNode
 import org.objectweb.asm.tree.FieldInsnNode
 import org.objectweb.asm.tree.InsnNode
 import org.objectweb.asm.tree.LdcInsnNode
@@ -33,7 +34,7 @@ object RemoveKotlinStdlibProcessor: Processor {
                             ) {
                                 val prev = instruction.previous
                                 val prevPrev = prev?.previous
-                                if (prev is LdcInsnNode && prev.cst is String && prevPrev is VarInsnNode && prevPrev.opcode == Opcodes.ALOAD) {
+                                if (prev.isPush1VarPureInstruction && prev.isPush1VarPureInstruction) {
                                     method.instructions.remove(prev)
                                     method.instructions.remove(prevPrev)
                                 } else {
@@ -43,20 +44,30 @@ object RemoveKotlinStdlibProcessor: Processor {
                                 clazz.markModified()
                             } else if (
                                 instruction.name in intrinsicThrowWithMessageMethodNames
-                                && instruction.desc == "(${Type.getDescriptor(String::class.java)})V"
+                                && instruction.desc == "(${Type.getDescriptor(String::class.java)})${Type.VOID_TYPE.descriptor}"
                             ) {
-                                method.instructions.insert(instruction, InsnNode(Opcodes.POP))
+                                val prev = instruction.previous
+                                if (prev.isPush1VarPureInstruction) {
+                                    method.instructions.remove(prev)
+                                } else {
+                                    method.instructions.insert(instruction, InsnNode(Opcodes.POP))
+                                }
                                 method.instructions.remove(instruction)
                                 clazz.markModified()
                             } else if (
-                                instruction.name == run { val x: (Any) -> Unit = Intrinsics::checkNotNull; x as KFunction<*> }.name
+                                instruction.name in intrinsicCheckNotNullMethodNames
                                 && instruction.desc == "(${Type.getDescriptor(Object::class.java)})${Type.VOID_TYPE.descriptor}"
                             ) {
-                                method.instructions.insert(instruction, InsnNode(Opcodes.POP))
+                                val prev = instruction.previous
+                                if (prev.isPush1VarPureInstruction) {
+                                    method.instructions.remove(prev)
+                                } else {
+                                    method.instructions.insert(instruction, InsnNode(Opcodes.POP))
+                                }
                                 method.instructions.remove(instruction)
                                 clazz.markModified()
                             } else if (
-                                instruction.name == run { val x: (Any?, Any?) -> Boolean = Intrinsics::areEqual; x as KFunction<*> }.name
+                                instruction.name in intrinsicAreEqualObjectsMethodNames
                                 && instruction.desc == "(${Type.getDescriptor(Object::class.java)}${Type.getDescriptor(Object::class.java)})${Type.BOOLEAN_TYPE.descriptor}"
                             ) {
                                 instruction.owner = Type.getInternalName(Objects::class.java)
@@ -109,3 +120,17 @@ private val intrinsicThrowWithMessageMethodNames = setOf(
     run {val x: (String) -> Unit = Intrinsics::throwUndefinedForReified; x as KFunction<*>}.name,
     run {val x: (String) -> Unit = Intrinsics::needClassReification; x as KFunction<*>}.name,
 )
+
+private val intrinsicCheckNotNullMethodNames = setOf(
+    run { val x: (Any) -> Unit = Intrinsics::checkNotNull; x as KFunction<*> }.name
+)
+
+private val intrinsicAreEqualObjectsMethodNames = setOf(
+    run { val x: (Any?, Any?) -> Boolean = Intrinsics::areEqual; x as KFunction<*> }.name
+)
+
+private val AbstractInsnNode?.isPush1VarPureInstruction: Boolean
+    get() =
+        (this is InsnNode && opcode == Opcodes.DUP)
+        || (this is VarInsnNode && opcode == Opcodes.ALOAD)
+        || (this is LdcInsnNode && opcode == Opcodes.LDC && cst is String)
