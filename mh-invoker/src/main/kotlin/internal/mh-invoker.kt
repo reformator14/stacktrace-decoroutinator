@@ -5,8 +5,8 @@ package dev.reformator.stacktracedecoroutinator.mhinvoker.internal
 import dcunknown.getUnknownSpecMethodHandle
 import dcunknown.unknownSpecClass
 import dev.reformator.bytecodeprocessor.intrinsics.MakeStatic
-import dev.reformator.stacktracedecoroutinator.common.internal.MethodHandleInvoker
-import dev.reformator.stacktracedecoroutinator.common.internal.VarHandleInvoker
+import dev.reformator.stacktracedecoroutinator.provider.internal.MethodHandleInvoker
+import dev.reformator.stacktracedecoroutinator.provider.internal.VarHandleInvoker
 import dev.reformator.stacktracedecoroutinator.intrinsics.assert
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpec
 import dev.reformator.stacktracedecoroutinator.provider.internal.AndroidKeep

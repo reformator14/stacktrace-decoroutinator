@@ -1,6 +1,6 @@
 @file:Suppress("NewApi", "PackageDirectoryMismatch")
 
-package dev.reformator.stacktracedecoroutinator.common.internal
+package dev.reformator.stacktracedecoroutinator.provider.internal
 
 import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
 import dev.reformator.stacktracedecoroutinator.intrinsics.assert
@@ -40,9 +40,13 @@ abstract class BaseSpecMethodsFactory: SpecMethodsFactory {
                     lineNumbersByMethod[methodName] = method.lineNumbers.toMutableSet()
                 }
             }
-            lineNumbersByMethod.getOrPut(element.methodName) {
-                mutableSetOf(UNKNOWN_LINE_NUMBER)
-            }.add(element.normalizedLineNumber)
+            var currentMethodLineNumbers = lineNumbersByMethod[element.methodName]
+            if (currentMethodLineNumbers == null) {
+                currentMethodLineNumbers = HashSet()
+                currentMethodLineNumbers.add(UNKNOWN_LINE_NUMBER)
+                lineNumbersByMethod[element.methodName] = currentMethodLineNumbers
+            }
+            currentMethodLineNumbers.add(element.normalizedLineNumber)
 
             classSpec.revision++
             val factoriesByMethod = generateSpecMethodHandles(
@@ -56,13 +60,25 @@ abstract class BaseSpecMethodsFactory: SpecMethodsFactory {
             }
             assert { factoriesByMethod.keys == lineNumbersByMethod.keys }
 
-            classSpec[element.fileName] =
-                factoriesByMethod.mapValuesCompact(methodsNumberThreshold) { (methodName, handle) ->
-                    MethodSpec(
-                        handle = handle,
-                        lineNumbers = lineNumbersByMethod[methodName]!!.toIntArray()
-                    )
+            val methodsByName: MutableMap<String, MethodSpec> = if (factoriesByMethod.size < methodsNumberThreshold) {
+                CompactMap()
+            } else {
+                newHashMapForSize(factoriesByMethod.size)
+            }
+            for ((methodName, handle) in factoriesByMethod) {
+                val lineNumbersSet = lineNumbersByMethod[methodName]!!
+                val lineNumbers = IntArray(lineNumbersSet.size)
+                var i = 0
+                for (lineNumber in lineNumbersSet) {
+                    lineNumbers[i] = lineNumber
+                    i++
                 }
+                methodsByName[methodName] = MethodSpec(
+                    handle = handle,
+                    lineNumbers = lineNumbers
+                )
+            }
+            classSpec[element.fileName] = methodsByName
         }
 
         return getMethodHandle()!!
@@ -131,7 +147,7 @@ internal object SpecMethodsFactoryImpl: SpecMethodsFactory {
     }
 
     init {
-        transformedClassesRegistry.addListener(::register)
+        transformedClassesRegistry.addListener { spec -> register(spec) }
         classSpecsByNameUpdateLock.withLock {
             transformedClassesRegistry.transformedClasses.forEach(::register)
         }
@@ -143,15 +159,14 @@ internal object SpecMethodsFactoryImpl: SpecMethodsFactory {
     )
 
     private fun register(spec: TransformedClassesRegistry.TransformedClassSpec) {
-        val methodsByName = spec.methods.associateTo(
-            if (spec.methods.size < methodsNumberThreshold) {
-                CompactMap()
-            } else {
-                newHashMapForSize(spec.methods.size)
-            }
-        ) { method ->
+        val methodsByName: MutableMap<String, MethodSpec> = if (spec.methods.size < methodsNumberThreshold) {
+            CompactMap()
+        } else {
+            newHashMapForSize(spec.methods.size)
+        }
+        for (method in spec.methods) {
             val specMethod = spec.lookup.findStatic(spec.transformedClass, method.realMethodName, specMethodType)
-            method.methodName to MethodSpec(
+            methodsByName[method.methodName] = MethodSpec(
                 lineNumbers = method.lineNumbers,
                 handle = specMethod
             )
@@ -164,4 +179,17 @@ internal object SpecMethodsFactoryImpl: SpecMethodsFactory {
             classSpecsByName[spec.className] = classSpec
         }
     }
+}
+
+private operator fun IntArray.contains(value: Int): Boolean {
+    for (lineNumber in this) {
+        if (lineNumber == value) return true
+    }
+    return false
+}
+
+private fun IntArray.toMutableSet(): MutableSet<Int> {
+    val result = mutableSetOf<Int>()
+    forEach { result.add(it) }
+    return result
 }

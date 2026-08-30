@@ -3,12 +3,16 @@
 
 package dev.reformator.stacktracedecoroutinator.common
 
-import dev.reformator.stacktracedecoroutinator.common.internal.*
-import dev.reformator.stacktracedecoroutinator.common.internal.ENABLED_PROPERTY
-import dev.reformator.stacktracedecoroutinator.common.internal.enabled
 import dev.reformator.stacktracedecoroutinator.intrinsics.BaseContinuation
 import dev.reformator.stacktracedecoroutinator.provider.internal.AndroidKeep
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessorProvider
+import dev.reformator.stacktracedecoroutinator.provider.internal.ENABLED_PROPERTY
+import dev.reformator.stacktracedecoroutinator.provider.internal.MethodHandleInvoker
+import dev.reformator.stacktracedecoroutinator.provider.internal._baseContinuationAccessorProvider
+import dev.reformator.stacktracedecoroutinator.provider.internal._methodHandleInvoker
+import dev.reformator.stacktracedecoroutinator.provider.internal.enabled
+import dev.reformator.stacktracedecoroutinator.provider.internal.methodHandleInvoker
+import dev.reformator.stacktracedecoroutinator.provider.internal.supportsMethodHandle
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext

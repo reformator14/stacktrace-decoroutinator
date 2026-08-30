@@ -14,6 +14,7 @@ repositories {
 
 dependencies {
     androidTestImplementation(libs.decoroutinator.common)
+    androidTestImplementation(libs.decoroutinator.provider)
     androidTestImplementation(libs.coroutines.core.build)
     androidTestImplementation(libs.junit4)
     androidTestImplementation(libs.jupiter.api)

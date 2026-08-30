@@ -1,3 +1,4 @@
+import dev.reformator.bytecodeprocessor.plugins.*
 import org.jetbrains.dokka.gradle.AbstractDokkaTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -7,11 +8,16 @@ plugins {
     `maven-publish`
     signing
     alias(libs.plugins.delete.signature.checksums)
+    alias(libs.plugins.bytecode.processor)
     alias(libs.plugins.force.variant.java.version)
 }
 
 repositories {
     mavenCentral()
+}
+
+bytecodeProcessor {
+    processors = listOf(RemoveKotlinStdlibProcessor)
 }
 
 java {

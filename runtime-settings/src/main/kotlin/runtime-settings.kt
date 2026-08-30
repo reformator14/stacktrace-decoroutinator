@@ -13,7 +13,7 @@ interface DecoroutinatorRuntimeSettingsProvider {
     val recoveryExplicitStacktrace: Boolean
         get() = defaultValue()
 
-    val recoveryExplicitStacktraceTimeoutMs: UInt
+    val recoveryExplicitStacktraceTimeoutMs: Int
         get() = defaultValue()
 
     val tailCallDeoptimize: Boolean

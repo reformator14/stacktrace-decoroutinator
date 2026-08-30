@@ -64,6 +64,7 @@ decoroutinator-methods-with-spaces-tests = { group = "dev.reformator.stacktraced
 decoroutinator-aar = { group = "dev.reformator.stacktracedecoroutinator", name = "aar" }
 decoroutinator-mh-invoker-jvm = { group = "dev.reformator.stacktracedecoroutinator", name = "stacktrace-decoroutinator-mh-invoker-jvm" }
 decoroutinator-common = { group = "dev.reformator.stacktracedecoroutinator", name = "stacktrace-decoroutinator-common" }
+decoroutinator-provider = { group = "dev.reformator.stacktracedecoroutinator", name = "stacktrace-decoroutinator-provider" }
 
 [plugins]
 shadow = { id = "com.gradleup.shadow" }

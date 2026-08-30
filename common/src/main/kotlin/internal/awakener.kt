@@ -11,6 +11,9 @@ import dev.reformator.stacktracedecoroutinator.provider.ContinuationCached
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpec
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpecImpl
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessor
+import dev.reformator.stacktracedecoroutinator.provider.internal.methodHandleInvoker
+import dev.reformator.stacktracedecoroutinator.provider.internal.normalizedLineNumber
+import dev.reformator.stacktracedecoroutinator.provider.internal.specMethodsFactory
 import java.lang.invoke.MethodHandle
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
@@ -266,8 +269,8 @@ private fun recoveryExplicitStacktrace(exception: Throwable, elements: List<Stac
         )
         val time = currentTime()
         val erasePreviousBoundaries = lastBoundaryIndex > boundaryIndex &&
-                time > recoveryExplicitStacktraceTimeoutMs &&
-                trace[lastBoundaryIndex].lineNumber.toUInt() < time - recoveryExplicitStacktraceTimeoutMs
+                time > recoveryExplicitStacktraceTimeoutMs.toUInt() &&
+                trace[lastBoundaryIndex].lineNumber.toUInt() < time - recoveryExplicitStacktraceTimeoutMs.toUInt()
         val prefixEndIndex = (if (erasePreviousBoundaries) boundaryIndex else lastBoundaryIndex) + 1
 
         Array(prefixEndIndex + elements.size + trace.size - lastBoundaryIndex) {

@@ -7,13 +7,26 @@ import dev.reformator.bytecodeprocessor.intrinsics.GetOwnerClass
 import dev.reformator.bytecodeprocessor.intrinsics.MethodNameConstant
 import dev.reformator.bytecodeprocessor.intrinsics.fail
 import java.lang.invoke.MethodHandles
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
+
+private val prepareBaseContinuationAccessorLock = ReentrantLock()
+
+@Suppress("ObjectPropertyName")
+private var _baseContinuationAccessor: BaseContinuationAccessor? = null
 
 val baseContinuationAccessor: BaseContinuationAccessor?
-    @MethodNameConstant("getBaseContinuationAccessorMethodName") get() = provider.baseContinuationAccessor
+    @MethodNameConstant("getBaseContinuationAccessorMethodName") get() = _baseContinuationAccessor
 
+@Suppress("NewApi")
 @MethodNameConstant("prepareBaseContinuationAccessorMethodName")
 fun prepareBaseContinuationAccessor(lookup: MethodHandles.Lookup): BaseContinuationAccessor =
-    provider.prepareBaseContinuationAccessor(lookup)
+    prepareBaseContinuationAccessorLock.withLock {
+        _baseContinuationAccessor?.let { return it }
+        val accessor = baseContinuationAccessorProvider.createAccessor(lookup)
+        _baseContinuationAccessor = accessor
+        accessor
+    }
 
 @MethodNameConstant("awakeBaseContinuationMethodName")
 fun awakeBaseContinuation(accessor: BaseContinuationAccessor, baseContinuation: Any, result: Any?) {

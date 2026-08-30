@@ -13,7 +13,7 @@ import com.android.dx.rop.cst.CstType
 import com.android.dx.rop.type.StdTypeList
 import com.android.dx.rop.type.Type
 import dalvik.system.InMemoryDexClassLoader
-import dev.reformator.stacktracedecoroutinator.common.internal.*
+import dev.reformator.stacktracedecoroutinator.provider.internal.*
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpec
 import dev.reformator.stacktracedecoroutinator.provider.internal.internalName
 import dev.reformator.stacktracedecoroutinator.runtimesettings.internal.getRuntimeSettingsValue
@@ -26,7 +26,7 @@ import java.lang.reflect.Modifier
 import java.nio.ByteBuffer
 
 private val androidGeneratorAttemptsCount =
-    getRuntimeSettingsValue({ androidGeneratorAttemptsCount }) {
+    getRuntimeSettingsValue({ it.androidGeneratorAttemptsCount }) {
         System.getProperty(
             "dev.reformator.stacktracedecoroutinator.androidGeneratorAttemptsCount",
             "3"

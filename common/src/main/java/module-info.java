@@ -1,6 +1,5 @@
-import dev.reformator.stacktracedecoroutinator.common.internal.*;
+import dev.reformator.stacktracedecoroutinator.common.internal.Provider;
 import dev.reformator.stacktracedecoroutinator.provider.internal.DecoroutinatorProvider;
-import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessorProvider;
 
 module dev.reformator.stacktracedecoroutinator.common {
     requires static dev.reformator.bytecodeprocessor.intrinsics;
@@ -21,10 +20,4 @@ module dev.reformator.stacktracedecoroutinator.common {
             dev.reformator.stacktracedecoroutinator.mhinvokerjvm;
 
     provides DecoroutinatorProvider with Provider;
-
-    uses SpecMethodsFactory;
-    uses AnnotationMetadataResolver;
-    uses MethodHandleInvoker;
-    uses VarHandleInvoker;
-    uses BaseContinuationAccessorProvider;
 }

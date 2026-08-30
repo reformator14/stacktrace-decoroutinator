@@ -7,6 +7,13 @@ import dev.reformator.stacktracedecoroutinator.intrinsics.BaseContinuation
 import dev.reformator.stacktracedecoroutinator.intrinsics.LABEL_FIELD_NAME
 import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
 import dev.reformator.stacktracedecoroutinator.intrinsics.ifAssertionEnabled
+import dev.reformator.stacktracedecoroutinator.provider.internal.KotlinDebugMetadata
+import dev.reformator.stacktracedecoroutinator.provider.internal.annotationMetadataResolver
+import dev.reformator.stacktracedecoroutinator.provider.internal.getBodyStream
+import dev.reformator.stacktracedecoroutinator.provider.internal.optimisticLockGetOrPut
+import dev.reformator.stacktracedecoroutinator.provider.internal.supportsVarHandle
+import dev.reformator.stacktracedecoroutinator.provider.internal.transformedClassesRegistry
+import dev.reformator.stacktracedecoroutinator.provider.internal.varHandleInvoker
 import java.lang.invoke.VarHandle
 import java.lang.reflect.Field
 import java.lang.reflect.GenericSignatureFormatError

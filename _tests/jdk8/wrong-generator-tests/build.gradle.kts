@@ -35,6 +35,7 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(libs.jupiter.api)
     testImplementation(libs.decoroutinator.common)
+    testImplementation(libs.decoroutinator.provider)
     testImplementation(libs.coroutines.core.build)
 }
 

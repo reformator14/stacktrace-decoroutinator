@@ -9,7 +9,15 @@ import dev.reformator.bytecodeprocessor.intrinsics.fail
 import dev.reformator.stacktracedecoroutinator.provider.internal.AndroidLegacyKeep
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessor
 import dev.reformator.stacktracedecoroutinator.provider.internal.callInvokeSuspend
+import dev.reformator.stacktracedecoroutinator.provider.internal.enabled as cachedEnabled
+import dev.reformator.stacktracedecoroutinator.provider.internal.fillUnknownElementsWithClassName as cachedFillUnknownElementsWithClassName
+import dev.reformator.stacktracedecoroutinator.provider.internal.isUsingElementCacheForManualContinuationGetElementMethodEnabled as cachedIsUsingElementCacheForManualContinuationGetElementMethodEnabled
+import dev.reformator.stacktracedecoroutinator.provider.internal.isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled as cachedIsUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled
+import dev.reformator.stacktracedecoroutinator.provider.internal.isUsingElementFactoryForBaseContinuationEnabled as cachedIsUsingElementFactoryForBaseContinuationEnabled
+import dev.reformator.stacktracedecoroutinator.provider.internal.nullElementSpecCache as cachedNullElementSpecCache
 import dev.reformator.stacktracedecoroutinator.provider.internal.provider
+import dev.reformator.stacktracedecoroutinator.provider.internal.tailCallDeoptimize as cachedTailCallDeoptimize
+import dev.reformator.stacktracedecoroutinator.provider.internal.transformedClassesRegistry
 import java.io.Serializable
 import java.lang.invoke.MethodHandle
 import java.lang.invoke.MethodHandles
@@ -157,7 +165,7 @@ interface ManualContinuation: ContinuationCached {
     @get:MethodNameConstant("manualContinuationGetCacheMethodName")
     override val `$decoroutinator$cache`: SpecCache?
         get() = when {
-            !provider.fillUnknownElementsWithClassName -> provider.nullElementSpecCache
+            !cachedFillUnknownElementsWithClassName -> cachedNullElementSpecCache
             javaClass !== `$decoroutinator$class` -> null
             else -> `$decoroutinator$cacheField`
         }
@@ -175,9 +183,9 @@ interface LazilyCachedContinuation: ContinuationCached {
             return if (cacheField == null) {
                 val element = provider.getCoroutineStackFrameStackTraceElement(this)
                 val result = if (element == null) {
-                    if (provider.fillUnknownElementsWithClassName) {
+                    if (cachedFillUnknownElementsWithClassName) {
                         SpecCache(javaClass.name, "resumeWith", null, -1)
-                    } else provider.nullElementSpecCache
+                    } else cachedNullElementSpecCache
                 } else SpecCache(element)
                 `$decoroutinator$cacheField` = result
                 result
@@ -207,18 +215,18 @@ class SpecCache(
 
 @Suppress("unused")
 val isDecoroutinatorEnabled: Boolean
-    @MethodNameConstant("isDecoroutinatorEnabledMethodName") get() = provider.isDecoroutinatorEnabled
+    @MethodNameConstant("isDecoroutinatorEnabledMethodName") get() = cachedEnabled
 
 @Suppress("unused")
 @MethodNameConstant("registerTransformedClassMethodName")
 fun registerTransformedClass(lookup: MethodHandles.Lookup) {
-    provider.registerTransformedClass(lookup)
+    transformedClassesRegistry.registerTransformedClass(lookup)
 }
 
 @Suppress("unused")
 val isTailCallDeoptimizationEnabled: Boolean
     @MethodNameConstant("isTailCallDeoptimizationEnabledMethodName")
-    get() = provider.isTailCallDeoptimizationEnabled
+    get() = cachedTailCallDeoptimize
 
 @Suppress("unused")
 @MethodNameConstant("tailCallDeoptimizeMethodName")
@@ -228,22 +236,22 @@ fun tailCallDeoptimize(completion: Any, cache: SpecCache?): Any =
 @Suppress("unused")
 val isUsingElementFactoryForBaseContinuationEnabled: Boolean
     @MethodNameConstant("isUsingElementFactoryForBaseContinuationEnabledMethodName")
-    get() = provider.isUsingElementFactoryForBaseContinuationEnabled
+    get() = cachedIsUsingElementFactoryForBaseContinuationEnabled
 
 @Suppress("unused")
 val fillUnknownElementsWithClassName: Boolean
     @MethodNameConstant("fillUnknownElementsWithClassNameMethodName")
-    get() = provider.fillUnknownElementsWithClassName
+    get() = cachedFillUnknownElementsWithClassName
 
 @Suppress("unused")
 val isUsingElementCacheForManualContinuationGetElementMethodEnabled: Boolean
     @MethodNameConstant("isUsingElementCacheForManualContinuationGetElementMethodEnabledMethodName")
-    get() = provider.isUsingElementCacheForManualContinuationGetElementMethodEnabled
+    get() = cachedIsUsingElementCacheForManualContinuationGetElementMethodEnabled
 
 @Suppress("unused")
 val isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled: Boolean
     @MethodNameConstant("isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabledMethodName")
-    get() = provider.isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled
+    get() = cachedIsUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled
 
 val providerApiClass: Class<*>
     @GetOwnerClass get() { fail() }

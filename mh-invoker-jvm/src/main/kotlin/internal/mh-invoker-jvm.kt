@@ -8,8 +8,8 @@ import dcunknownjvm.getUnknownPackageName
 import dev.reformator.bytecodeprocessor.intrinsics.LoadConstant
 import dev.reformator.bytecodeprocessor.intrinsics.fail
 import dev.reformator.bytecodeprocessor.intrinsics.ownerClass
-import dev.reformator.stacktracedecoroutinator.common.internal.MethodHandleInvoker
-import dev.reformator.stacktracedecoroutinator.common.internal.VarHandleInvoker
+import dev.reformator.stacktracedecoroutinator.provider.internal.MethodHandleInvoker
+import dev.reformator.stacktracedecoroutinator.provider.internal.VarHandleInvoker
 import java.lang.invoke.MethodHandles
 import java.util.Base64
 import java.util.zip.ZipInputStream

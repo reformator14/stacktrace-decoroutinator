@@ -25,6 +25,8 @@ internal fun AnnotationNode.getParameter(name: String): Any? {
 internal val MethodNode.isStatic: Boolean
     get() = access and Opcodes.ACC_STATIC != 0
 
+internal val ClassNode.isInterface: Boolean
+    get() = access and Opcodes.ACC_INTERFACE != 0
 
 internal fun ClassNode.getOrCreateClinit(): MethodNode =
     methods?.firstOrNull {

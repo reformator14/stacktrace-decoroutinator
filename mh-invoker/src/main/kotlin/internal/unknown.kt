@@ -5,7 +5,7 @@ package dcunknown
 
 import dev.reformator.bytecodeprocessor.intrinsics.GetOwnerClass
 import dev.reformator.bytecodeprocessor.intrinsics.fail
-import dev.reformator.stacktracedecoroutinator.common.internal.specMethodType
+import dev.reformator.stacktracedecoroutinator.provider.internal.specMethodType
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpec
 import dev.reformator.stacktracedecoroutinator.provider.internal.AndroidKeep
 import java.lang.invoke.MethodHandle

@@ -7,8 +7,8 @@ import android.util.Base64
 import dev.reformator.bytecodeprocessor.intrinsics.LoadConstant
 import dev.reformator.bytecodeprocessor.intrinsics.fail
 import dalvik.system.InMemoryDexClassLoader
-import dev.reformator.stacktracedecoroutinator.common.internal.MethodHandleInvoker
-import dev.reformator.stacktracedecoroutinator.common.internal.VarHandleInvoker
+import dev.reformator.stacktracedecoroutinator.provider.internal.MethodHandleInvoker
+import dev.reformator.stacktracedecoroutinator.provider.internal.VarHandleInvoker
 import java.nio.ByteBuffer
 
 internal class AndroidMethodHandleInvoker: MethodHandleInvoker by loadRegularMethodHandleInvoker()

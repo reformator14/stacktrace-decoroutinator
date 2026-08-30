@@ -3,7 +3,7 @@
 package dev.reformator.stacktracedecoroutinator.tests.android.wronggeneratortests
 
 import dev.reformator.stacktracedecoroutinator.common.DecoroutinatorCommonApi
-import dev.reformator.stacktracedecoroutinator.common.internal.methodHandleInvoker
+import dev.reformator.stacktracedecoroutinator.provider.internal.methodHandleInvoker
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import org.junit.Test

@@ -4,9 +4,9 @@ package dev.reformator.stacktracedecoroutinator.generatorjvm.internal
 
 import dev.reformator.bytecodeprocessor.intrinsics.LoadConstant
 import dev.reformator.bytecodeprocessor.intrinsics.fail
-import dev.reformator.stacktracedecoroutinator.common.internal.TransformationMetadata
-import dev.reformator.stacktracedecoroutinator.common.internal.AnnotationMetadataResolver
-import dev.reformator.stacktracedecoroutinator.common.internal.KotlinDebugMetadata
+import dev.reformator.stacktracedecoroutinator.provider.internal.TransformationMetadata
+import dev.reformator.stacktracedecoroutinator.provider.internal.AnnotationMetadataResolver
+import dev.reformator.stacktracedecoroutinator.provider.internal.KotlinDebugMetadata
 import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.decoroutinatorSpecMethodAnnotation
 import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.decoroutinatorTransformedAnnotation
 import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.getClassNode

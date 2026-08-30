@@ -1,6 +1,6 @@
-import dev.reformator.stacktracedecoroutinator.common.internal.AnnotationMetadataResolver;
+import dev.reformator.stacktracedecoroutinator.provider.internal.AnnotationMetadataResolver;
 import dev.reformator.stacktracedecoroutinator.generatorjvm.internal.GeneratorJvmSpecMethodsFactory;
-import dev.reformator.stacktracedecoroutinator.common.internal.SpecMethodsFactory;
+import dev.reformator.stacktracedecoroutinator.provider.internal.SpecMethodsFactory;
 import dev.reformator.stacktracedecoroutinator.generatorjvm.internal.AnnotationMetadataResolverImpl;
 
 module dev.reformator.stacktracedecoroutinator.generatorjvm {

@@ -3,7 +3,7 @@
 package dev.reformator.stacktracedecoroutinator.tests.jdk8.wronggeneratortests
 
 import dev.reformator.stacktracedecoroutinator.common.DecoroutinatorCommonApi
-import dev.reformator.stacktracedecoroutinator.common.internal.methodHandleInvoker
+import dev.reformator.stacktracedecoroutinator.provider.internal.methodHandleInvoker
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import java.lang.reflect.InvocationTargetException

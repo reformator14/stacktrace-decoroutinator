@@ -4,8 +4,8 @@
 package dev.reformator.stacktracedecoroutinator.generatorjvm.internal
 
 import dev.reformator.bytecodeprocessor.intrinsics.MakeStatic
-import dev.reformator.stacktracedecoroutinator.common.internal.MethodHandleInvoker
-import dev.reformator.stacktracedecoroutinator.common.internal.specMethodType
+import dev.reformator.stacktracedecoroutinator.provider.internal.MethodHandleInvoker
+import dev.reformator.stacktracedecoroutinator.provider.internal.specMethodType
 import dev.reformator.stacktracedecoroutinator.provider.internal.internalName
 import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.buildSpecMethodNode
 import org.objectweb.asm.ClassWriter

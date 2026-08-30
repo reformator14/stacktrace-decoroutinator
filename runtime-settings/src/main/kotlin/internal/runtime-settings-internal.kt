@@ -3,7 +3,10 @@
 package dev.reformator.stacktracedecoroutinator.runtimesettings.internal
 
 import dev.reformator.stacktracedecoroutinator.runtimesettings.DecoroutinatorRuntimeSettingsProvider
+import java.util.Collections
+import java.util.Comparator
 import java.util.ServiceLoader
+import java.util.function.Function
 
 @Suppress("ObjectInheritsException", "JavaIoSerializableObjectMustHaveReadResolve")
 private object DefaultValueException: Exception()
@@ -21,19 +24,23 @@ private class RuntimeSettingsProviderWithPriority(
     val priority: Int
 )
 
-private val runtimeSettingsProviderInstances =
-    ServiceLoader.load(DecoroutinatorRuntimeSettingsProvider::class.java)
-        .asSequence()
-        .map { RuntimeSettingsProviderWithPriority(it, it.priority) }
-        .sortedByDescending { it.priority }
-        .toList()
+private val runtimeSettingsProviderInstances: List<RuntimeSettingsProviderWithPriority> = run {
+    val list = ArrayList<RuntimeSettingsProviderWithPriority>()
+    val iter = ServiceLoader.load(DecoroutinatorRuntimeSettingsProvider::class.java).iterator()
+    while (iter.hasNext()) {
+        val provider = iter.next()
+        list.add(RuntimeSettingsProviderWithPriority(provider, provider.priority))
+    }
+    Collections.sort(list, Comparator { a, b -> b.priority - a.priority })
+    list
+}
 
-fun <T> getRuntimeSettingsValue(get: DecoroutinatorRuntimeSettingsProvider.() -> T): RuntimeSettingsValue<T> {
+fun <T> getRuntimeSettingsValue(get: Function<DecoroutinatorRuntimeSettingsProvider, T>): RuntimeSettingsValue<T> {
     var index = 0
     val value = run {
         while (index < runtimeSettingsProviderInstances.size) {
             try {
-                return@run runtimeSettingsProviderInstances[index].provider.get()
+                return@run get.apply(runtimeSettingsProviderInstances[index].provider)
             } catch (_: DefaultValueException) {
                 index++
             }
@@ -46,7 +53,7 @@ fun <T> getRuntimeSettingsValue(get: DecoroutinatorRuntimeSettingsProvider.() ->
     while (index < runtimeSettingsProviderInstances.size && runtimeSettingsProviderInstances[index].priority == priority) {
         try {
             val otherProvider = runtimeSettingsProviderInstances[index].provider
-            val otherValue = otherProvider.get()
+            val otherValue = get.apply(otherProvider)
             if (otherValue != value) {
                 error("different values with the same priority[$priority]: [$value] from [$provider] and [$otherValue] from [$otherProvider]")
             }
@@ -57,7 +64,7 @@ fun <T> getRuntimeSettingsValue(get: DecoroutinatorRuntimeSettingsProvider.() ->
 }
 
 inline fun <T> getRuntimeSettingsValue(
-    noinline get: DecoroutinatorRuntimeSettingsProvider.() -> T,
+    get: Function<DecoroutinatorRuntimeSettingsProvider, T>,
     default: () -> T
 ): T =
     when(val value = getRuntimeSettingsValue(get)) {

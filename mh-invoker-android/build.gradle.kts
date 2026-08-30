@@ -38,6 +38,7 @@ android {
 dependencies {
     compileOnly(libs.bytecode.processor.intrinsics)
 
+    implementation(project(":stacktrace-decoroutinator-provider"))
     implementation(project(":stacktrace-decoroutinator-common"))
 }
 

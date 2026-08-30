@@ -2,7 +2,7 @@
 
 package dev.reformator.stacktracedecoroutinator.generatorjvm.internal
 
-import dev.reformator.stacktracedecoroutinator.common.internal.*
+import dev.reformator.stacktracedecoroutinator.provider.internal.*
 import java.lang.invoke.MethodHandle
 import java.util.concurrent.CopyOnWriteArrayList
 

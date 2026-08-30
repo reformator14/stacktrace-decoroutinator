@@ -1,5 +1,5 @@
-import dev.reformator.stacktracedecoroutinator.common.internal.MethodHandleInvoker;
-import dev.reformator.stacktracedecoroutinator.common.internal.VarHandleInvoker;
+import dev.reformator.stacktracedecoroutinator.provider.internal.MethodHandleInvoker;
+import dev.reformator.stacktracedecoroutinator.provider.internal.VarHandleInvoker;
 import dev.reformator.stacktracedecoroutinator.mhinvokerjvm.internal.JvmMethodHandleInvoker;
 import dev.reformator.stacktracedecoroutinator.mhinvokerjvm.internal.JvmVarHandleInvoker;
 

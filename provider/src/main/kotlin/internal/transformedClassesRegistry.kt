@@ -1,6 +1,6 @@
 @file:Suppress("NewApi", "PackageDirectoryMismatch")
 
-package dev.reformator.stacktracedecoroutinator.common.internal
+package dev.reformator.stacktracedecoroutinator.provider.internal
 
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpecMethod
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorTransformed
@@ -34,12 +34,12 @@ internal class TransformedClassesRegistryImpl: TransformedClassesRegistry {
         val clazz: Class<*> = lookup.lookupClass()
         val loader = clazz.classLoader ?: ClassLoader.getSystemClassLoader()
         val meta = try {
-            clazz.getDeclaredAnnotation(DecoroutinatorTransformed::class.java)?.let { transformedAnnotation: DecoroutinatorTransformed ->
+            clazz.getDeclaredAnnotation(DecoroutinatorTransformed::class.java)?.let { transformedAnnotation ->
                 TransformationMetadata(
                     className = transformedAnnotation.className,
                     fileName = if (transformedAnnotation.fileNamePresent) transformedAnnotation.fileName else null,
                     methods = clazz.declaredMethods.mapNotNull { method ->
-                        method.getDeclaredAnnotation(DecoroutinatorSpecMethod::class.java)?.let { specMethodAnnotation: DecoroutinatorSpecMethod ->
+                        method.getDeclaredAnnotation(DecoroutinatorSpecMethod::class.java)?.let { specMethodAnnotation ->
                             TransformationMetadata.Method(
                                 name = specMethodAnnotation.methodName,
                                 realName = method.name,

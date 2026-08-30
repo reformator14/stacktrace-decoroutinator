@@ -11,13 +11,13 @@ import kotlin.coroutines.jvm.internal.DecoroutinatorDebugProbesProvider
 @Suppress("unused")
 class DecoroutinatorDebugProbesProviderImpl: DecoroutinatorDebugProbesProvider {
     init {
-        val enableCreationStackTraces = getRuntimeSettingsValue({ enableCreationStackTraces }) {
+        val enableCreationStackTraces = getRuntimeSettingsValue({ it.enableCreationStackTraces }) {
             System.getProperty(
                 "dev.reformator.stacktracedecoroutinator.enableCreationStackTraces",
                 "false"
             ).toBoolean()
         }
-        val installDebugProbes = getRuntimeSettingsValue({ installDebugProbes }) {
+        val installDebugProbes = getRuntimeSettingsValue({ it.installDebugProbes }) {
             System.getProperty(
                 "dev.reformator.stacktracedecoroutinator.installDebugProbes",
                 "true"
