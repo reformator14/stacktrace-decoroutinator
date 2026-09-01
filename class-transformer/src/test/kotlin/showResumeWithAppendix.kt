@@ -1,7 +1,7 @@
 package printspecmethod
 
 import dev.reformator.stacktracedecoroutinator.provider.internal.awakeBaseContinuation
-import dev.reformator.stacktracedecoroutinator.provider.internal.baseContinuationAccessor
+import dev.reformator.stacktracedecoroutinator.provider.internal.getBaseContinuationAccessor
 import dev.reformator.stacktracedecoroutinator.provider.internal.getElementFactoryStacktraceElement
 import dev.reformator.stacktracedecoroutinator.provider.internal.prepareBaseContinuationAccessor
 import dev.reformator.stacktracedecoroutinator.provider.isDecoroutinatorEnabled
@@ -14,7 +14,7 @@ class BaseContinuation
 fun BaseContinuation.resumeWith(result: Any?) {
     if (isDecoroutinatorEnabled) {
         awakeBaseContinuation(
-            accessor = baseContinuationAccessor ?: prepareBaseContinuationAccessor(MethodHandles.lookup()),
+            accessor = getBaseContinuationAccessor(this) ?: prepareBaseContinuationAccessor(MethodHandles.lookup()),
             baseContinuation = this,
             result =result
         )

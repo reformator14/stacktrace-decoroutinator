@@ -44,8 +44,11 @@ include(
     "jvm:jdk8-tests",
     "jvm-agent:tests",
     "jvm-agent:jdk8-tests",
+    "jvm-agent:tests-no-kotlin-stdlib",
+    "jvm-agent:jdk8-tests-no-kotlin-stdlib",
     "tests",
     "tests:custom-loader",
+    "tests:no-kotlin-stdlib",
     "tests:methods-with-spaces-tests",
     "tests:naive-base-continuation-accessor",
     "tests:duplicate-entity-jar",
@@ -70,6 +73,8 @@ project(":spec-method-builder").name = "stacktrace-decoroutinator-spec-method-bu
 project(":jvm:jdk8-tests").name = "jvm-jdk8-tests"
 project(":jvm-agent:tests").name = "jvm-agent-tests"
 project(":jvm-agent:jdk8-tests").name = "jvm-agent-jdk8-tests"
+project(":jvm-agent:tests-no-kotlin-stdlib").name = "jvm-agent-tests-no-kotlin-stdlib"
+project(":jvm-agent:jdk8-tests-no-kotlin-stdlib").name = "jvm-agent-jdk8-tests-no-kotlin-stdlib"
 
 nmcpSettings {
     centralPortal {

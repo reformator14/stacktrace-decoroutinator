@@ -130,10 +130,7 @@ private fun BaseContinuation.stdlibAwake(accessor: BaseContinuationAccessor, res
     var newResult = result
     var baseContinuation = this
     do {
-        newResult = baseContinuation.callInvokeSuspend(
-            accessor = accessor,
-            result = newResult
-        )
+        newResult = baseContinuation.callInvokeSuspend(accessor, newResult)
         if (newResult === COROUTINE_SUSPENDED) return
         baseContinuation = baseContinuation.completion!! as? BaseContinuation ?: break
     } while (true)

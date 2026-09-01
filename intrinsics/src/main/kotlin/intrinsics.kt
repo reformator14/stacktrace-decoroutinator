@@ -12,6 +12,9 @@ const val BASE_CONTINUATION_CLASS_NAME = "kotlin.coroutines.jvm.internal.BaseCon
 const val UNKNOWN_LINE_NUMBER = -1
 const val PROVIDER_MODULE_NAME = "dev.reformator.stacktracedecoroutinator.provider"
 const val LABEL_FIELD_NAME = "label"
+const val CONTINUATION_INTERFACE_NAME = "kotlin.coroutines.Continuation"
+const val KOTLIN_METADATA_ANNOTATION_NAME = "kotlin.Metadata"
+const val KOTLIN_DEBUG_METADATA_ANNOTATION_NAME = "kotlin.coroutines.jvm.internal.DebugMetadata"
 
 @ChangeClassName(toName = BASE_CONTINUATION_CLASS_NAME)
 abstract class BaseContinuation: Continuation<Any?>, CoroutineStackFrame {
@@ -33,7 +36,7 @@ abstract class BaseContinuation: Continuation<Any?>, CoroutineStackFrame {
         get() = fail()
 }
 
-@ChangeClassName(toName = "kotlin.coroutines.jvm.internal.DebugMetadata")
+@ChangeClassName(toName = KOTLIN_DEBUG_METADATA_ANNOTATION_NAME)
 @Target(AnnotationTarget.CLASS)
 annotation class DebugMetadata(
     @get:MethodNameConstant("debugMetadataFileNameMethodName")

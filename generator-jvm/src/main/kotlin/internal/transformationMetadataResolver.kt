@@ -4,14 +4,18 @@ package dev.reformator.stacktracedecoroutinator.generatorjvm.internal
 
 import dev.reformator.bytecodeprocessor.intrinsics.LoadConstant
 import dev.reformator.bytecodeprocessor.intrinsics.fail
+import dev.reformator.stacktracedecoroutinator.intrinsics.DebugMetadata
+import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpecMethod
 import dev.reformator.stacktracedecoroutinator.provider.internal.TransformationMetadata
 import dev.reformator.stacktracedecoroutinator.provider.internal.AnnotationMetadataResolver
 import dev.reformator.stacktracedecoroutinator.provider.internal.KotlinDebugMetadata
-import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.decoroutinatorSpecMethodAnnotation
 import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.decoroutinatorTransformedAnnotation
 import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.getClassNode
 import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.getField
-import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.kotlinDebugMetadataAnnotation
+import org.objectweb.asm.Type
+import org.objectweb.asm.tree.AnnotationNode
+import org.objectweb.asm.tree.ClassNode
+import org.objectweb.asm.tree.MethodNode
 import java.io.InputStream
 
 class AnnotationMetadataResolverImpl: AnnotationMetadataResolver {
@@ -50,6 +54,16 @@ class AnnotationMetadataResolverImpl: AnnotationMetadataResolver {
         )
     }
 }
+
+private val MethodNode.decoroutinatorSpecMethodAnnotation: AnnotationNode?
+    get() = visibleAnnotations
+        .orEmpty()
+        .firstOrNull { it.desc == Type.getDescriptor(DecoroutinatorSpecMethod::class.java) }
+
+private val ClassNode.kotlinDebugMetadataAnnotation: AnnotationNode?
+    get() = visibleAnnotations
+        .orEmpty()
+        .firstOrNull { it.desc == Type.getDescriptor(DebugMetadata::class.java) }
 
 private val decoroutinatorTransformedFileNamePresentMethodName: String
     @LoadConstant("decoroutinatorTransformedFileNamePresentMethodName") get() = fail()

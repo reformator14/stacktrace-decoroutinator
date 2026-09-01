@@ -12,6 +12,9 @@ import dev.reformator.kmetarepack.jvm.signature
 import dev.reformator.kmetarepack.jvm.Metadata as createMetadata
 import dev.reformator.stacktracedecoroutinator.intrinsics.BASE_CONTINUATION_CLASS_NAME
 import dev.reformator.stacktracedecoroutinator.intrinsics.BaseContinuation
+import dev.reformator.stacktracedecoroutinator.intrinsics.CONTINUATION_INTERFACE_NAME
+import dev.reformator.stacktracedecoroutinator.intrinsics.KOTLIN_DEBUG_METADATA_ANNOTATION_NAME
+import dev.reformator.stacktracedecoroutinator.intrinsics.KOTLIN_METADATA_ANNOTATION_NAME
 import dev.reformator.stacktracedecoroutinator.intrinsics.LABEL_FIELD_NAME
 import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
 import dev.reformator.stacktracedecoroutinator.intrinsics.assert
@@ -31,14 +34,12 @@ import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.buildS
 import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.decoroutinatorTransformedAnnotation
 import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.getClassNode
 import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.getField
-import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.kotlinDebugMetadataAnnotation
 import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.*
 import java.io.InputStream
 import java.lang.invoke.MethodHandles
-import kotlin.coroutines.Continuation
 import kotlin.coroutines.jvm.internal.CoroutineStackFrame
 import kotlin.jvm.java
 
@@ -211,9 +212,15 @@ private fun Metadata.getNonSuspendFunctionSignatures(): List<JvmMethodSignature>
     return functions.asSequence()
         .filter { it.isInline || !it.isSuspend }
         .mapNotNull { it.signature }
-        .filter { it.descriptor.endsWith("${Type.getDescriptor(Continuation::class.java)})${Type.getDescriptor(Object::class.java)}") }
+        .filter { it.descriptor.endsWith("$continuationDescriptor)${Type.getDescriptor(Object::class.java)}") }
         .toList()
 }
+
+private val debugMetadataDescription = "L${KOTLIN_DEBUG_METADATA_ANNOTATION_NAME.internalName};"
+private val ClassNode.kotlinDebugMetadataAnnotation: AnnotationNode?
+    get() = visibleAnnotations
+        .orEmpty()
+        .firstOrNull { it.desc == debugMetadataDescription }
 
 private fun ClassNode.tryAddBaseContinuationExtractor(apply: Boolean): Boolean {
     val debugMetadata = kotlinDebugMetadataAnnotation ?: return false
@@ -350,7 +357,7 @@ private fun ClassNode.tryAddManualContinuation(
             add(TypeInsnNode(Opcodes.NEW, Type.getInternalName(SpecCache::class.java)))
             add(InsnNode(Opcodes.DUP))
             add(LdcInsnNode(this@tryAddManualContinuation.name.binaryName))
-            add(LdcInsnNode(Continuation<*>::resumeWith.name))
+            add(LdcInsnNode("resumeWith"))
             add(sourceFile.let { if (it != null) LdcInsnNode(it) else InsnNode(Opcodes.ACONST_NULL) })
             add(LdcInsnNode(UNKNOWN_LINE_NUMBER))
             add(MethodInsnNode(
@@ -404,7 +411,7 @@ private fun ClassNode.tryAddManualContinuation(
         getSpecCacheMethodName = manualContinuationGetCacheMethodName
     )
 
-    lineNumbersBySpecMethodName.computeIfAbsent(Continuation<*>::resumeWith.name) {
+    lineNumbersBySpecMethodName.computeIfAbsent("resumeWith") {
         hashSetOf(UNKNOWN_LINE_NUMBER)
     }.add(UNKNOWN_LINE_NUMBER)
 
@@ -573,11 +580,20 @@ private fun ClassNode.transformBaseContinuation() {
             Opcodes.IFEQ,
             defaultAwakeLabel
         ))
+        // baseContinuation (ALOAD 0) is passed here so the accessor cache can be scoped per
+        // target class loader (DispatchingProvider routes on it) rather than a single
+        // process-wide cache, which breaks when the same BaseContinuationImpl name is defined by
+        // more than one class loader in the same process (e.g. a reloaded plugin module) - see
+        // DecoroutinatorProvider.getBaseContinuationAccessor. prepareBaseContinuationAccessor
+        // doesn't need it: lookup.lookupClass() is always this same BaseContinuationImpl (this is
+        // only ever injected into its own resumeWith), so lookup alone already carries the same
+        // class loader identity.
+        add(VarInsnNode(Opcodes.ALOAD, 0))
         add(MethodInsnNode(
             Opcodes.INVOKESTATIC,
             Type.getInternalName(providerInternalApiClass),
             getBaseContinuationAccessorMethodName,
-            "()${Type.getDescriptor(BaseContinuationAccessor::class.java)}"
+            "(${Type.getDescriptor(Object::class.java)})${Type.getDescriptor(BaseContinuationAccessor::class.java)}"
         ))
         add(InsnNode(Opcodes.DUP))
         val decoroutinatorAwakeLabel = LabelNode()
@@ -778,10 +794,12 @@ private fun ClassNode.saveTailCallCaches(tailCallCaches: List<TailCallDeoptimize
     }
 }
 
+
+private val kotlinMetadataAnnotationDescriptor = "L${KOTLIN_METADATA_ANNOTATION_NAME.internalName};"
 private val ClassNode.kotlinMetadataAnnotation: AnnotationNode?
     get() = visibleAnnotations
         .orEmpty()
-        .firstOrNull { it.desc == Type.getDescriptor(Metadata::class.java) }
+        .firstOrNull { it.desc == kotlinMetadataAnnotationDescriptor }
 
 private fun ClassNode.tryTransformSuspendMethods(
     classBodyResolver: (className: String) -> InputStream?,
@@ -843,6 +861,10 @@ private val ClassNode.debugMetadataInfo: DebugMetadataInfo?
         )
     }
 
+
+
+private val continuationInternalName = CONTINUATION_INTERFACE_NAME.internalName
+private val continuationDescriptor = "L$continuationInternalName;"
 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
 private fun tryTransformSuspendMethod(
     clazz: ClassNode,
@@ -861,7 +883,7 @@ private fun tryTransformSuspendMethod(
         val methodType = Type.getMethodType(method.desc)
         if (methodType.returnType != Type.getType(Object::class.java)) return false
         val arguments = methodType.argumentTypes
-        if (arguments.isEmpty() || arguments.last() != Type.getType(Continuation::class.java)) return false
+        if (arguments.isEmpty() || arguments.last() != Type.getType(continuationDescriptor)) return false
         (if (method.isStatic) 0 else 1) + arguments.asSequence()
             .take(arguments.size - 1)
             .sumOf { it.size }
@@ -986,7 +1008,7 @@ private fun tryTransformSuspendMethod(
                     + Type.getDescriptor(SpecCache::class.java)
                     + ")${Type.getDescriptor(Object::class.java)}"
         ))
-        add(TypeInsnNode(Opcodes.CHECKCAST, Type.getInternalName(Continuation::class.java)))
+        add(TypeInsnNode(Opcodes.CHECKCAST, continuationInternalName))
     })
 
     return true

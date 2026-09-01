@@ -39,6 +39,9 @@ interface DecoroutinatorRuntimeSettingsProvider {
     val isRedefinitionChangingClassLayoutAllowed: Boolean
         get() = defaultValue()
 
+    val forceAgentClassLoaderDispatchingProvider: Boolean
+        get() = defaultValue()
+
     // Embedded Debug Probes settings
 
     val enableCreationStackTraces: Boolean

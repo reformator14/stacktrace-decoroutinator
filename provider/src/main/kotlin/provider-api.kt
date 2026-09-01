@@ -8,7 +8,6 @@ import dev.reformator.bytecodeprocessor.intrinsics.MethodNameConstant
 import dev.reformator.bytecodeprocessor.intrinsics.fail
 import dev.reformator.stacktracedecoroutinator.provider.internal.AndroidLegacyKeep
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessor
-import dev.reformator.stacktracedecoroutinator.provider.internal.callInvokeSuspend
 import dev.reformator.stacktracedecoroutinator.provider.internal.enabled as cachedEnabled
 import dev.reformator.stacktracedecoroutinator.provider.internal.fillUnknownElementsWithClassName as cachedFillUnknownElementsWithClassName
 import dev.reformator.stacktracedecoroutinator.provider.internal.isUsingElementCacheForManualContinuationGetElementMethodEnabled as cachedIsUsingElementCacheForManualContinuationGetElementMethodEnabled
@@ -18,11 +17,10 @@ import dev.reformator.stacktracedecoroutinator.provider.internal.nullElementSpec
 import dev.reformator.stacktracedecoroutinator.provider.internal.provider
 import dev.reformator.stacktracedecoroutinator.provider.internal.tailCallDeoptimize as cachedTailCallDeoptimize
 import dev.reformator.stacktracedecoroutinator.provider.internal.transformedClassesRegistry
-import java.io.Serializable
 import java.lang.invoke.MethodHandle
 import java.lang.invoke.MethodHandles
 
-@Suppress("unused", "PropertyName", "FunctionName")
+@Suppress("unused", "FunctionName")
 @AndroidLegacyKeep
 interface DecoroutinatorSpec {
     fun `$decoroutinator$getLineNumber`(): Int
@@ -33,13 +31,14 @@ interface DecoroutinatorSpec {
 }
 
 @Suppress("FunctionName", "PrivatePropertyName")
-open class DecoroutinatorSpecImpl: DecoroutinatorSpec, Serializable {
+open class DecoroutinatorSpecImpl: DecoroutinatorSpec {
     @Transient private var `$decoroutinator$accessor`: BaseContinuationAccessor? = null
     @Transient private var `$decoroutinator$lineNumber`: Int = 0
     @Transient private var `$decoroutinator$nextSpec`: DecoroutinatorSpec? = null
     @Transient private var `$decoroutinator$nextSpecHandle`: MethodHandle? = null
     @Transient private var `$decoroutinator$nextContinuation`: Any? = null
 
+    @Suppress("unused")
     fun `$decoroutinator$init`(
         accessor: BaseContinuationAccessor,
         lineNumber: Int,
@@ -79,20 +78,16 @@ open class DecoroutinatorSpecImpl: DecoroutinatorSpec, Serializable {
         val accessorCopy = `$decoroutinator$accessor`!!
         `$decoroutinator$accessor` = null
         val nextContinuationCopy = `$decoroutinator$nextContinuation`
-        if (nextContinuationCopy != null) {
+        return if (nextContinuationCopy != null) {
             `$decoroutinator$nextContinuation` = null
-            if (result !== provider.coroutineSuspendedMarker) {
-                return callInvokeSuspend(
-                    baseContinuation = nextContinuationCopy,
-                    accessor = accessorCopy,
-                    result = result,
-                    probeCoroutineResumed = provider::probeCoroutineResumed,
-                    createFailure = provider::createFailure,
-                    coroutineSuspendedMarker = provider.coroutineSuspendedMarker
-                )
-            }
+            provider.callInvokeSuspendIfResultIsNotCoroutineSuspended(
+                baseContinuation = nextContinuationCopy,
+                accessor = accessorCopy,
+                result = result
+            )
+        } else {
+            result
         }
-        return result
     }
 }
 

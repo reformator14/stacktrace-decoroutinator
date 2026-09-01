@@ -7,26 +7,17 @@ import dev.reformator.bytecodeprocessor.intrinsics.GetOwnerClass
 import dev.reformator.bytecodeprocessor.intrinsics.MethodNameConstant
 import dev.reformator.bytecodeprocessor.intrinsics.fail
 import java.lang.invoke.MethodHandles
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
 
-private val prepareBaseContinuationAccessorLock = ReentrantLock()
+// Delegated to provider (not cached here) so the cache can be scoped per class loader by whatever
+// implements DecoroutinatorProvider - see the KDoc on those two members for why a single,
+// ungrouped cache is wrong.
+@MethodNameConstant("getBaseContinuationAccessorMethodName")
+fun getBaseContinuationAccessor(baseContinuation: Any): BaseContinuationAccessor? =
+    provider.getBaseContinuationAccessor(baseContinuation)
 
-@Suppress("ObjectPropertyName")
-private var _baseContinuationAccessor: BaseContinuationAccessor? = null
-
-val baseContinuationAccessor: BaseContinuationAccessor?
-    @MethodNameConstant("getBaseContinuationAccessorMethodName") get() = _baseContinuationAccessor
-
-@Suppress("NewApi")
 @MethodNameConstant("prepareBaseContinuationAccessorMethodName")
 fun prepareBaseContinuationAccessor(lookup: MethodHandles.Lookup): BaseContinuationAccessor =
-    prepareBaseContinuationAccessorLock.withLock {
-        _baseContinuationAccessor?.let { return it }
-        val accessor = baseContinuationAccessorProvider.createAccessor(lookup)
-        _baseContinuationAccessor = accessor
-        accessor
-    }
+    provider.prepareBaseContinuationAccessor(lookup)
 
 @MethodNameConstant("awakeBaseContinuationMethodName")
 fun awakeBaseContinuation(accessor: BaseContinuationAccessor, baseContinuation: Any, result: Any?) {

@@ -9,7 +9,6 @@ import dev.reformator.stacktracedecoroutinator.intrinsics.BaseContinuation
 import dev.reformator.stacktracedecoroutinator.provider.ContinuationCached
 import dev.reformator.stacktracedecoroutinator.provider.SpecCache
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessor
-import dev.reformator.stacktracedecoroutinator.provider.internal.callInvokeSuspend
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 
@@ -24,15 +23,17 @@ internal class TailCallDeoptimizedContinuation(
         `$decoroutinator$cache`.element
 }
 
-internal fun BaseContinuation.callInvokeSuspend(
-    accessor: BaseContinuationAccessor,
-    result: Any?
-): Any? =
-    callInvokeSuspend(
-        baseContinuation = this,
-        accessor = accessor,
-        result = result,
-        probeCoroutineResumed = ::probeCoroutineResumed,
-        createFailure = ::createFailure,
-        coroutineSuspendedMarker = COROUTINE_SUSPENDED
-    )
+@Suppress("NOTHING_TO_INLINE")
+internal inline fun BaseContinuation.callInvokeSuspend(accessor: BaseContinuationAccessor, result: Any?): Any? {
+    probeCoroutineResumed(this)
+    val newResult = try {
+        accessor.invokeSuspend(this, result)
+    } catch (exception: Throwable) {
+        createFailure(exception)
+    }
+    if (newResult === COROUTINE_SUSPENDED) {
+        return newResult
+    }
+    accessor.releaseIntercepted(this)
+    return newResult
+}

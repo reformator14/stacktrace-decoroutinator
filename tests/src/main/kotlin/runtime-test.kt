@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.future.await
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import java.net.URI
 import java.net.URLClassLoader
 import java.util.*
@@ -27,6 +28,23 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.random.Random
 
+// common is not always on the runtime classpath - e.g. the jvm-agent installation method embeds
+// it as a per-target-classloader copy rather than depending on it directly - so checkStatus()
+// (below, and in TailCallDeoptimizeTest) has to check for it and skip rather than assume it's
+// present the way the rest of this shared test suite can.
+private val isDecoroutinatorCommonApiAvailable: Boolean by lazy {
+    try {
+        Class.forName(
+            "dev.reformator.stacktracedecoroutinator.common.DecoroutinatorCommonApi",
+            false,
+            RuntimeTest::class.java.classLoader
+        )
+        true
+    } catch (_: ClassNotFoundException) {
+        false
+    }
+}
+
 @Suppress("ConvertLongToDuration")
 open class RuntimeTest {
     @Retention(AnnotationRetention.BINARY)
@@ -38,6 +56,7 @@ open class RuntimeTest {
 
     @Junit4Test @Junit5Test
     fun checkStatus() {
+        assumeTrue(isDecoroutinatorCommonApiAvailable)
         val status = DecoroutinatorCommonApi.getStatus(true) { it() }
         assertTrue(status.successful, status.description)
     }
@@ -537,6 +556,7 @@ open class RuntimeTest {
 open class TailCallDeoptimizeTest {
     @Junit4Test @Junit5Test
     fun checkStatus() {
+        assumeTrue(isDecoroutinatorCommonApiAvailable)
         val status = DecoroutinatorCommonApi.getStatus { it() }
         assertTrue(status.successful, status.description)
     }

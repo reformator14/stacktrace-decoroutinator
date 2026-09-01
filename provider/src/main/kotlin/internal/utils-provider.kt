@@ -11,6 +11,7 @@ import kotlin.concurrent.withLock
 
 const val ENABLED_PROPERTY = "dev.reformator.stacktracedecoroutinator.enabled"
 
+@Suppress("NewApi", "PLATFORM_CLASS_MAPPED_TO_KOTLIN")
 val specMethodType: MethodType = MethodType.methodType(
     Object::class.java,
     DecoroutinatorSpec::class.java,
@@ -71,7 +72,7 @@ private fun getHashMapCapacityForSize(size: Int): Int =
     if (size < 3) 3 else (size * 4 / 3 + 1)
 
 class CompactMap<K, V>: java.util.AbstractMap<K, V>() {
-    private var _entries = emptyArray<java.util.AbstractMap.SimpleEntry<K, V>>()
+    private var _entries = emptyArray<SimpleEntry<K, V>>()
 
     override val size: Int
         get() = _entries.size
@@ -92,7 +93,7 @@ class CompactMap<K, V>: java.util.AbstractMap<K, V>() {
             }
         }
         val newEntries = java.util.Arrays.copyOf(_entries, _entries.size + 1)
-        newEntries[_entries.size] = java.util.AbstractMap.SimpleEntry(key, value)
+        newEntries[_entries.size] = SimpleEntry(key, value)
         _entries = newEntries
         return null
     }
@@ -112,7 +113,7 @@ val isLastSpecMethodName: String = DecoroutinatorSpec::class.java.methods
     .find { it.returnType == Boolean::class.javaPrimitiveType && it.parameterCount == 0 }!!
     .name
 
-@Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+@Suppress("NewApi")
 val nextSpecHandleMethodName: String = DecoroutinatorSpec::class.java.methods
     .find { it.returnType == MethodHandle::class.java && it.parameterCount == 0 }!!
     .name
@@ -133,24 +134,3 @@ val String.internalName: String
 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
 val String.binaryName: String
     get() = (this as java.lang.String).replace('/', '.')
-
-inline fun <reified BASE_CONTINUATION: Any> callInvokeSuspend(
-    baseContinuation: BASE_CONTINUATION,
-    accessor: BaseContinuationAccessor,
-    result: Any?,
-    probeCoroutineResumed: (BASE_CONTINUATION) -> Unit,
-    createFailure: (Throwable) -> Any,
-    coroutineSuspendedMarker: Any,
-): Any? {
-    probeCoroutineResumed(baseContinuation)
-    val newResult = try {
-        accessor.invokeSuspend(baseContinuation, result)
-    } catch (exception: Throwable) {
-        createFailure(exception)
-    }
-    if (newResult === coroutineSuspendedMarker) {
-        return newResult
-    }
-    accessor.releaseIntercepted(baseContinuation)
-    return newResult
-}

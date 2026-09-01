@@ -4,8 +4,6 @@ package dev.reformator.stacktracedecoroutinator.common.internal
 
 import dev.reformator.stacktracedecoroutinator.provider.internal.fillUnknownElementsWithClassName
     as cachedFillUnknownElementsWithClassName
-import dev.reformator.stacktracedecoroutinator.common.intrinsics.createFailure as intrinsicsCreateFailure
-import dev.reformator.stacktracedecoroutinator.common.intrinsics.probeCoroutineResumed as intrinsicsProbeCoroutineResumed
 import dev.reformator.stacktracedecoroutinator.intrinsics.BaseContinuation
 import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
 import dev.reformator.stacktracedecoroutinator.provider.BaseContinuationExtractor
@@ -13,11 +11,35 @@ import dev.reformator.stacktracedecoroutinator.provider.ContinuationCached
 import dev.reformator.stacktracedecoroutinator.provider.SpecCache
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessor
 import dev.reformator.stacktracedecoroutinator.provider.internal.DecoroutinatorProvider
+import dev.reformator.stacktracedecoroutinator.provider.internal.baseContinuationAccessorProvider
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.jvm.internal.CoroutineStackFrame
+import java.lang.invoke.MethodHandles
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 internal class Provider: DecoroutinatorProvider {
+    // One Provider instance is built per target class loader (see jvm-agent's
+    // DispatchingProvider), so this cache is already correctly scoped there - it's process-wide
+    // only in the single-Provider-instance ("common case") installation methods, which only ever
+    // see one BaseContinuationImpl anyway.
+    private val prepareBaseContinuationAccessorLock = ReentrantLock()
+
+    private var _baseContinuationAccessor: BaseContinuationAccessor? = null
+
+    override fun getBaseContinuationAccessor(baseContinuation: Any): BaseContinuationAccessor? =
+        _baseContinuationAccessor
+
+    @Suppress("NewApi")
+    override fun prepareBaseContinuationAccessor(lookup: MethodHandles.Lookup): BaseContinuationAccessor =
+        prepareBaseContinuationAccessorLock.withLock {
+            _baseContinuationAccessor?.let { return@withLock it }
+            val accessor = baseContinuationAccessorProvider.createAccessor(lookup)
+            _baseContinuationAccessor = accessor
+            accessor
+        }
+
     override fun awakeBaseContinuation(
         accessor: BaseContinuationAccessor,
         baseContinuation: Any,
@@ -51,15 +73,16 @@ internal class Provider: DecoroutinatorProvider {
     override fun getCoroutineStackFrameStackTraceElement(coroutineStackFrame: Any): StackTraceElement? =
         (coroutineStackFrame as CoroutineStackFrame).getStackTraceElement()
 
-    override val coroutineSuspendedMarker: Any
-        get() = COROUTINE_SUSPENDED
-
-    override fun probeCoroutineResumed(frameContinuation: Any) {
-        intrinsicsProbeCoroutineResumed(frameContinuation as Continuation<*>)
-    }
-
-    override fun createFailure(exception: Throwable): Any =
-        intrinsicsCreateFailure(exception)
+    override fun callInvokeSuspendIfResultIsNotCoroutineSuspended(
+        baseContinuation: Any,
+        accessor: BaseContinuationAccessor,
+        result: Any?
+    ): Any? =
+        if (result !== COROUTINE_SUSPENDED) {
+            (baseContinuation as BaseContinuation).callInvokeSuspend(accessor, result)
+        } else {
+            result
+        }
 }
 
 internal fun CoroutineStackFrame.getNormalizedStackTraceElement(): StackTraceElement? {
