@@ -7,7 +7,6 @@ import dev.reformator.stacktracedecoroutinator.common.intrinsics.toResult
 import dev.reformator.stacktracedecoroutinator.intrinsics.BaseContinuation
 import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
 import dev.reformator.stacktracedecoroutinator.intrinsics.assert
-import dev.reformator.stacktracedecoroutinator.provider.ContinuationCached
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpec
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpecImpl
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessor
@@ -30,7 +29,7 @@ internal fun BaseContinuation.awake(accessor: BaseContinuationAccessor, result: 
     val completion: Continuation<Any?>
     if (recoveryExplicitStacktrace && result.toResult.isFailure) {
         val stackTraceElements = buildList {
-            add(getElement())
+            add(getStacktraceElement())
             buildSpecInfo(
                 accessor = accessor,
                 stackTraceElementConsumer = { add(it) },
@@ -98,32 +97,30 @@ private val unknownStacktraceElement =
 private val boundaryStacktraceElement =
     StackTraceElement("", "", boundaryLabel, -1)
 
+private fun StackTraceElement?.calculateSpecMethod(): MethodHandle =
+    this?.let { specMethodsFactory.getSpecMethodHandle(it) } ?: methodHandleInvoker.unknownSpecMethodHandle
+
 @OptIn(ExperimentalContracts::class)
 private inline fun CoroutineStackFrame.getElementAndSpecMethod(
     consumer: (element: StackTraceElement?, specMethod: MethodHandle) -> Unit
 ) {
     contract { callsInPlace(consumer, InvocationKind.EXACTLY_ONCE) }
-    val cache = (this as? ContinuationCached)?.`$decoroutinator$cache`
-    if (cache != null) {
-        val specMethod = cache.specMethod ?: run {
-            val specMethod = cache.element
-                ?.let { specMethodsFactory.getSpecMethodHandle(it) }
-                ?: methodHandleInvoker.unknownSpecMethodHandle
-            cache.specMethod = specMethod
-            specMethod
+    getOptionalSpecCacheAndStacktraceElement { specCache, element ->
+        val specMethod = if (specCache != null) {
+            specCache.specMethod ?: run {
+                val calculatedSpecMethod = element.calculateSpecMethod()
+                specCache.specMethod = calculatedSpecMethod
+                calculatedSpecMethod
+            }
+        } else {
+            element.calculateSpecMethod()
         }
-        consumer(cache.element, specMethod)
-    } else {
-        val element = getNormalizedStackTraceElement()
-        val specMethod = element?.let { specMethodsFactory.getSpecMethodHandle(it) } ?:
-            methodHandleInvoker.unknownSpecMethodHandle
         consumer(element, specMethod)
     }
 }
 
-private fun CoroutineStackFrame.getElement(): StackTraceElement? {
-    (this as? ContinuationCached)?.`$decoroutinator$cache`?.let { return it.element }
-    return getNormalizedStackTraceElement()
+private fun CoroutineStackFrame.getStacktraceElement(): StackTraceElement? {
+    getOptionalSpecCacheAndStacktraceElement { _, element -> return element }
 }
 
 private fun BaseContinuation.stdlibAwake(accessor: BaseContinuationAccessor, result: Any?) {
@@ -266,8 +263,8 @@ private fun recoveryExplicitStacktrace(exception: Throwable, elements: List<Stac
         )
         val time = currentTime()
         val erasePreviousBoundaries = lastBoundaryIndex > boundaryIndex &&
-                time > recoveryExplicitStacktraceTimeoutMs.toUInt() &&
-                trace[lastBoundaryIndex].lineNumber.toUInt() < time - recoveryExplicitStacktraceTimeoutMs.toUInt()
+                time > recoveryExplicitStacktraceTimeoutMs &&
+                trace[lastBoundaryIndex].lineNumber.toUInt() < time - recoveryExplicitStacktraceTimeoutMs
         val prefixEndIndex = (if (erasePreviousBoundaries) boundaryIndex else lastBoundaryIndex) + 1
 
         Array(prefixEndIndex + elements.size + trace.size - lastBoundaryIndex) {

@@ -20,11 +20,15 @@ internal val recoveryExplicitStacktrace =
     }
 
 internal val recoveryExplicitStacktraceTimeoutMs =
-    if (tailCallDeoptimize) {
-        getRuntimeSettingsValue({ it.recoveryExplicitStacktraceTimeoutMs }) {
-            System.getProperty(
-                "dev.reformator.stacktracedecoroutinator.recoveryExplicitStacktraceTimeoutMs",
-                "500"
-            ).toInt()
+    (
+        if (tailCallDeoptimize) {
+            getRuntimeSettingsValue({ it.recoveryExplicitStacktraceTimeoutMs }) {
+                System.getProperty(
+                    "dev.reformator.stacktracedecoroutinator.recoveryExplicitStacktraceTimeoutMs",
+                    "500"
+                ).toInt()
+            }
+        } else {
+            0
         }
-    } else 0
+    ).toUInt()

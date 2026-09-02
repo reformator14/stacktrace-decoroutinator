@@ -3,7 +3,6 @@
 package dev.reformator.stacktracedecoroutinator.common.internal
 
 import dev.reformator.stacktracedecoroutinator.provider.internal.fillUnknownElementsWithClassName
-    as cachedFillUnknownElementsWithClassName
 import dev.reformator.stacktracedecoroutinator.intrinsics.BaseContinuation
 import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
 import dev.reformator.stacktracedecoroutinator.provider.BaseContinuationExtractor
@@ -18,6 +17,9 @@ import kotlin.coroutines.jvm.internal.CoroutineStackFrame
 import java.lang.invoke.MethodHandles
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
 
 internal class Provider: DecoroutinatorProvider {
     // One Provider instance is built per target class loader (see jvm-agent's
@@ -85,16 +87,32 @@ internal class Provider: DecoroutinatorProvider {
         }
 }
 
-internal fun CoroutineStackFrame.getNormalizedStackTraceElement(): StackTraceElement? {
+@OptIn(ExperimentalContracts::class)
+internal inline fun CoroutineStackFrame.getOptionalSpecCacheAndStacktraceElement(
+    consumer: (SpecCache?, StackTraceElement?) -> Unit
+) {
+    contract {
+        callsInPlace(consumer, InvocationKind.EXACTLY_ONCE)
+    }
+
+    (this as? ContinuationCached)?.`$decoroutinator$cache`?.let { specCache ->
+        consumer(specCache, specCache.element)
+        return
+    }
+
     val element = getStackTraceElement()
-    return when {
+    val normalizedElement = when {
         element != null -> element
-        cachedFillUnknownElementsWithClassName -> StackTraceElement(
-            javaClass.name,
-            Continuation<*>::resumeWith.name,
-            null,
-            UNKNOWN_LINE_NUMBER
-        )
+        fillUnknownElementsWithClassName -> {
+            StackTraceElement(
+                javaClass.name,
+                Continuation<*>::resumeWith.name,
+                null,
+                UNKNOWN_LINE_NUMBER
+            )
+        }
         else -> null
     }
+
+    consumer(null, normalizedElement)
 }

@@ -58,8 +58,8 @@ val fillConstantProcessorTask = tasks.register("fillConstantProcessor") {
         bytecodeProcessor {
             initContext {
                 LoadConstantProcessor.addValues(this, buildMap {
-                    for (i in 0 until commonResidualJarBase64ChunkCount) {
-                        put("commonResidualJarBase64Chunk$i", chunks.getOrElse(i) { "" })
+                    repeat(commonResidualJarBase64ChunkCount) { index ->
+                        put("commonResidualJarBase64Chunk$index", chunks.getOrElse(index) { "" })
                     }
                 })
             }
