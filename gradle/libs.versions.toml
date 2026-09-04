@@ -33,6 +33,7 @@ kotlin-gradle-plugin-api = { group = "org.jetbrains.kotlin", name = "kotlin-grad
 byte-buddy-agent = { group = "net.bytebuddy", name = "byte-buddy-agent", version = "1.18.12" }
 #noinspection NewerVersionAvailable
 ktor-io-jvm = { group = "io.ktor", name = "ktor-io-jvm", version = "2.0.1" }
+ktor-utils = { group = "io.ktor", name = "ktor-utils", version = "2.3.13" }
 jupiter-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "jupiter" }
 jupiter-engine = { group = "org.junit.jupiter", name = "junit-jupiter-engine", version.ref = "jupiter" }
 junit4 = { group = "junit", name = "junit", version = "4.13.2" }

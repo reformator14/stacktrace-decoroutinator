@@ -5,7 +5,7 @@ package dev.reformator.stacktracedecoroutinator.tests.jvm.gradleplugintests
 import dev.reformator.bytecodeprocessor.intrinsics.currentFileName
 import dev.reformator.bytecodeprocessor.intrinsics.currentLineNumber
 import dev.reformator.stacktracedecoroutinator.tests.checkStacktrace
-import kotlinx.coroutines.runBlocking
+import dev.reformator.stacktracedecoroutinator.tests.runBlockingWithTimeout
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.yield
 import org.junit.jupiter.api.Assertions.*
@@ -20,7 +20,7 @@ class TailCallDeoptimizedMethodNameWithSpacesTest: dev.reformator.stacktracedeco
 
 class TestLocalFile {
     @Test
-    fun localTest(): Unit = runBlocking {
+    fun localTest(): Unit = runBlockingWithTimeout {
         fun1()
     }
 
@@ -53,7 +53,7 @@ class TestLocalFile {
 class DebugProbesTest {
     @Test
     fun performDebugProbes() {
-        runBlocking {
+        runBlockingWithTimeout {
             suspendCancellableCoroutine { continuation ->
                 assertTrue(DebugProbesAccessor.dumpCoroutinesInfo().isNotEmpty())
                 continuation.resume(Unit)

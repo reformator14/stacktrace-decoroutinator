@@ -23,6 +23,7 @@ dependencies {
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-jdk8")
     }
 
+    implementation(libs.ktor.utils)
     implementation(libs.jupiter.api)
     implementation(libs.junit4)
     implementation(libs.coroutines.core.build)

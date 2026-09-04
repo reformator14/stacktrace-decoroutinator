@@ -1,5 +1,5 @@
 import dev.reformator.stacktracedecoroutinator.jvm.DecoroutinatorJvmApi
-import kotlinx.coroutines.runBlocking
+import dev.reformator.stacktracedecoroutinator.tests.runBlockingWithTimeout
 import kotlinx.coroutines.yield
 
 object Test {
@@ -15,7 +15,7 @@ object Test {
 fun main() {
     DecoroutinatorJvmApi.install() // enable stacktrace-decoroutinator runtime
     try {
-        runBlocking {
+        runBlockingWithTimeout {
             Test.rec(10)
         }
     } catch (e: Exception) {

@@ -2,12 +2,12 @@
 
 package dev.reformator.stacktracedecoroutinator.tests
 
-import kotlinx.coroutines.runBlocking
 import kotlin.concurrent.thread
 import kotlin.coroutines.resume
 import kotlin.random.Random
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
+import kotlin.time.Duration.Companion.seconds
 
 sealed interface Mock {
     suspend fun callTrace(trace: List<Mock>, end: suspend () -> Unit)
@@ -203,7 +203,9 @@ open class PerformanceTest {
 
     private fun resumeWithDepth(depth: Int) {
         val mocks = Random(1402).getMocks(depth)
-        runBlocking {
+        // 100 iterations x >=10ms sleep each is already >=1s - give this a generous timeout rather
+        // than runBlockingWithTimeout's 3s default so it stays a hang safety-net, not a flaky failure.
+        runBlockingWithTimeout(timeout = 30.seconds) {
             val times = mutableListOf<Long>()
             repeat(100) { index ->
                 callTraceInline(mocks) {

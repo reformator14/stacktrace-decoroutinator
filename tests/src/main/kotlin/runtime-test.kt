@@ -8,6 +8,8 @@ import dev.reformator.stacktracedecoroutinator.tests.RuntimeTest.Companion.flush
 import dev.reformator.stacktracedecoroutinator.tests.RuntimeTest.TraceOpcode
 import dev.reformator.stacktracedecoroutinator.tests.RuntimeTest.TraceOpcodeItem
 import dev.reformator.stacktracedecoroutinator.tests.duplicateentityjar.*
+import io.ktor.util.pipeline.Pipeline
+import io.ktor.util.pipeline.PipelinePhase
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.future.await
@@ -63,7 +65,7 @@ open class RuntimeTest {
 
     @Junit4Test @Junit5Test
     fun inlineTransformedClassForKotlinc() {
-        runBlocking {
+        runBlockingWithTimeout {
             flowOf(1)
                 .transform { emit(it) }
                 .collect()
@@ -71,7 +73,7 @@ open class RuntimeTest {
     }
 
     @Junit4Test @Junit5Test
-    fun basic() = runBlocking {
+    fun basic() = runBlockingWithTimeout {
         val size = 30
         val lineNumberOffsets = run {
             val allowedLineNumberOffsets = listOf(0, 1, 3, 4, 6)
@@ -93,7 +95,7 @@ open class RuntimeTest {
     }
 
     @Junit4Test @Junit5Test
-    fun overloadedMethods() = runBlocking {
+    fun overloadedMethods() = runBlockingWithTimeout {
         overload(1)
         overload("")
     }
@@ -104,7 +106,7 @@ open class RuntimeTest {
         var methodName = ""
         var lineNumber = 0
         try {
-            runBlocking {
+            runBlockingWithTimeout {
                 className = ownerClassName
                 methodName = ownerMethodName
                 lineNumber = currentLineNumber + 1
@@ -136,7 +138,7 @@ open class RuntimeTest {
         var resumeClassName = ""
         var resumeMethodName = ""
         try {
-            runBlocking {
+            runBlockingWithTimeout {
                 try {
                     resumeClassName = ownerClassName
                     resumeMethodName = ownerMethodName
@@ -204,7 +206,7 @@ open class RuntimeTest {
             }
         }
         try {
-            runBlocking {
+            runBlockingWithTimeout {
                 flow.collect { }
             }
         } catch (e: Exception) {
@@ -213,12 +215,12 @@ open class RuntimeTest {
     }
 
     @Junit4Test @Junit5Test
-    fun loadInterfaceWithSuspendFunWithDefaultImpl() = runBlocking {
+    fun loadInterfaceWithSuspendFunWithDefaultImpl() = runBlockingWithTimeout {
         object: InterfaceWithDefaultMethod { }.startCheck()
     }
 
     @Junit4Test @Junit5Test
-    fun flowSingle(): Unit = runBlocking {
+    fun flowSingle(): Unit = runBlockingWithTimeout {
         val flow = flow {
             emit(10)
             yield()
@@ -234,7 +236,7 @@ open class RuntimeTest {
         val tasks = List(numThreads) {
             val mocks = random.getConcurrentTestMocks(numMocks)
             Runnable {
-                runBlocking {
+                runBlockingWithTimeout {
                     callInline(mocks)
                 }
             }
@@ -250,7 +252,7 @@ open class RuntimeTest {
     }
 
     @Junit4Test @Junit5Test
-    fun withContextMustHaveDispatchedCoroutineResumeWithMethod(): Unit = runBlocking {
+    fun withContextMustHaveDispatchedCoroutineResumeWithMethod(): Unit = runBlockingWithTimeout {
         withContext(Dispatchers.Default) {
             yield()
             assertTrue(Exception().stackTrace.asSequence().flatMap { it.getPossibleUnobfuscatedFrames() }.any { element ->
@@ -261,7 +263,7 @@ open class RuntimeTest {
     }
 
     @Junit4Test @Junit5Test
-    fun withContextMustNotDuplicateDispatchedCoroutineFrame(): Unit = runBlocking {
+    fun withContextMustNotDuplicateDispatchedCoroutineFrame(): Unit = runBlockingWithTimeout {
         withContext(Dispatchers.Default) {
             yield()
             val dispatchedCoroutineFrameCount = Exception().stackTrace.count { element ->
@@ -275,7 +277,7 @@ open class RuntimeTest {
     }
 
     @Junit4Test @Junit5Test
-    fun duplicateEntityJarTest() = runBlocking {
+    fun duplicateEntityJarTest() = runBlockingWithTimeout {
         val trace = duplicateEntityJarTailCallDeoptimizedTest {
             yield()
             Exception().stackTrace
@@ -290,7 +292,7 @@ open class RuntimeTest {
 
     @Suppress("DuplicatedCode")
     @Junit4Test @Junit5Test
-    fun spiedMethodsLikeJacocoTransformedCorrectly() = runBlocking {
+    fun spiedMethodsLikeJacocoTransformedCorrectly() = runBlockingWithTimeout {
         flushTraceOpcodeBuffer()
         var trace: Array<StackTraceElement>? = null
         tracedSuspendFun {
@@ -313,7 +315,7 @@ open class RuntimeTest {
     }
 
     @Junit4Test @Junit5Test
-    fun selfInstanceofSuspendFunction() = runBlocking {
+    fun selfInstanceofSuspendFunction() = runBlockingWithTimeout {
         class SelfInstanceof {
             @Suppress("USELESS_CAST")
             suspend fun check() {
@@ -323,6 +325,17 @@ open class RuntimeTest {
             }
         }
         SelfInstanceof().check()
+    }
+
+    @Junit4Test @Junit5Test
+    fun ktorManualContinuationSharedSharedBetweenCoroutines() = runBlockingWithTimeout {
+        val phase = PipelinePhase("p")
+        val pipeline = Pipeline<Unit, Unit>(phase)
+        // A: calls proceed() -> its intercepted continuation is pushed to SuspendFunctionGun.suspensions
+        pipeline.intercept(phase) { proceed() }
+        // B: suspends and is resumed through a dispatcher -> BaseContinuationImpl.resumeWith -> decoroutinator awake
+        pipeline.intercept(phase) { withContext(Dispatchers.Default) { delay(10) } }
+        pipeline.execute(Unit, Unit)
     }
 
     data class TraceOpcodeItem(val className: String, val methodName: String, val opcode: Int)
@@ -562,23 +575,23 @@ open class TailCallDeoptimizeTest {
     }
 
     @Junit4Test @Junit5Test
-    fun basic() = runBlocking {
+    fun basic() = runBlockingWithTimeout {
         tailCallDeoptimizeBasicRec(REC_DEPTH)
         tailCallDeoptF1()
     }
 
     @Junit4Test @Junit5Test
-    fun interfaceWithDefaultMethodImpl() = runBlocking {
+    fun interfaceWithDefaultMethodImpl() = runBlockingWithTimeout {
         object: InterfaceWithDefaultImplMethod {}.defaultImpl()
     }
 
     @Junit4Test @Junit5Test
-    fun singleTailCall() = runBlocking {
+    fun singleTailCall() = runBlockingWithTimeout {
         singleTailCallFun1()
     }
 
     @Junit4Test @Junit5Test
-    fun duplicateEntityJarTest() = runBlocking {
+    fun duplicateEntityJarTest() = runBlockingWithTimeout {
         val trace = duplicateEntityJarTest {
             yield()
             Exception().stackTrace
@@ -593,7 +606,7 @@ open class TailCallDeoptimizeTest {
 
     @Suppress("DuplicatedCode")
     @Junit4Test @Junit5Test
-    fun spiedMethodsLikeJacocoTransformedCorrectly() = runBlocking {
+    fun spiedMethodsLikeJacocoTransformedCorrectly() = runBlockingWithTimeout {
         flushTraceOpcodeBuffer()
         var trace: Array<StackTraceElement>? = null
         tracedSuspendFun {

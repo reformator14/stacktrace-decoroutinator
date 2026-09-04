@@ -15,9 +15,9 @@ import dev.reformator.stacktracedecoroutinator.tests.aar.suspendFunFromAarMethod
 import dev.reformator.stacktracedecoroutinator.tests.aar.suspendFunFromAarOwnerClassName
 import dev.reformator.stacktracedecoroutinator.tests.checkStacktrace
 import dev.reformator.stacktracedecoroutinator.tests.readRetraceMappings
+import dev.reformator.stacktracedecoroutinator.tests.runBlockingWithTimeout
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.debug.DebugProbes
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.yield
 import org.junit.Assume.assumeTrue
@@ -35,12 +35,12 @@ open class TestLocalFile {
     }
 
     @Test
-    fun localTest(): Unit = runBlocking {
+    fun localTest(): Unit = runBlockingWithTimeout {
         fun1()
     }
 
     @Test
-    fun suspendFunFromAarTest() = runBlocking {
+    fun suspendFunFromAarTest() = runBlockingWithTimeout {
         val trace = suspendFunFromAar {
             yield()
             Exception().stackTrace
@@ -97,7 +97,7 @@ open class DebugProbesTest {
 
     @Test
     open fun performDebugProbes() {
-        runBlocking {
+        runBlockingWithTimeout {
             suspendCancellableCoroutine { continuation ->
                 assertTrue(DebugProbes.dumpCoroutinesInfo().isNotEmpty())
                 continuation.resume(Unit)
@@ -127,7 +127,7 @@ open class LegacyAndroidTest {
     }
 
     @Test
-    fun checkAllClassesLoaded() = runBlocking {
+    fun checkAllClassesLoaded() = runBlockingWithTimeout {
         fun tailCallDeopt() { }
 
         suspend fun rec(depth: Int) {
