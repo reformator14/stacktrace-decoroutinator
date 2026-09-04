@@ -10,7 +10,6 @@ module dev.reformator.stacktracedecoroutinator.generatorjvm {
     requires kotlin.stdlib;
     requires org.objectweb.asm.tree;
     requires dev.reformator.stacktracedecoroutinator.provider;
-    requires dev.reformator.stacktracedecoroutinator.common;
     requires dev.reformator.stacktracedecoroutinator.specmethodbuilder;
 
     exports dev.reformator.stacktracedecoroutinator.generatorjvm.internal to

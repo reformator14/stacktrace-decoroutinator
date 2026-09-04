@@ -2,8 +2,6 @@
 
 package dev.reformator.stacktracedecoroutinator.mhinvoker.internal
 
-import dcunknown.getUnknownSpecMethodHandle
-import dcunknown.unknownSpecClass
 import dev.reformator.bytecodeprocessor.intrinsics.MakeStatic
 import dev.reformator.stacktracedecoroutinator.provider.internal.MethodHandleInvoker
 import dev.reformator.stacktracedecoroutinator.provider.internal.VarHandleInvoker

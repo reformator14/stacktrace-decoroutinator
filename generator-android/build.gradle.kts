@@ -35,9 +35,8 @@ dependencies {
     compileOnly(project(":intrinsics"))
 
     implementation(project(":stacktrace-decoroutinator-provider"))
+    implementation(project(":stacktrace-decoroutinator-runtime-settings"))
     implementation(libs.dalvik.dx)
-
-    api(project(":stacktrace-decoroutinator-common"))
 }
 
 bytecodeProcessor {

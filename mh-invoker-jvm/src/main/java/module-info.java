@@ -8,7 +8,6 @@ module dev.reformator.stacktracedecoroutinator.mhinvokerjvm {
     requires static dev.reformator.stacktracedecoroutinator.intrinsics;
 
     requires dev.reformator.stacktracedecoroutinator.provider;
-    requires dev.reformator.stacktracedecoroutinator.common;
     requires kotlin.stdlib;
 
     provides MethodHandleInvoker with JvmMethodHandleInvoker;

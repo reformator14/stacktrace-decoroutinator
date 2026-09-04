@@ -3,8 +3,6 @@
 
 package dev.reformator.stacktracedecoroutinator.mhinvokerjvm.internal
 
-import dcunknownjvm.getUnknownPackageLookup
-import dcunknownjvm.getUnknownPackageName
 import dev.reformator.bytecodeprocessor.intrinsics.LoadConstant
 import dev.reformator.bytecodeprocessor.intrinsics.fail
 import dev.reformator.bytecodeprocessor.intrinsics.ownerClass
@@ -24,17 +22,15 @@ internal class JvmVarHandleInvoker: VarHandleInvoker by
         "dev.reformator.stacktracedecoroutinator.mhinvokerjvm.internal.RegularVarHandleInvoker"
     ).getDeclaredConstructor().newInstance() as VarHandleInvoker
 
+@Suppress("NewApi")
 private val loader: ClassLoader = run {
     val classes = getRegularMethodHandleInvokerClasses()
     try {
         val internalPackageLookup = MethodHandles.lookup()
-        val unknownPackageLookup = getUnknownPackageLookup()
         val internalPackageName = ownerClass.packageName
-        val unknownPackageName = getUnknownPackageName()
         classes.forEach { (name, body) ->
             val lookup = when (name.substringBeforeLast('.')) {
                 internalPackageName -> internalPackageLookup
-                unknownPackageName -> unknownPackageLookup
                 else -> error("Unexpected package name in class [$name]")
             }
             lookup.defineClass(body)
@@ -53,6 +49,7 @@ private val loader: ClassLoader = run {
 private val regularMethodHandleJarBase64: String
     @LoadConstant("regularMethodHandleJarBase64") get() { fail() }
 
+@Suppress("NewApi")
 private val String.decodeBase64: ByteArray
     get() = Base64.getDecoder().decode(this)
 

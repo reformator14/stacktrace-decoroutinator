@@ -1,5 +1,3 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar.Companion.shadowJar
-
 plugins {
     alias(libs.plugins.kotlin.jvm)
 }
@@ -16,9 +14,11 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
-    val jvmAgentShadowJarTask = project(":stacktrace-decoroutinator-jvm-agent").tasks.shadowJar
-    dependsOn(jvmAgentShadowJarTask)
-    jvmArgs("-javaagent:${jvmAgentShadowJarTask.get().archiveFile.get().asFile.absolutePath}")
+    // Test against the published artifact (gr8-minimized, see jvm-agent/build.gradle.kts), not
+    // shadowJar's own output - shrinking can break things relocation alone did not.
+    val jvmAgentGr8JarTask = project(":stacktrace-decoroutinator-jvm-agent").tasks.named("gr8MinimizedShadowedJar")
+    dependsOn(jvmAgentGr8JarTask)
+    jvmArgs("-javaagent:${jvmAgentGr8JarTask.get().outputs.files.single { it.extension == "jar" }.absolutePath}")
     systemProperty(
         "dev.reformator.stacktracedecoroutinator.jvmAgentDebugMetadataInfoResolveStrategy",
         "SYSTEM_RESOURCE"

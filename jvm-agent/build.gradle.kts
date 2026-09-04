@@ -1,4 +1,5 @@
 import dev.reformator.bytecodeprocessor.plugins.LoadConstantProcessor
+import dev.reformator.bytecodeprocessor.plugins.MakeStaticProcessor
 import org.gradle.kotlin.dsl.named
 import org.jetbrains.dokka.gradle.AbstractDokkaTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -8,6 +9,7 @@ plugins {
     kotlin("jvm")
     alias(libs.plugins.dokka)
     alias(libs.plugins.shadow)
+    alias(libs.plugins.gr8)
     `maven-publish`
     signing
     alias(libs.plugins.delete.signature.checksums)
@@ -17,6 +19,7 @@ plugins {
 
 repositories {
     mavenCentral()
+    google() // com.android.tools:r8, resolved by the gr8 plugin below
 }
 
 dependencies {
@@ -25,17 +28,14 @@ dependencies {
 
     implementation(project(":stacktrace-decoroutinator-provider"))
     implementation(project(":stacktrace-decoroutinator-runtime-settings"))
-    implementation(project(":stacktrace-decoroutinator-jvm-agent-common")) {
-        // common is never bundled here - it's embedded (see fillConstantProcessorTask below) and
-        // defined into isolated, per-target-classloader copies at runtime by DispatchingProvider,
-        // so it never needs to interoperate with THIS module's own (relocated, see shadowJar below)
-        // kotlin-stdlib copy.
-        exclude(group = "dev.reformator.stacktracedecoroutinator", module = "stacktrace-decoroutinator-common")
-    }
+    implementation(project(":stacktrace-decoroutinator-jvm-agent-common"))
 }
 
 bytecodeProcessor {
-    processors = listOf(LoadConstantProcessor)
+    processors = listOf(
+        LoadConstantProcessor,
+        MakeStaticProcessor
+    )
 }
 
 // A single string constant is limited to 65535 UTF-8 bytes (JVM CONSTANT_Utf8_info) - common's
@@ -77,10 +77,9 @@ tasks.shadowJar {
             "Premain-Class" to "dev.reformator.stacktracedecoroutinator.jvmagent.DecoroutinatorAgentKt"
         ))
     }
-    archiveClassifier.set("")
-    relocate("org.objectweb.asm", "dev.reformator.stacktracedecoroutinator.jvmagent.asmrepack")
-    relocate("dev.reformator.kmetarepack", "dev.reformator.stacktracedecoroutinator.jvmagent.kmetarepack")
-    relocate("kotlin", "dev.reformator.stacktracedecoroutinator.jvmagent.kotlinrepack") {
+    relocate("org.objectweb.asm", "dev.reformator.repack.asm")
+    relocate("dev.reformator.kmetarepack", "dev.reformator.repack.kmeta")
+    relocate("kotlin", "dev.reformator.repack.kotlin") {
         // class-transformer/spec-method-builder use real, unrelocated kotlin.* class names as DATA
         // (matched against un-relocated target application bytecode) - string constants must not
         // be rewritten, only actual structural type references (checkcast/instanceof/descriptors).
@@ -88,6 +87,18 @@ tasks.shadowJar {
     }
     exclude("META-INF/*.kotlin_module")
 }
+
+gr8 {
+    create("minimized") {
+        addProgramJarsFrom(tasks.shadowJar.flatMap { it.archiveFile })
+        proguardFile("jvm-agent-r8-rules.pro")
+    }
+}
+
+val gr8MinimizedJarTask = tasks.named("gr8MinimizedShadowedJar")
+
+// Gr8Task has two @OutputFiles (the shrunk jar and R8's mapping file) - single out the jar.
+fun gr8MinimizedJarFile() = gr8MinimizedJarTask.get().outputs.files.single { it.extension == "jar" }
 
 tasks.test {
     dependsOn(
@@ -116,7 +127,15 @@ val mavenPublicationName = "maven"
 publishing {
     publications {
         create<MavenPublication>(mavenPublicationName) {
-            from(components["shadow"])
+            // The gr8-minimized jar (shadowJar's output, R8-shrunk - see gr8 { } above) is the
+            // published artifact, not shadowJar's own output directly. No from(components["shadow"])
+            // (or any other component): the jar is fully self-contained (everything shaded in), so an
+            // empty POM <dependencies> section - what an explicit artifact()-only publication produces
+            // - is exactly right, same as what Shadow's component would have produced anyway.
+            artifact(gr8MinimizedJarFile()) {
+                classifier = ""
+                builtBy(gr8MinimizedJarTask)
+            }
             artifact(dokkaJavadocsJar)
             artifact(tasks.named("kotlinSourcesJar"))
             pom {

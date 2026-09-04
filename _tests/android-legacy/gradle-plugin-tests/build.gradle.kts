@@ -25,6 +25,7 @@ dependencies {
     compileOnly(libs.bytecode.processor.intrinsics)
 
     implementation(libs.decoroutinator.tests)
+    implementation(libs.decoroutinator.common)
     implementation(project(":empty-module"))
     implementation(libs.coroutines.core.build)
     implementation(libs.junit4)
@@ -34,7 +35,9 @@ dependencies {
     implementation(libs.androidx.test.monitor)
 
     runtimeOnly(libs.decoroutinator.mh.invoker.jvm)
+    runtimeOnly(libs.decoroutinator.mh.invoker.android)
     runtimeOnly(libs.decoroutinator.generator.jvm)
+    runtimeOnly(libs.decoroutinator.generator.android)
     runtimeOnly(libs.androidx.test.runner)
 }
 

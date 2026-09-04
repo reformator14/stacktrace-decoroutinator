@@ -23,8 +23,6 @@ dependencies {
     implementation(libs.asm.utils)
     implementation(project(":stacktrace-decoroutinator-provider"))
     implementation(project(":stacktrace-decoroutinator-spec-method-builder"))
-
-    api(project(":stacktrace-decoroutinator-common"))
 }
 
 bytecodeProcessor {

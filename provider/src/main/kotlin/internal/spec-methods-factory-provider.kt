@@ -1,4 +1,4 @@
-@file:Suppress("NewApi", "PackageDirectoryMismatch")
+@file:Suppress("PackageDirectoryMismatch")
 
 package dev.reformator.stacktracedecoroutinator.provider.internal
 

@@ -136,13 +136,11 @@ val Project.decoroutinatorMhInvoker: DependenciesConfiguration
     get() = buildDependenciesConfiguration {
         addApi(getRootDependenciesBuildLibsClassesJar("mh-invoker"))
         addRuntime(decoroutinatorProvider)
-        addRuntime(decoroutinatorCommon)
     }
 
 val Project.decoroutinatorGeneratorJvm: DependenciesConfiguration
     get() = buildDependenciesConfiguration {
         addApi(getRootDependenciesBuildLibsClassesJar("generator-jvm"))
-        addApi(decoroutinatorCommon)
         addRuntime(libsAsmUtils)
         addRuntime(decoroutinatorProvider)
         addRuntime(decoroutinatorSpecMethodBuilder)
@@ -172,7 +170,6 @@ val Project.decoroutinatorGradlePlugin: DependenciesConfiguration
     get() = buildDependenciesConfiguration {
         addApi(getRootDependenciesBuildLibsClassesJar("gradle-plugin"))
         addRuntime(decoroutinatorClassTransformer)
-        addRuntime(decoroutinatorRuntimeSettings)
         addRuntime(decoroutinatorProvider)
         addRuntime(libsKotlinLoggingJvm)
         addRuntime(libsKotlinGradlePluginApi)

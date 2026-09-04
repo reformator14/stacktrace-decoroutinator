@@ -11,12 +11,13 @@ repositories {
 }
 
 dependencies {
-    testImplementation(kotlin("test"))
-    testImplementation(libs.decoroutinator.methods.with.spaces.tests)
-
+    testRuntimeOnly(libs.decoroutinator.common)
     testRuntimeOnly(libs.decoroutinator.generator.jvm)
     testRuntimeOnly(libs.decoroutinator.mh.invoker.jvm)
     testRuntimeOnly(libs.decoroutinator.naive.base.continuation.accessor)
+
+    testImplementation(kotlin("test"))
+    testImplementation(libs.decoroutinator.methods.with.spaces.tests)
 }
 
 afterEvaluate {

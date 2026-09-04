@@ -12,6 +12,7 @@ coroutines-latest = "1.11.0"
 #noinspection NewerVersionAvailable
 jackson = "2.19.2"
 plugin-shadow = "9.2.2"
+plugin-gr8 = "0.11.2"
 plugin-dokka = "1.9.20"
 plugin-gradle-publish = "2.0.0"
 android-compile-sdk = "36"
@@ -63,11 +64,13 @@ decoroutinator-naive-base-continuation-accessor = { group = "dev.reformator.stac
 decoroutinator-methods-with-spaces-tests = { group = "dev.reformator.stacktracedecoroutinator", name = "methods-with-spaces-tests" }
 decoroutinator-aar = { group = "dev.reformator.stacktracedecoroutinator", name = "aar" }
 decoroutinator-mh-invoker-jvm = { group = "dev.reformator.stacktracedecoroutinator", name = "stacktrace-decoroutinator-mh-invoker-jvm" }
+decoroutinator-mh-invoker-android = { group = "dev.reformator.stacktracedecoroutinator", name = "stacktrace-decoroutinator-mh-invoker-android" }
 decoroutinator-common = { group = "dev.reformator.stacktracedecoroutinator", name = "stacktrace-decoroutinator-common" }
 decoroutinator-provider = { group = "dev.reformator.stacktracedecoroutinator", name = "stacktrace-decoroutinator-provider" }
 
 [plugins]
 shadow = { id = "com.gradleup.shadow" }
+gr8 = { id = "com.gradleup.gr8", version.ref = "plugin-gr8" }
 dokka = { id = "org.jetbrains.dokka" }
 gradle-publish = { id = "com.gradle.plugin-publish" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm" }

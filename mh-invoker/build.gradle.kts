@@ -22,7 +22,6 @@ dependencies {
     compileOnly(project(":intrinsics"))
 
     implementation(project(":stacktrace-decoroutinator-provider"))
-    implementation(project(":stacktrace-decoroutinator-common"))
 }
 
 bytecodeProcessor {

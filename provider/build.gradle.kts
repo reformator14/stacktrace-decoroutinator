@@ -20,7 +20,7 @@ dependencies {
     compileOnly(libs.bytecode.processor.intrinsics)
     compileOnly(project(":intrinsics"))
 
-    api(project(":stacktrace-decoroutinator-runtime-settings"))
+    implementation(project(":stacktrace-decoroutinator-runtime-settings"))
 }
 
 bytecodeProcessor {

@@ -1,22 +1,16 @@
+@file:Suppress("PackageDirectoryMismatch")
+
 package dev.reformator.stacktracedecoroutinator.provider.internal
 
 import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpec
 import java.io.InputStream
 import java.lang.invoke.MethodHandle
-import java.lang.invoke.MethodType
 import java.util.ServiceLoader
 import java.util.concurrent.locks.Lock
 import kotlin.concurrent.withLock
 
 const val ENABLED_PROPERTY = "dev.reformator.stacktracedecoroutinator.enabled"
-
-@Suppress("NewApi", "PLATFORM_CLASS_MAPPED_TO_KOTLIN")
-val specMethodType: MethodType = MethodType.methodType(
-    Object::class.java,
-    DecoroutinatorSpec::class.java,
-    Object::class.java
-)
 
 fun <T: Any> loadService(type: Class<T>): T? {
     val iter: Iterator<T> = ServiceLoader.load(type).iterator()

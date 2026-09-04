@@ -13,6 +13,7 @@ dependencies {
     testRuntimeOnly(libs.decoroutinator.generator.jvm)
     testRuntimeOnly(libs.decoroutinator.mh.invoker)
     testRuntimeOnly(libs.decoroutinator.naive.base.continuation.accessor)
+    testRuntimeOnly(libs.decoroutinator.common)
 
     testImplementation(kotlin("test"))
     testImplementation(libs.decoroutinator.methods.with.spaces.tests)

@@ -16,6 +16,7 @@ import java.lang.invoke.MethodHandle
 import java.lang.invoke.MethodHandles
 
 internal class DecoroutinatorClassLoader: ClassLoader(MethodHandleInvoker::class.java.classLoader) {
+    @Suppress("NewApi")
     fun buildClassAndGetSpecHandlesByMethod(
         className: String,
         fileName: String?,
@@ -32,7 +33,7 @@ internal class DecoroutinatorClassLoader: ClassLoader(MethodHandleInvoker::class
         }
     }
 
-    @Suppress("unused")
+    @Suppress("unused", "NewApi")
     @MakeStatic(addToStaticInitializer = true)
     private fun clinit() {
         assert(registerAsParallelCapable())
@@ -45,6 +46,7 @@ internal class DecoroutinatorClassLoader: ClassLoader(MethodHandleInvoker::class
     }
 }
 
+@Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
 private fun getClassBody(
     className: String,
     fileName: String?,

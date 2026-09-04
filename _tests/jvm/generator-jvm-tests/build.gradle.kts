@@ -11,6 +11,7 @@ repositories {
 }
 
 dependencies {
+    testRuntimeOnly(libs.decoroutinator.common)
     testRuntimeOnly(libs.decoroutinator.generator.jvm)
     testRuntimeOnly(libs.decoroutinator.mh.invoker)
     testRuntimeOnly(libs.decoroutinator.naive.base.continuation.accessor)

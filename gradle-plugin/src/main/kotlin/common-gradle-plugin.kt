@@ -1,3 +1,4 @@
+
 @file:Suppress("PackageDirectoryMismatch")
 @file:JvmName("CommonGradlePluginKt")
 
@@ -489,12 +490,15 @@ private fun Project.addDependenciesToConfigurations(
         with (dependencies) {
             if (regularDependencyConfigurationMatcher.matches(config.name)) {
                 add(config.name, decoroutinatorRegularMethodHandleInvoker())
+                add(config.name, decoroutinatorCommon())
             } else {
                 if (androidDependencyConfigurationMatcher.matches(config.name)) {
                     add(config.name, decoroutinatorAndroidMethodHandleInvoker())
+                    add(config.name, decoroutinatorCommon())
                 }
                 if (jvmDependencyConfigurationMatcher.matches(config.name)) {
                     add(config.name, decoroutinatorJvmMethodHandleInvoker())
+                    add(config.name, decoroutinatorCommon())
                 }
             }
         }

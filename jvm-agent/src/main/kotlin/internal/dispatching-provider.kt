@@ -3,13 +3,16 @@
 package dev.reformator.stacktracedecoroutinator.jvmagent.internal
 
 import dev.reformator.bytecodeprocessor.intrinsics.LoadConstant
+import dev.reformator.bytecodeprocessor.intrinsics.MakeStatic
 import dev.reformator.bytecodeprocessor.intrinsics.fail
 import dev.reformator.stacktracedecoroutinator.intrinsics.CONTINUATION_INTERFACE_NAME
 import dev.reformator.stacktracedecoroutinator.provider.SpecCache
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessor
 import dev.reformator.stacktracedecoroutinator.provider.internal.DecoroutinatorProvider
+import dev.reformator.stacktracedecoroutinator.provider.internal.binaryName
 import dev.reformator.stacktracedecoroutinator.provider.internal.optimisticLockGetOrPut
 import dev.reformator.stacktracedecoroutinator.runtimesettings.internal.getRuntimeSettingsValue
+import java.io.InputStream
 import java.lang.invoke.MethodHandles
 import java.util.Base64
 import java.util.WeakHashMap
@@ -51,8 +54,7 @@ internal class DispatchingProvider: DecoroutinatorProvider {
     private val entriesByLoader: MutableMap<ClassLoader, DecoroutinatorProvider>? =
         if (defaultEntry == null) WeakHashMap() else null
 
-    private fun entryFor(loader: ClassLoader?): DecoroutinatorProvider {
-        defaultEntry?.let { return it }
+    private fun internalEntryFor(loader: ClassLoader?): DecoroutinatorProvider {
         val key = loader ?: defaultLoader
         return entriesByLoader!!.optimisticLockGetOrPut(key, entriesByLoaderLock) {
             val kotlinStdlibLoader = key.loadClass(CONTINUATION_INTERFACE_NAME).classLoader!!
@@ -63,53 +65,77 @@ internal class DispatchingProvider: DecoroutinatorProvider {
         }
     }
 
+    private fun entryFor(clazz: Class<*>): DecoroutinatorProvider {
+        defaultEntry?.let { return it }
+        return internalEntryFor(clazz.classLoader)
+    }
+
+    private fun entryFor(obj: Any): DecoroutinatorProvider {
+        defaultEntry?.let { return it }
+        return internalEntryFor(obj.javaClass.classLoader)
+    }
+
     override fun awakeBaseContinuation(accessor: BaseContinuationAccessor, baseContinuation: Any, result: Any?) {
-        entryFor(baseContinuation.javaClass.classLoader).awakeBaseContinuation(accessor, baseContinuation, result)
+        entryFor(baseContinuation).awakeBaseContinuation(accessor, baseContinuation, result)
     }
 
     override fun tailCallDeoptimize(completion: Any, cache: SpecCache?): Any =
-        entryFor(completion.javaClass.classLoader).tailCallDeoptimize(completion, cache)
+        entryFor(completion).tailCallDeoptimize(completion, cache)
 
     override fun getElementFactoryStacktraceElement(baseContinuation: Any): StackTraceElement? =
-        entryFor(baseContinuation.javaClass.classLoader).getElementFactoryStacktraceElement(baseContinuation)
+        entryFor(baseContinuation).getElementFactoryStacktraceElement(baseContinuation)
 
     override fun getCoroutineStackFrameStackTraceElement(coroutineStackFrame: Any): StackTraceElement? =
-        entryFor(coroutineStackFrame.javaClass.classLoader).getCoroutineStackFrameStackTraceElement(coroutineStackFrame)
+        entryFor(coroutineStackFrame).getCoroutineStackFrameStackTraceElement(coroutineStackFrame)
 
     override fun callInvokeSuspendIfResultIsNotCoroutineSuspended(
         baseContinuation: Any,
         accessor: BaseContinuationAccessor,
         result: Any?
     ): Any? =
-        entryFor(baseContinuation.javaClass.classLoader).callInvokeSuspendIfResultIsNotCoroutineSuspended(
+        entryFor(baseContinuation).callInvokeSuspendIfResultIsNotCoroutineSuspended(
             baseContinuation = baseContinuation,
             accessor = accessor,
             result = result
         )
 
     override fun getBaseContinuationAccessor(baseContinuation: Any): BaseContinuationAccessor? =
-        entryFor(baseContinuation.javaClass.classLoader).getBaseContinuationAccessor(baseContinuation)
+        entryFor(baseContinuation).getBaseContinuationAccessor(baseContinuation)
 
     // lookup.lookupClass() is always the BaseContinuationImpl this was injected into (see the
     // comment on transformBaseContinuation() in class-transformer.kt), so its class loader is the
     // same routing key getBaseContinuationAccessor above uses via baseContinuation - both land on
     // the same common.internal.Provider instance and its cache.
     override fun prepareBaseContinuationAccessor(lookup: MethodHandles.Lookup): BaseContinuationAccessor =
-        entryFor(lookup.lookupClass().classLoader).prepareBaseContinuationAccessor(lookup)
+        entryFor(lookup.lookupClass()).prepareBaseContinuationAccessor(lookup)
 }
 
 private fun buildEntry(targetLoader: ClassLoader): DecoroutinatorProvider {
-    val loader = DecoroutinatorCommonClassLoader(commonResidualClasses, targetLoader)
+    val loader = DecoroutinatorCommonClassLoader(targetLoader)
     val providerClass = loader.loadClass("dev.reformator.stacktracedecoroutinator.common.internal.Provider")
     return providerClass.getDeclaredConstructor().newInstance() as DecoroutinatorProvider
 }
 
-private class DecoroutinatorCommonClassLoader(
-    private val classes: Map<String, ByteArray>,
-    parent: ClassLoader
-): ClassLoader(parent) {
-    override fun findClass(name: String): Class<*> =
-        classes[name]?.let { entity -> defineClass(name, entity, 0, entity.size) } ?: super.findClass(name)
+private class DecoroutinatorCommonClassLoader(parent: ClassLoader): ClassLoader(parent) {
+    @Suppress("unused")
+    @MakeStatic(addToStaticInitializer = true)
+    private fun clinit() {
+        assert(registerAsParallelCapable())
+    }
+
+    override fun loadClass(name: String, resolve: Boolean): Class<*> {
+        val body = commonResidualClasses[name]
+        if (body != null) {
+            return synchronized(getClassLoadingLock(name)) {
+                val result = findLoadedClass(name) ?: defineClass(name, body, 0, body.size)
+                if (resolve) {
+                    resolveClass(result)
+                }
+                result
+            }
+        }
+        return super.loadClass(name, resolve)
+    }
 }
 
 private fun hasKotlinStdlibVisible(loader: ClassLoader): Boolean =
@@ -149,23 +175,32 @@ private val commonResidualJarBase64Chunk6: String
 private val commonResidualJarBase64Chunk7: String
     @LoadConstant("commonResidualJarBase64Chunk7") get() { fail() }
 
-private val commonResidualJarBase64: String
-    get() = commonResidualJarBase64Chunk0 +
-        commonResidualJarBase64Chunk1 +
-        commonResidualJarBase64Chunk2 +
-        commonResidualJarBase64Chunk3 +
-        commonResidualJarBase64Chunk4 +
-        commonResidualJarBase64Chunk5 +
-        commonResidualJarBase64Chunk6 +
-        commonResidualJarBase64Chunk7
-
 private val commonResidualClasses: Map<String, ByteArray> by lazy {
+    val base64Input = object: InputStream() {
+        private val iter = sequenceOf(
+            commonResidualJarBase64Chunk0,
+            commonResidualJarBase64Chunk1,
+            commonResidualJarBase64Chunk2,
+            commonResidualJarBase64Chunk3,
+            commonResidualJarBase64Chunk4,
+            commonResidualJarBase64Chunk5,
+            commonResidualJarBase64Chunk6,
+            commonResidualJarBase64Chunk7
+        ).flatMap { it.toByteArray(Charsets.ISO_8859_1).asSequence() }.iterator()
+
+        override fun read(): Int =
+            if (iter.hasNext()) {
+                iter.next().toInt()
+            } else {
+                -1
+            }
+    }
     buildMap {
-        ZipInputStream(Base64.getDecoder().decode(commonResidualJarBase64).inputStream()).use { input ->
+        ZipInputStream(Base64.getDecoder().wrap(base64Input)).use { input ->
             while (true) {
                 val entry = input.nextEntry ?: return@use
                 if (entry.name.endsWith(".class") && entry.name != "module-info.class") {
-                    put(entry.name.removeSuffix(".class").replace("/", "."), input.readBytes())
+                    put(entry.name.removeSuffix(".class").binaryName, input.readBytes())
                 }
             }
         }

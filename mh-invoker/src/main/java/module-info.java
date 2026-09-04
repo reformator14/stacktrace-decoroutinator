@@ -7,7 +7,6 @@ module dev.reformator.stacktracedecoroutinator.mhinvoker {
     requires static dev.reformator.bytecodeprocessor.intrinsics;
 
     requires dev.reformator.stacktracedecoroutinator.provider;
-    requires dev.reformator.stacktracedecoroutinator.common;
 
     provides MethodHandleInvoker with RegularMethodHandleInvoker;
     provides VarHandleInvoker with RegularVarHandleInvoker;

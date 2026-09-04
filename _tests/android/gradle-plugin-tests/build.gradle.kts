@@ -35,7 +35,9 @@ dependencies {
     implementation(libs.androidx.test.monitor)
     implementation(libs.coroutines.debug.build)
 
+    runtimeOnly(libs.decoroutinator.common)
     runtimeOnly(libs.decoroutinator.mh.invoker.jvm)
+    runtimeOnly(libs.decoroutinator.mh.invoker)
     runtimeOnly(libs.decoroutinator.generator.jvm)
     runtimeOnly(libs.androidx.test.runner)
 }

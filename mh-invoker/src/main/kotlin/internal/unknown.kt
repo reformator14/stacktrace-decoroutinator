@@ -1,7 +1,7 @@
 @file:Suppress("PackageDirectoryMismatch")
 @file:AndroidKeep
 
-package dcunknown
+package dev.reformator.stacktracedecoroutinator.mhinvoker.internal
 
 import dev.reformator.bytecodeprocessor.intrinsics.GetOwnerClass
 import dev.reformator.bytecodeprocessor.intrinsics.fail

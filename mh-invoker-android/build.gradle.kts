@@ -39,7 +39,6 @@ dependencies {
     compileOnly(libs.bytecode.processor.intrinsics)
 
     implementation(project(":stacktrace-decoroutinator-provider"))
-    implementation(project(":stacktrace-decoroutinator-common"))
 }
 
 bytecodeProcessor {
@@ -54,12 +53,14 @@ val fillConstantProcessorTask: TaskProvider<*> = tasks.register("fillConstantPro
     val mhInvokerProject = project(":stacktrace-decoroutinator-mh-invoker")
     val mhInvokerCompileKotlinTask = mhInvokerProject.tasks.named<KotlinJvmCompile>("compileKotlin")
     dependsOn(mhInvokerCompileKotlinTask)
+    dependsOn(mhInvokerProject.tasks.named("compileJava"))
+    inputs.dir(mhInvokerCompileKotlinTask.get().destinationDirectory)
     doLast {
         val tempDir = temporaryDir
         tempDir.clearDir()
         mhInvokerCompileKotlinTask.get().destinationDirectory.get().asFile.copyClassesTo(tempDir)
         tempDir.renameClasses(
-            namePrefixes = listOf("dev.reformator.stacktracedecoroutinator.mhinvoker", "dcunknown"),
+            namePrefixes = listOf("dev.reformator.stacktracedecoroutinator.mhinvoker"),
             prefixAppend = "android"
         )
         providers.exec {

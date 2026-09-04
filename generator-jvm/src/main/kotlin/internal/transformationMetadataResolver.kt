@@ -4,11 +4,12 @@ package dev.reformator.stacktracedecoroutinator.generatorjvm.internal
 
 import dev.reformator.bytecodeprocessor.intrinsics.LoadConstant
 import dev.reformator.bytecodeprocessor.intrinsics.fail
-import dev.reformator.stacktracedecoroutinator.intrinsics.DebugMetadata
+import dev.reformator.stacktracedecoroutinator.intrinsics.KOTLIN_DEBUG_METADATA_ANNOTATION_NAME
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpecMethod
 import dev.reformator.stacktracedecoroutinator.provider.internal.TransformationMetadata
 import dev.reformator.stacktracedecoroutinator.provider.internal.AnnotationMetadataResolver
 import dev.reformator.stacktracedecoroutinator.provider.internal.KotlinDebugMetadata
+import dev.reformator.stacktracedecoroutinator.provider.internal.internalName
 import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.decoroutinatorTransformedAnnotation
 import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.getClassNode
 import dev.reformator.stacktracedecoroutinator.specmethodbuilder.internal.getField
@@ -63,7 +64,7 @@ private val MethodNode.decoroutinatorSpecMethodAnnotation: AnnotationNode?
 private val ClassNode.kotlinDebugMetadataAnnotation: AnnotationNode?
     get() = visibleAnnotations
         .orEmpty()
-        .firstOrNull { it.desc == Type.getDescriptor(DebugMetadata::class.java) }
+        .firstOrNull { it.desc == "L${KOTLIN_DEBUG_METADATA_ANNOTATION_NAME.internalName};" }
 
 private val decoroutinatorTransformedFileNamePresentMethodName: String
     @LoadConstant("decoroutinatorTransformedFileNamePresentMethodName") get() = fail()
