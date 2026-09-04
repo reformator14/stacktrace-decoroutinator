@@ -328,7 +328,7 @@ open class RuntimeTest {
     }
 
     @Junit4Test @Junit5Test
-    fun ktorManualContinuationSharedSharedBetweenCoroutines() = runBlockingWithTimeout {
+    fun ktorManualContinuationSharedBetweenCoroutines() = runBlockingWithTimeout {
         val phase = PipelinePhase("p")
         val pipeline = Pipeline<Unit, Unit>(phase)
         // A: calls proceed() -> its intercepted continuation is pushed to SuspendFunctionGun.suspensions

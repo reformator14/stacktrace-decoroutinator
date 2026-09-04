@@ -24,9 +24,8 @@ import java.lang.invoke.MethodHandles
 @AndroidLegacyKeep
 interface DecoroutinatorSpec {
     fun `$decoroutinator$getLineNumber`(): Int
-    fun `$decoroutinator$isLastSpec`(): Boolean
-    fun `$decoroutinator$getNextSpecHandle`(): MethodHandle
-    fun `$decoroutinator$getNextSpec`(): DecoroutinatorSpec
+    fun `$decoroutinator$getNextSpecHandle`(): MethodHandle?
+    fun `$decoroutinator$getNextSpec`(): DecoroutinatorSpec?
     fun `$decoroutinator$resumeNext`(result: Any?): Any?
 }
 
@@ -53,23 +52,22 @@ open class DecoroutinatorSpecImpl: DecoroutinatorSpec {
         `$decoroutinator$nextContinuation` = nextContinuation
     }
 
-    final override fun `$decoroutinator$getLineNumber`(): Int {
-        val result = `$decoroutinator$lineNumber`
-        `$decoroutinator$lineNumber` = 0
-        return result
-    }
+    // Deliberately NOT one-shot, unlike getNextSpecHandle/getNextSpec below - spec-method-builder.kt's
+    // generated spec methods (and generator-android's dex equivalent) each read this twice, once per
+    // switch (invoke-next-spec, then resume-next), since neither caches it in a local anymore. Resetting
+    // this to a sentinel after the first read (as it used to) would silently corrupt the second switch's
+    // dispatch on every spec method invocation.
+    final override fun `$decoroutinator$getLineNumber`(): Int =
+        `$decoroutinator$lineNumber`
 
-    final override fun `$decoroutinator$isLastSpec`(): Boolean =
-        `$decoroutinator$nextSpec` == null
-
-    final override fun `$decoroutinator$getNextSpecHandle`(): MethodHandle {
-        val result = `$decoroutinator$nextSpecHandle`!!
+    final override fun `$decoroutinator$getNextSpecHandle`(): MethodHandle? {
+        val result = `$decoroutinator$nextSpecHandle`
         `$decoroutinator$nextSpecHandle` = null
         return result
     }
 
-    final override fun `$decoroutinator$getNextSpec`(): DecoroutinatorSpec {
-        val result = `$decoroutinator$nextSpec`!!
+    final override fun `$decoroutinator$getNextSpec`(): DecoroutinatorSpec? {
+        val result = `$decoroutinator$nextSpec`
         `$decoroutinator$nextSpec` = null
         return result
     }

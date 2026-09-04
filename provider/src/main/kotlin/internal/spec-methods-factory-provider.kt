@@ -2,7 +2,6 @@
 
 package dev.reformator.stacktracedecoroutinator.provider.internal
 
-import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
 import dev.reformator.stacktracedecoroutinator.intrinsics.assert
 import java.lang.invoke.MethodHandle
 import java.util.concurrent.locks.ReentrantLock
@@ -26,7 +25,7 @@ abstract class BaseSpecMethodsFactory: SpecMethodsFactory {
         fun getMethodHandle(): MethodHandle? {
             val methodsByName = classSpec[element.fileName] ?: return null
             val methodSpec = methodsByName[element.methodName] ?: return null
-            if (element.normalizedLineNumber !in methodSpec.lineNumbers) return null
+            if (element.hasLineNumber && element.lineNumber !in methodSpec.lineNumbers) return null
             return methodSpec.handle
         }
         getMethodHandle()?.let { return it }
@@ -43,10 +42,11 @@ abstract class BaseSpecMethodsFactory: SpecMethodsFactory {
             var currentMethodLineNumbers = lineNumbersByMethod[element.methodName]
             if (currentMethodLineNumbers == null) {
                 currentMethodLineNumbers = HashSet()
-                currentMethodLineNumbers.add(UNKNOWN_LINE_NUMBER)
                 lineNumbersByMethod[element.methodName] = currentMethodLineNumbers
             }
-            currentMethodLineNumbers.add(element.normalizedLineNumber)
+            if (element.hasLineNumber) {
+                currentMethodLineNumbers.add(element.lineNumber)
+            }
 
             classSpec.revision++
             val factoriesByMethod = generateSpecMethodHandles(
@@ -142,7 +142,7 @@ internal object SpecMethodsFactoryImpl: SpecMethodsFactory {
         val classSpec = getClassSpec(element.className) ?: return null
         if (classSpec.fileName != element.fileName) return null
         val methodSpec = classSpec.methodsByName[element.methodName] ?: return null
-        if (element.normalizedLineNumber !in methodSpec.lineNumbers) return null
+        if (element.hasLineNumber && element.lineNumber !in methodSpec.lineNumbers) return null
         return methodSpec.handle
     }
 

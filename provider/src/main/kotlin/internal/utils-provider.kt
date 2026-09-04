@@ -2,7 +2,6 @@
 
 package dev.reformator.stacktracedecoroutinator.provider.internal
 
-import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpec
 import java.io.InputStream
 import java.lang.invoke.MethodHandle
@@ -96,15 +95,11 @@ class CompactMap<K, V>: java.util.AbstractMap<K, V>() {
         get() = java.util.LinkedHashSet(java.util.Arrays.asList(*_entries))
 }
 
-val StackTraceElement.normalizedLineNumber: Int
-    get() = if (lineNumber < 0) UNKNOWN_LINE_NUMBER else lineNumber
+val StackTraceElement.hasLineNumber: Boolean
+    get() = lineNumber >= 0
 
 val specLineNumberMethodName: String = DecoroutinatorSpec::class.java.methods
     .find { it.returnType == Int::class.javaPrimitiveType && it.parameterCount == 0 }!!
-    .name
-
-val isLastSpecMethodName: String = DecoroutinatorSpec::class.java.methods
-    .find { it.returnType == Boolean::class.javaPrimitiveType && it.parameterCount == 0 }!!
     .name
 
 @Suppress("NewApi")

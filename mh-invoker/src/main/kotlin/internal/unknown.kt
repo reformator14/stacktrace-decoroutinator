@@ -16,11 +16,10 @@ internal val unknownSpecClass: Class<*>
 
 @Suppress("unused")
 private fun unknown(spec: DecoroutinatorSpec, result: Any?): Any? {
-    val updatedResult = if (!spec.`$decoroutinator$isLastSpec`()) {
-        spec.`$decoroutinator$getNextSpecHandle`().invokeExact(
-            spec.`$decoroutinator$getNextSpec`(),
-            result
-        )
+    val nextSpecHandle = spec.`$decoroutinator$getNextSpecHandle`()
+    val nextSpec = spec.`$decoroutinator$getNextSpec`()
+    val updatedResult = if (nextSpecHandle != null && nextSpec != null) {
+        nextSpecHandle.invokeExact(nextSpec, result)
     } else {
         result
     }

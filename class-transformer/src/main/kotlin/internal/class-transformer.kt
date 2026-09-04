@@ -411,9 +411,7 @@ private fun ClassNode.tryAddManualContinuation(
         getSpecCacheMethodName = manualContinuationGetCacheMethodName
     )
 
-    lineNumbersBySpecMethodName.computeIfAbsent("resumeWith") {
-        hashSetOf(UNKNOWN_LINE_NUMBER)
-    }.add(UNKNOWN_LINE_NUMBER)
+    lineNumbersBySpecMethodName.computeIfAbsent("resumeWith") { hashSetOf() }
 
     return true
 }
@@ -814,7 +812,7 @@ private fun ClassNode.tryTransformSuspendMethods(
         if (info.specClassInternalClassName == name) {
             needTransformation = true
             lineNumbersBySpecMethodName.computeIfAbsent(info.methodName) {
-                hashSetOf(UNKNOWN_LINE_NUMBER)
+                hashSetOf()
             }.addAll(info.lineNumbers)
         }
     }
@@ -907,7 +905,7 @@ private fun tryTransformSuspendMethod(
             .forEach { metadata ->
                 result = true
                 lineNumbersBySpecMethodName.computeIfAbsent(metadata.methodName) {
-                    hashSetOf(UNKNOWN_LINE_NUMBER)
+                    hashSetOf()
                 }.addAll(metadata.lineNumbers)
             }
 
@@ -973,9 +971,10 @@ private fun tryTransformSuspendMethod(
 
     val cacheFieldName = getTailCallCacheFieldName(tailCallCaches.size)
     tailCallCaches.add(TailCallDeoptimizeMethodNameAndLineNumber(method.name, lineNumber))
-    lineNumbersBySpecMethodName.computeIfAbsent(method.name) {
-        hashSetOf(UNKNOWN_LINE_NUMBER)
-    }.add(lineNumber)
+    val methodLineNumbers = lineNumbersBySpecMethodName.computeIfAbsent(method.name) { hashSetOf() }
+    if (lineNumber >= 0) {
+        methodLineNumbers.add(lineNumber)
+    }
 
     method.instructions.insert(loadCompletionInstruction, InsnList().apply {
         if (allowChangingClassLayout) {

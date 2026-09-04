@@ -11,7 +11,6 @@ import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpec
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpecImpl
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessor
 import dev.reformator.stacktracedecoroutinator.provider.internal.methodHandleInvoker
-import dev.reformator.stacktracedecoroutinator.provider.internal.normalizedLineNumber
 import dev.reformator.stacktracedecoroutinator.provider.internal.specMethodsFactory
 import java.lang.invoke.MethodHandle
 import kotlin.contracts.ExperimentalContracts
@@ -215,7 +214,7 @@ private inline fun BaseContinuation.buildSpecInfo(
             @Suppress("IfThenToElvis")
             `$decoroutinator$init`(
                 accessor = accessor,
-                lineNumber = if (currentElement == null) UNKNOWN_LINE_NUMBER else currentElement.normalizedLineNumber,
+                lineNumber = if (currentElement == null) UNKNOWN_LINE_NUMBER else currentElement.lineNumber,
                 nextSpec = spec,
                 nextSpecHandle = specMethod,
                 nextContinuation = baseContinuation
