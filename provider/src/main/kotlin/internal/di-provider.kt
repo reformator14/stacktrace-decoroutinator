@@ -3,6 +3,7 @@
 package dev.reformator.stacktracedecoroutinator.provider.internal
 
 import dev.reformator.stacktracedecoroutinator.intrinsics.assert
+import dev.reformator.stacktracedecoroutinator.intrinsics.loadService
 import dev.reformator.stacktracedecoroutinator.provider.SpecCache
 import dev.reformator.stacktracedecoroutinator.runtimesettings.SpecChainBaseContinuationVerificationMode
 import dev.reformator.stacktracedecoroutinator.runtimesettings.internal.getRuntimeSettingsValue

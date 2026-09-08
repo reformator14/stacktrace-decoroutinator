@@ -54,6 +54,9 @@ interface DecoroutinatorRuntimeSettingsProvider {
     val forceAgentClassLoaderDispatchingProvider: Boolean
         get() = defaultValue()
 
+    val appendJvmAgentJarToBootstrapClassLoaderSearch: Boolean
+        get() = defaultValue()
+
     // Embedded Debug Probes settings
 
     val enableCreationStackTraces: Boolean

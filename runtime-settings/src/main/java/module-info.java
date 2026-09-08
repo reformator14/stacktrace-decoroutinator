@@ -2,6 +2,7 @@ import dev.reformator.stacktracedecoroutinator.runtimesettings.DecoroutinatorRun
 
 module dev.reformator.stacktracedecoroutinator.runtimesettings {
     requires static kotlin.stdlib;
+    requires static dev.reformator.stacktracedecoroutinator.intrinsics;
 
     exports dev.reformator.stacktracedecoroutinator.runtimesettings;
     exports dev.reformator.stacktracedecoroutinator.runtimesettings.internal to

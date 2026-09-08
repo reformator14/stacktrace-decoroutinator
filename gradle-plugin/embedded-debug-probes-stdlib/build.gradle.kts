@@ -10,6 +10,7 @@ repositories {
 
 dependencies {
     compileOnly(libs.bytecode.processor.intrinsics)
+    compileOnly(project(":intrinsics"))
 }
 
 java {

@@ -9,4 +9,11 @@
 # nothing in it should be touched (name-sensitive: @MethodNameConstant-baked strings,
 # ServiceLoader-instantiated SPI impls, reflection lookups throughout).
 #noinspection ExpensiveKeepRuleInspection
--keep class dev.reformator.stacktracedecoroutinator.** { *; }
+-keep class dev.reformator.stacktracedecoroutinator.jvmagentjar.classtransformer.** { *; }
+-keep class dev.reformator.stacktracedecoroutinator.jvmagentjar.generatorjvm.** { *; }
+-keep class dev.reformator.stacktracedecoroutinator.jvmagentjar.jvmagent.** { *; }
+-keep class dev.reformator.stacktracedecoroutinator.jvmagentjar.jvmagentcommon.** { *; }
+-keep class dev.reformator.stacktracedecoroutinator.jvmagentjar.mhinvoker.** { *; }
+-keep class dev.reformator.stacktracedecoroutinator.jvmagentjar.provider.** { *; }
+-keep class dev.reformator.stacktracedecoroutinator.jvmagentjar.runtimesettings.** { *; }
+-keep class dev.reformator.stacktracedecoroutinator.jvmagentjar.specmethodbuilder.** { *; }

@@ -2,10 +2,10 @@
 
 package dev.reformator.stacktracedecoroutinator.runtimesettings.internal
 
+import dev.reformator.stacktracedecoroutinator.intrinsics.loadServices
 import dev.reformator.stacktracedecoroutinator.runtimesettings.DecoroutinatorRuntimeSettingsProvider
 import java.util.Collections
 import java.util.Comparator
-import java.util.ServiceLoader
 import java.util.function.Function
 
 @Suppress("ObjectInheritsException", "JavaIoSerializableObjectMustHaveReadResolve")
@@ -24,11 +24,14 @@ private class RuntimeSettingsProviderWithPriority(
     val priority: Int
 )
 
+// loadServices (intrinsics module) searches both the thread's context classloader and
+// DecoroutinatorRuntimeSettingsProvider::class.java's own classloader, and calls back once per distinct
+// implementation found across both - every found provider is needed here (unlike a single-result
+// loadService<T>()) since same-priority providers disagreeing on a value must be detected as a conflict
+// below, not silently reduced to just the first one found.
 private val runtimeSettingsProviderInstances: List<RuntimeSettingsProviderWithPriority> = run {
     val list = ArrayList<RuntimeSettingsProviderWithPriority>()
-    val iter = ServiceLoader.load(DecoroutinatorRuntimeSettingsProvider::class.java).iterator()
-    while (iter.hasNext()) {
-        val provider = iter.next()
+    loadServices<DecoroutinatorRuntimeSettingsProvider> { provider ->
         list.add(RuntimeSettingsProviderWithPriority(provider, provider.priority))
     }
     Collections.sort(list, Comparator { a, b -> b.priority - a.priority })

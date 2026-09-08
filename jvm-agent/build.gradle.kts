@@ -1,8 +1,11 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import dev.reformator.bytecodeprocessor.plugins.GetOwnerClassProcessor
 import dev.reformator.bytecodeprocessor.plugins.LoadConstantProcessor
 import dev.reformator.bytecodeprocessor.plugins.MakeStaticProcessor
 import org.gradle.kotlin.dsl.named
 import org.jetbrains.dokka.gradle.AbstractDokkaTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.util.Base64
 
 plugins {
@@ -34,7 +37,8 @@ dependencies {
 bytecodeProcessor {
     processors = listOf(
         LoadConstantProcessor,
-        MakeStaticProcessor
+        MakeStaticProcessor,
+        GetOwnerClassProcessor
     )
 }
 
@@ -44,11 +48,23 @@ bytecodeProcessor {
 val commonResidualJarBase64ChunkSize = 60000
 val commonResidualJarBase64ChunkCount = 8
 
+val buildRenamedCommonJar = tasks.register<ShadowJar>("buildRenamedCommonJar") {
+    val commonProject = project(":stacktrace-decoroutinator-common")
+    val commonCompileKotlinTask = commonProject.tasks.named<KotlinCompile>("compileKotlin")
+    dependsOn(commonCompileKotlinTask, commonProject.tasks.named("compileJava"))
+    from(commonCompileKotlinTask.map { it.destinationDirectory })
+
+    failOnDuplicateEntries = true
+    mergeServiceFiles()
+    relocate("dev.reformator.stacktracedecoroutinator", "dev.reformator.stacktracedecoroutinator.jvmagentjar")
+    exclude("META-INF/*.kotlin_module")
+    archiveClassifier.set("renamed-common")
+}
+
 val fillConstantProcessorTask = tasks.register("fillConstantProcessor") {
-    val commonJarTask = project(":stacktrace-decoroutinator-common").tasks.named<Jar>("jar")
-    dependsOn(commonJarTask)
+    dependsOn(buildRenamedCommonJar)
     doLast {
-        val base64 = Base64.getEncoder().encodeToString(commonJarTask.get().archiveFile.get().asFile.readBytes())
+        val base64 = Base64.getEncoder().encodeToString(buildRenamedCommonJar.get().archiveFile.get().asFile.readBytes())
         val chunks = base64.chunked(commonResidualJarBase64ChunkSize)
         check(chunks.size <= commonResidualJarBase64ChunkCount) {
             "common's jar (base64: ${base64.length} chars) needs ${chunks.size} chunks of " +
@@ -74,18 +90,20 @@ tasks.shadowJar {
     mergeServiceFiles()
     manifest {
         attributes(mapOf(
-            "Premain-Class" to "dev.reformator.stacktracedecoroutinator.jvmagent.DecoroutinatorAgentKt"
+            "Premain-Class" to "dev.reformator.stacktracedecoroutinator.jvmagentjar.jvmagent.DecoroutinatorAgentKt"
         ))
     }
-    relocate("org.objectweb.asm", "dev.reformator.repack.asm")
-    relocate("dev.reformator.kmetarepack", "dev.reformator.repack.kmeta")
-    relocate("kotlin", "dev.reformator.repack.kotlin") {
+    relocate("dev.reformator.stacktracedecoroutinator", "dev.reformator.stacktracedecoroutinator.jvmagentjar")
+    relocate("org.objectweb.asm", "dev.reformator.stacktracedecoroutinator.jvmagentjar.asm")
+    relocate("dev.reformator.kmetarepack", "dev.reformator.stacktracedecoroutinator.jvmagentjar.kmeta")
+    relocate("kotlin", "dev.reformator.stacktracedecoroutinator.jvmagentjar.kotlin") {
         // class-transformer/spec-method-builder use real, unrelocated kotlin.* class names as DATA
         // (matched against un-relocated target application bytecode) - string constants must not
         // be rewritten, only actual structural type references (checkcast/instanceof/descriptors).
         skipStringConstants = true
     }
     exclude("META-INF/*.kotlin_module")
+    archiveClassifier.set("shadow")
 }
 
 gr8 {

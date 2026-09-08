@@ -2,9 +2,9 @@
 
 package dev.reformator.stacktracedecoroutinator.provider.internal
 
+import dev.reformator.stacktracedecoroutinator.intrinsics.loadService
 import dev.reformator.stacktracedecoroutinator.provider.SpecCache
 import java.lang.invoke.MethodHandles
-import java.util.ServiceLoader
 
 interface DecoroutinatorProvider {
     fun awakeBaseContinuation(accessor: BaseContinuationAccessor, baseContinuation: Any, result: Any?)
@@ -37,12 +37,15 @@ interface DecoroutinatorProvider {
     fun prepareBaseContinuationAccessor(lookup: MethodHandles.Lookup): BaseContinuationAccessor
 }
 
-internal val provider: DecoroutinatorProvider =
-    try {
-        ServiceLoader.load(DecoroutinatorProvider::class.java).iterator().next()
-    } catch (_: Throwable) {
-        null
-    } ?: NoopProvider()
+// loadService (intrinsics module) searches both the thread's context classloader and
+// DecoroutinatorProvider::class.java's own classloader: in a complex host process the context classloader
+// at the point this first gets touched (which, being a plain top-level val, can be triggered from any
+// thread that happens to resume a coroutine first - see the NoopProvider fallback below) is not
+// guaranteed to see this type's own META-INF/services provider-configuration file, especially once the
+// real provider ends up bootstrap-loaded - but some other, legitimate setup could conversely only be
+// visible via the context classloader, so neither search alone is safe to drop.
+internal val provider =
+    loadService<DecoroutinatorProvider>() ?: NoopProvider()
 
 private class NoopProvider: DecoroutinatorProvider {
     override fun awakeBaseContinuation(

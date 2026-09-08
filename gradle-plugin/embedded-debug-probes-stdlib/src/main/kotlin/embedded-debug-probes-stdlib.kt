@@ -3,7 +3,7 @@
 
 package kotlin.coroutines.jvm.internal
 
-import java.util.ServiceLoader
+import dev.reformator.stacktracedecoroutinator.intrinsics.loadService
 import kotlin.coroutines.Continuation
 
 interface DecoroutinatorDebugProbesProvider {
@@ -12,8 +12,10 @@ interface DecoroutinatorDebugProbesProvider {
     fun probeCoroutineSuspended(frame: Continuation<*>)
 }
 
+// loadService (intrinsics module) searches both the thread's context classloader and
+// DecoroutinatorDebugProbesProvider::class.java's own classloader - see that function's own doc.
 private val provider: DecoroutinatorDebugProbesProvider =
-    ServiceLoader.load(DecoroutinatorDebugProbesProvider::class.java).iterator().next()
+    loadService<DecoroutinatorDebugProbesProvider>()!!
 
 @Suppress("unused")
 fun <T> probeCoroutineCreated(completion: Continuation<T>): Continuation<T> =

@@ -16,7 +16,13 @@ repositories {
     mavenCentral()
 }
 
+dependencies {
+    compileOnly(libs.bytecode.processor.intrinsics)
+    compileOnly(project(":intrinsics"))
+}
+
 bytecodeProcessor {
+    dependentProjects = listOf(project(":intrinsics"))
     processors = listOf(RemoveKotlinStdlibProcessor)
 }
 

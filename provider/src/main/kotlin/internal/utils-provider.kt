@@ -7,7 +7,6 @@ import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpec
 import dev.reformator.stacktracedecoroutinator.provider.HasIntIdentity
 import java.io.InputStream
 import java.lang.invoke.MethodHandle
-import java.util.ServiceLoader
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.locks.Lock
 import kotlin.concurrent.withLock
@@ -15,22 +14,6 @@ import kotlin.concurrent.withLock
 const val ENABLED_PROPERTY = "dev.reformator.stacktracedecoroutinator.enabled"
 const val CHECKSUM_VALID = 0
 const val DEPTH_VALID = 0
-
-fun <T: Any> loadService(type: Class<T>): T? {
-    val iter: Iterator<T> = ServiceLoader.load(type).iterator()
-    while (true) {
-        try {
-            if (!iter.hasNext()) {
-                break
-            }
-            return iter.next()
-        } catch (_: Throwable) { }
-    }
-    return null
-}
-
-inline fun <reified T: Any> loadService(): T? =
-    loadService(T::class.java)
 
 fun Class<*>.getBodyStream(loader: ClassLoader): InputStream? =
     loader.getResourceAsStream("${name.internalName}.class")

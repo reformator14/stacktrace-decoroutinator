@@ -28,6 +28,17 @@ jobs:
       - name: Configure Gradle memory
         run: mkdir -p ~/.gradle && echo "org.gradle.jvmargs=-Xmx2g" >> ~/.gradle/gradle.properties
 
+      # Attach jvm-agent to the Gradle daemon for the rest of this job, so CI itself exercises the
+      # agent being statically attached to the Gradle daemon that's building/publishing it - see the
+      # jvm-agent package relocation entry in CLAUDE.md for why that scenario needs to stay safe.
+      - name: Dogfooding
+        run: |
+          ./gradlew :stacktrace-decoroutinator-jvm-agent:gr8MinimizedShadowedJar
+          sed -i "s#^org.gradle.jvmargs=.*#& -javaagent:$(pwd)/$(ls jvm-agent/build/gr8/minimized/*.jar)#" ~/.gradle/gradle.properties
+          # The already-running daemon from the build above won't pick up this jvmargs change on its
+          # own - it must be killed so the next gradlew invocation starts a fresh one with it applied.
+          ./gradlew --stop
+
       - name: Import PGP key
         run: echo "${{ secrets.PGP_PRIVATE_KEY }}" | gpg --batch --yes --import
 
