@@ -4,6 +4,7 @@ package dev.reformator.stacktracedecoroutinator.provider.internal
 
 import dev.reformator.stacktracedecoroutinator.intrinsics.assert
 import dev.reformator.stacktracedecoroutinator.provider.SpecCache
+import dev.reformator.stacktracedecoroutinator.runtimesettings.SpecChainBaseContinuationVerificationMode
 import dev.reformator.stacktracedecoroutinator.runtimesettings.internal.getRuntimeSettingsValue
 import java.lang.invoke.MethodHandles
 import java.lang.invoke.MethodType
@@ -111,6 +112,33 @@ private val _nullElementSpecCache: SpecCache? =
 
 val nullElementSpecCache: SpecCache
     get() = _nullElementSpecCache!!
+
+@Suppress("ObjectPropertyName")
+private val _specChainBaseContinuationVerificationMode =
+    if (enabled) {
+        // TODO It's insane, but if I change the return type of the function
+        //  'loadSpecChainBaseContinuationVerificationMode' to SpecChainBaseContinuationVerificationMode,
+        //  D8 in the _tests project starts warning
+        //  "WARNING: R8: The method `void <...>.Di_providerKt.<clinit>()` does not type check and will be assumed to be unreachable.
+        loadSpecChainBaseContinuationVerificationMode() as SpecChainBaseContinuationVerificationMode
+    } else {
+        null
+    }
+
+private fun loadSpecChainBaseContinuationVerificationMode(): Any =
+    getRuntimeSettingsValue({ it.specChainBaseContinuationVerificationMode }) {
+        SpecChainBaseContinuationVerificationMode.valueOf(System.getProperty(
+            "dev.reformator.stacktracedecoroutinator.specChainBaseContinuationVerificationMode",
+            SpecChainBaseContinuationVerificationMode.SHARED_VERIFY_EXCLUSIVE.name
+        ))
+    }
+
+val specChainBaseContinuationVerificationMode: SpecChainBaseContinuationVerificationMode
+    get() = _specChainBaseContinuationVerificationMode!!
+
+val doVerifySharedSpec =
+    enabled
+    && specChainBaseContinuationVerificationMode == SpecChainBaseContinuationVerificationMode.SHARED_VERIFY_EXCLUSIVE
 
 private fun supportsMethodHandle(): Boolean {
     return try {

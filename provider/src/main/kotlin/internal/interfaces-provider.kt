@@ -66,7 +66,7 @@ interface AnnotationMetadataResolver {
 @AndroidLegacyKeep
 interface MethodHandleInvoker {
     val unknownSpecMethodHandle: MethodHandle
-    fun callSpecMethod(handle: MethodHandle, spec: DecoroutinatorSpec, result: Any?): Any?
+    fun callSpecMethod(handle: MethodHandle, spec: DecoroutinatorSpec, result: Any?, resumeChecksum: Int, depthChecksum: Int): Any?
     val unknownSpecMethodClass: Class<*>
     val supportsVarHandle: Boolean
 }

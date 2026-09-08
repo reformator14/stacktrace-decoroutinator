@@ -6,9 +6,16 @@ import dev.reformator.stacktracedecoroutinator.common.intrinsics.ContinuationImp
 import dev.reformator.stacktracedecoroutinator.common.intrinsics.createFailure
 import dev.reformator.stacktracedecoroutinator.common.intrinsics.probeCoroutineResumed
 import dev.reformator.stacktracedecoroutinator.intrinsics.BaseContinuation
+import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
+import dev.reformator.stacktracedecoroutinator.intrinsics.assert
 import dev.reformator.stacktracedecoroutinator.provider.ContinuationCached
+import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpec
 import dev.reformator.stacktracedecoroutinator.provider.SpecCache
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessor
+import dev.reformator.stacktracedecoroutinator.provider.internal.minusKey
+import dev.reformator.stacktracedecoroutinator.provider.internal.randomInt
+import dev.reformator.stacktracedecoroutinator.provider.internal.resume
+import java.lang.invoke.MethodHandle
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 
@@ -37,3 +44,72 @@ internal inline fun BaseContinuation.callInvokeSuspend(accessor: BaseContinuatio
     accessor.releaseIntercepted(this)
     return newResult
 }
+
+internal abstract class AbstractExclusiveSpec(
+    private val accessor: BaseContinuationAccessor,
+    private val lineNumber: Int,
+    private val nextSpec: DecoroutinatorSpec?,
+    private val nextSpecHandle: MethodHandle?,
+    private val nextContinuation: BaseContinuation?
+): DecoroutinatorSpec {
+    override val `$decoroutinator$resumeCookie`: Any?
+        get() = null
+
+    override val `$decoroutinator$lineNumber`: Int
+        get() = lineNumber
+
+    override val `$decoroutinator$nextSpecHandle`: MethodHandle?
+        get() = nextSpecHandle
+
+    override val `$decoroutinator$nextSpec`: DecoroutinatorSpec?
+        get() = nextSpec
+
+    override fun `$decoroutinator$resume`(
+        result: Any?,
+        resumeChecksum: Int,
+        depthChecksum: Int,
+        resumeCookie: Any?
+    ): Any? {
+        assert { resumeCookie === null }
+        return resume(result, resumeChecksum, depthChecksum, nextContinuation) { baseContinuation, resultCopy ->
+            assert { baseContinuation === nextContinuation }
+            if (resultCopy != COROUTINE_SUSPENDED) {
+                nextContinuation!!.callInvokeSuspend(accessor, resultCopy)
+            } else {
+                COROUTINE_SUSPENDED
+            }
+        }
+    }
+}
+
+internal class UncheckedExclusiveSpec(
+    accessor: BaseContinuationAccessor,
+    lineNumber: Int,
+    nextSpec: DecoroutinatorSpec?,
+    nextSpecHandle: MethodHandle?,
+    nextContinuation: BaseContinuation?
+): AbstractExclusiveSpec(accessor, lineNumber, nextSpec, nextSpecHandle, nextContinuation) {
+    override fun `$decoroutinator$getResumeChecksum`(resumeChecksum: Int, resumeCookie: Any?): Int {
+        assert { resumeCookie == null }
+        return resumeChecksum
+    }
+}
+
+internal class CheckedExclusiveSpec(
+    accessor: BaseContinuationAccessor,
+    lineNumber: Int,
+    nextSpec: DecoroutinatorSpec?,
+    nextSpecHandle: MethodHandle?,
+    nextContinuation: BaseContinuation
+): AbstractExclusiveSpec(accessor, lineNumber, nextSpec, nextSpecHandle, nextContinuation) {
+    val resumeChecksumKey = randomInt()
+
+    override fun `$decoroutinator$getResumeChecksum`(resumeChecksum: Int, resumeCookie: Any?): Int {
+        assert { resumeCookie == null }
+        return resumeChecksum minusKey resumeChecksumKey
+    }
+}
+
+internal val StackTraceElement?.normalizedLineNumber: Int
+    @Suppress("IfThenToElvis")
+    get() = if (this == null) UNKNOWN_LINE_NUMBER else lineNumber

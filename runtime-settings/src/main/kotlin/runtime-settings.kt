@@ -4,6 +4,12 @@ package dev.reformator.stacktracedecoroutinator.runtimesettings
 
 import dev.reformator.stacktracedecoroutinator.runtimesettings.internal.defaultValue
 
+enum class SpecChainBaseContinuationVerificationMode {
+    EXCLUSIVE,
+    SHARED_NO_VERIFY,
+    SHARED_VERIFY_EXCLUSIVE
+}
+
 interface DecoroutinatorRuntimeSettingsProvider {
     //Common settings
 
@@ -32,6 +38,12 @@ interface DecoroutinatorRuntimeSettingsProvider {
         get() = defaultValue()
 
     val isUsingElementCacheForLazilyCachedContinuationGetElementMethodEnabled: Boolean
+        get() = defaultValue()
+
+    val specChainBaseContinuationVerificationMode: SpecChainBaseContinuationVerificationMode
+        get() = defaultValue()
+
+    val allowIdentityHashCodeAsIntIdentity: Boolean
         get() = defaultValue()
 
     // JVM Agent settings

@@ -29,6 +29,7 @@ import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.seconds
 
 // common is not always on the runtime classpath - e.g. the jvm-agent installation method embeds
 // it as a per-target-classloader copy rather than depending on it directly - so checkStatus()
@@ -88,7 +89,7 @@ open class RuntimeTest {
             assertEquals(expectedResult, result)
         }
         while (feature.get() == null) {
-            delay(10)
+            yield()
         }
         feature.get()!!.complete(Unit)
         job.join()
@@ -192,12 +193,12 @@ open class RuntimeTest {
         val flow = flow {
             for (i in 2..6) {
                 emit(i)
-                delay(10)
+                delay(5)
                 emit(i * i * i)
             }
         }.transform {
             emit(it)
-            delay(10)
+            delay(5)
             emit(it * it * it)
         }.transform {
             emit(it.toString())
@@ -206,7 +207,7 @@ open class RuntimeTest {
             }
         }
         try {
-            runBlockingWithTimeout {
+            runBlockingWithTimeout(timeout = 10.seconds) {
                 flow.collect { }
             }
         } catch (e: Exception) {
@@ -236,7 +237,7 @@ open class RuntimeTest {
         val tasks = List(numThreads) {
             val mocks = random.getConcurrentTestMocks(numMocks)
             Runnable {
-                runBlockingWithTimeout {
+                runBlockingWithTimeout(timeout = 10.seconds) {
                     callInline(mocks)
                 }
             }
@@ -328,13 +329,13 @@ open class RuntimeTest {
     }
 
     @Junit4Test @Junit5Test
-    fun ktorManualContinuationSharedBetweenCoroutines() = runBlockingWithTimeout {
+    fun ktorManualContinuationSharedBetweenCoroutines() = runBlockingWithTimeout(timeout = 10.seconds) {
         val phase = PipelinePhase("p")
         val pipeline = Pipeline<Unit, Unit>(phase)
         // A: calls proceed() -> its intercepted continuation is pushed to SuspendFunctionGun.suspensions
         pipeline.intercept(phase) { proceed() }
         // B: suspends and is resumed through a dispatcher -> BaseContinuationImpl.resumeWith -> decoroutinator awake
-        pipeline.intercept(phase) { withContext(Dispatchers.Default) { delay(10) } }
+        pipeline.intercept(phase) { withContext(Dispatchers.Default) { delay(5) } }
         pipeline.execute(Unit, Unit)
     }
 
@@ -561,7 +562,7 @@ open class RuntimeTest {
     }
 
     private suspend fun suspendResumeAndCheckStack(vararg elements: StackTraceElement) {
-        delay(10)
+        yield()
         checkStacktrace(*elements)
     }
 }

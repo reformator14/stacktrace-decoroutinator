@@ -26,7 +26,7 @@ dependencies {
 }
 
 bytecodeProcessor {
-    dependentProjects = listOf(project(":stacktrace-decoroutinator-common"))
+    dependentProjects = listOf(project(":stacktrace-decoroutinator-provider"))
     processors = listOf(
         ChangeClassNameProcessor,
         MakeStaticProcessor,

@@ -639,7 +639,7 @@ private fun Project.setGeneratingProguardFiles(legacyAndroidCompatibility: Boole
             -keepattributes RuntimeVisibleAnnotations,LineNumberTable,SourceFile
             -keep,allowobfuscation,allowshrinking @${DecoroutinatorTransformed::class.java.name} class *
             -keepclassmembers,allowobfuscation @${DecoroutinatorTransformed::class.java.name} class * {
-                static *(${DecoroutinatorSpec::class.java.name}, ${Object::class.java.name});
+                static *(${DecoroutinatorSpec::class.java.name}, ${Object::class.java.name}, int, int);
             }
             -keepclassmembers @${DecoroutinatorTransformed::class.java.name} class * {
                 static <clinit>();

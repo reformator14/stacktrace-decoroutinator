@@ -32,3 +32,16 @@ internal val recoveryExplicitStacktraceTimeoutMs =
             0
         }
     ).toUInt()
+
+@Suppress("RedundantIf")
+internal val allowIdentityHashCodeAsIntIdentity =
+    if (enabled) {
+        getRuntimeSettingsValue({ it.allowIdentityHashCodeAsIntIdentity }) {
+            System.getProperty(
+                "dev.reformator.stacktracedecoroutinator.allowIdentityHashCodeAsIntIdentity",
+                "true"
+            ).toBoolean()
+        }
+    } else {
+        false
+    }

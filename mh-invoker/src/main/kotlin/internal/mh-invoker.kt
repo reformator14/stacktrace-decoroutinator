@@ -20,8 +20,8 @@ internal class RegularMethodHandleInvoker: MethodHandleInvoker {
 
     override val unknownSpecMethodHandle = getUnknownSpecMethodHandle()
 
-    override fun callSpecMethod(handle: MethodHandle, spec: DecoroutinatorSpec, result: Any?): Any? =
-        handle.invokeExact(spec, result)
+    override fun callSpecMethod(handle: MethodHandle, spec: DecoroutinatorSpec, result: Any?, resumeChecksum: Int, depthChecksum: Int): Any? =
+        handle.invokeExact(spec, result, resumeChecksum, depthChecksum)
 
     override val unknownSpecMethodClass: Class<*>
         get() = unknownSpecClass

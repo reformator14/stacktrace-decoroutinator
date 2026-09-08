@@ -10,5 +10,7 @@ import java.lang.invoke.MethodType
 val specMethodType: MethodType = MethodType.methodType(
     Object::class.java,
     DecoroutinatorSpec::class.java,
-    Object::class.java
+    Object::class.java,
+    Int::class.javaPrimitiveType,
+    Int::class.javaPrimitiveType
 )

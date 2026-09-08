@@ -19,12 +19,13 @@ import dev.reformator.stacktracedecoroutinator.intrinsics.LABEL_FIELD_NAME
 import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
 import dev.reformator.stacktracedecoroutinator.intrinsics.assert
 import dev.reformator.stacktracedecoroutinator.provider.BaseContinuationExtractor
-import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpecImpl
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpecMethod
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorTransformed
 import dev.reformator.stacktracedecoroutinator.provider.LazilyCachedContinuation
 import dev.reformator.stacktracedecoroutinator.provider.ManualContinuation
 import dev.reformator.stacktracedecoroutinator.provider.SpecCache
+import dev.reformator.stacktracedecoroutinator.provider.SharedSpec
+import dev.reformator.stacktracedecoroutinator.provider.SharedSpecWithIntIdentity
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessor
 import dev.reformator.stacktracedecoroutinator.provider.internal.binaryName
 import dev.reformator.stacktracedecoroutinator.provider.internal.internalName
@@ -74,41 +75,39 @@ fun transformClassBody(
     var preserveClassLayout = false
     var skipSpecMethods = false
 
+    fun tryApplyChangingClassLayout(action: ClassNode.(apply: Boolean) -> Boolean): Boolean {
+        val appliedIfAllowChangingClassLayout = node.action(mode.allowChangingClassLayout)
+        if (appliedIfAllowChangingClassLayout) {
+            if (mode.allowChangingClassLayout) {
+                doTransformation = true
+            } else {
+                preserveClassLayout = true
+            }
+        }
+        return appliedIfAllowChangingClassLayout
+    }
+
     val metadataAnnotation = node.kotlinMetadataAnnotation ?: return noClassBodyTransformationStatus
     val xi = metadataAnnotation.getField("xi") as Int?
     // 7th bit of 'xi' indicates that the class is a scope of an inline function
     if (xi == null || xi and (1 shl 7) == 0) {
         if (node.name == BASE_CONTINUATION_CLASS_NAME.internalName) {
             node.transformBaseContinuation()
-            if (node.trySetSpecImplAsBaseClass(mode.allowChangingClassLayout)) {
-                if (!mode.allowChangingClassLayout) {
-                    preserveClassLayout = true
-                }
-            }
             doTransformation = true
+            tryApplyChangingClassLayout { trySetSharedSpecWithIntIdentityAsSuperClass(it) }
         } else {
-            if (
-                node.tryAddBaseContinuationExtractor(mode.allowChangingClassLayout) ||
-                node.tryAddManualContinuation(mode.allowChangingClassLayout, lineNumbersBySpecMethodName) ||
-                node.tryAddLazilyCachedContinuation(mode.allowChangingClassLayout)
-            ) {
-                if (mode.allowChangingClassLayout) {
-                    doTransformation = true
-                    node.trySetSpecImplAsBaseClass(true)
-                } else {
-                    preserveClassLayout = true
+            when {
+                tryApplyChangingClassLayout { tryAddBaseContinuationExtractor(it) } -> {
+                    tryApplyChangingClassLayout { trySetSharedSpecAsSuperClass(it) }
                 }
+
+                tryApplyChangingClassLayout { tryAddManualContinuation(it, lineNumbersBySpecMethodName) } -> { }
+
+                tryApplyChangingClassLayout { tryAddLazilyCachedContinuation(it) } -> { }
             }
 
-            if (
-                node.name in specHoldersInternalClassNames &&
-                node.trySetSpecImplAsBaseClass(mode.allowChangingClassLayout)
-            ) {
-                if (mode.allowChangingClassLayout) {
-                    doTransformation = true
-                } else {
-                    preserveClassLayout = true
-                }
+            if (node.name in sharedSpecsInternalClassNames) {
+                tryApplyChangingClassLayout { trySetSharedSpecAsSuperClass(it) }
             }
 
             @Suppress("UNCHECKED_CAST")
@@ -128,26 +127,31 @@ fun transformClassBody(
                 notSuspendFunctionSignatures = notSuspendFunctionSignatures,
                 tailCallCaches = tailCallCaches,
                 allowChangingClassLayout = mode.allowChangingClassLayout
-            )) doTransformation = true
+            )) {
+                doTransformation = true
+            }
         }
     }
+
+    if (lineNumbersBySpecMethodName.isNotEmpty()) {
+        if (mode.allowSpecMethods) {
+            node.generateSpecMethods(lineNumbersBySpecMethodName)
+            doTransformation = true
+        } else {
+            skipSpecMethods = true
+        }
+    }
+
+    if (tailCallCaches.isNotEmpty()) {
+        if (mode.allowChangingClassLayout) {
+            node.saveTailCallCaches(tailCallCaches)
+            doTransformation = true
+        } else {
+            preserveClassLayout = true
+        }
+    }
+
     return if (doTransformation) {
-        if (tailCallCaches.isNotEmpty()) {
-            if (mode.allowChangingClassLayout) {
-                node.saveTailCallCaches(tailCallCaches)
-            } else {
-                preserveClassLayout = true
-            }
-        }
-
-        if (lineNumbersBySpecMethodName.isNotEmpty()) {
-            if (mode.allowSpecMethods) {
-                node.generateSpecMethods(lineNumbersBySpecMethodName)
-            } else {
-                skipSpecMethods = true
-            }
-        }
-
         node.generateTransformAnnotation(
             addFileAndClassName = lineNumbersBySpecMethodName.isNotEmpty() && mode.allowSpecMethods,
             mode = when {
@@ -161,7 +165,9 @@ fun transformClassBody(
             updatedBody = node.classBody,
             needReadProviderModule = true
         )
-    } else noClassBodyTransformationStatus
+    } else {
+        noClassBodyTransformationStatus
+    }
 }
 
 private val manualContinuationsInternalClassNames =
@@ -175,8 +181,9 @@ private val manualContinuationsInternalClassNames =
         "kotlinx.coroutines.flow.internal.FlowCoroutine",
         "kotlinx.coroutines.internal.DispatchedContinuation",
         "kotlin.coroutines.intrinsics.IntrinsicsKt__IntrinsicsJvmKt\$createCoroutineUnintercepted$\$inlined\$createCoroutineFromSuspendFunction\$IntrinsicsKt__IntrinsicsJvmKt$1",
-        "io.ktor.util.pipeline.SuspendFunctionGun\$continuation$1",
-        "kotlinx.coroutines.flow.internal.StackFrameContinuation"
+        "kotlinx.coroutines.flow.internal.StackFrameContinuation",
+
+        "io.ktor.util.pipeline.SuspendFunctionGun\$continuation$1"
     ).map { it.internalName }.toHashSet()
 
 private val lazilyCachedContinuationsInternalClassNames =
@@ -184,8 +191,21 @@ private val lazilyCachedContinuationsInternalClassNames =
         "kotlinx.coroutines.debug.internal.DebugProbesImpl\$CoroutineOwner"
     ).map { it.internalName }.toHashSet()
 
-private val specHoldersInternalClassNames =
+private val sharedSpecsInternalClassNames =
     sequenceOf(
+        "kotlinx.coroutines.internal.ScopeCoroutine",
+        "kotlinx.coroutines.DispatchedCoroutine",
+        "kotlinx.coroutines.flow.internal.SafeCollector",
+        "kotlinx.coroutines.UndispatchedCoroutine",
+        "kotlinx.coroutines.TimeoutCoroutine",
+        "kotlinx.coroutines.SupervisorCoroutine",
+        "kotlinx.coroutines.flow.internal.FlowCoroutine",
+        "kotlinx.coroutines.internal.DispatchedContinuation",
+        "kotlin.coroutines.intrinsics.IntrinsicsKt__IntrinsicsJvmKt\$createCoroutineUnintercepted$\$inlined\$createCoroutineFromSuspendFunction\$IntrinsicsKt__IntrinsicsJvmKt$1",
+        "kotlinx.coroutines.flow.internal.StackFrameContinuation",
+
+        "kotlinx.coroutines.debug.internal.DebugProbesImpl\$CoroutineOwner",
+
         "kotlinx.coroutines.JobSupport"
     ).map { it.internalName }.toHashSet()
 
@@ -535,12 +555,18 @@ private fun ClassNode.tryAddLazilyCachedContinuation(apply: Boolean): Boolean {
 private val ClassNode.isInterface: Boolean
     get() = access and Opcodes.ACC_INTERFACE != 0
 
+private fun ClassNode.trySetSharedSpecWithIntIdentityAsSuperClass(apply: Boolean): Boolean =
+    trySetSuperClass(apply, SharedSpecWithIntIdentity::class.java)
+
+private fun ClassNode.trySetSharedSpecAsSuperClass(apply: Boolean): Boolean =
+    trySetSuperClass(apply, SharedSpec::class.java)
+
 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
-private fun ClassNode.trySetSpecImplAsBaseClass(apply: Boolean): Boolean {
+private fun ClassNode.trySetSuperClass(apply: Boolean, superClass: Class<*>): Boolean {
     if (isInterface) return false
     if (superName != Type.getInternalName(Object::class.java)) return false
     if (!apply) return true
-    superName = Type.getInternalName(DecoroutinatorSpecImpl::class.java)
+    superName = Type.getInternalName(superClass)
     methods.orEmpty().forEach { method ->
         if (method.name == "<init>") {
             val instructions = method.instructions
@@ -552,7 +578,7 @@ private fun ClassNode.trySetSpecImplAsBaseClass(apply: Boolean): Boolean {
                         instruction.name == "<init>" &&
                         instruction.owner == Type.getInternalName(Object::class.java)
                     ) {
-                        instruction.owner = Type.getInternalName(DecoroutinatorSpecImpl::class.java)
+                        instruction.owner = Type.getInternalName(superClass)
                     }
                 }
             }
@@ -806,17 +832,15 @@ private fun ClassNode.tryTransformSuspendMethods(
     notSuspendFunctionSignatures: Collection<JvmMethodSignature>,
     allowChangingClassLayout: Boolean
 ): Boolean {
-    var needTransformation = false
-
     debugMetadataInfo?.let { info ->
         if (info.specClassInternalClassName == name) {
-            needTransformation = true
             lineNumbersBySpecMethodName.computeIfAbsent(info.methodName) {
                 hashSetOf()
             }.addAll(info.lineNumbers)
         }
     }
 
+    var needTransformation = false
     methods.orEmpty().forEach { method ->
         if (tryTransformSuspendMethod(
             clazz = this,
@@ -826,7 +850,9 @@ private fun ClassNode.tryTransformSuspendMethods(
             lineNumbersBySpecMethodName = lineNumbersBySpecMethodName,
             tailCallCaches = tailCallCaches,
             allowChangingClassLayout = allowChangingClassLayout
-        )) needTransformation = true
+        )) {
+            needTransformation = true
+        }
     }
 
     return needTransformation
@@ -881,7 +907,9 @@ private fun tryTransformSuspendMethod(
         val methodType = Type.getMethodType(method.desc)
         if (methodType.returnType != Type.getType(Object::class.java)) return false
         val arguments = methodType.argumentTypes
-        if (arguments.isEmpty() || arguments.last() != Type.getType(continuationDescriptor)) return false
+        if (arguments.isEmpty() || arguments.last() != Type.getType(continuationDescriptor)) {
+            return false
+        }
         (if (method.isStatic) 0 else 1) + arguments.asSequence()
             .take(arguments.size - 1)
             .sumOf { it.size }
@@ -898,18 +926,14 @@ private fun tryTransformSuspendMethod(
                 classBody.use { getClassNode(it, skipCode = true)?.debugMetadataInfo }
             }.toList()
 
-        var result = false
-
         metadataList.asSequence()
             .filter { it.specClassInternalClassName == clazz.name }
             .forEach { metadata ->
-                result = true
-                lineNumbersBySpecMethodName.computeIfAbsent(metadata.methodName) {
-                    hashSetOf()
-                }.addAll(metadata.lineNumbers)
+                lineNumbersBySpecMethodName.computeIfAbsent(metadata.methodName) { hashSetOf() }
+                    .addAll(metadata.lineNumbers)
             }
 
-        if (metadataList.isNotEmpty()) return result
+        if (metadataList.isNotEmpty()) return false
     }
 
     val loadCompletionInstruction = run {

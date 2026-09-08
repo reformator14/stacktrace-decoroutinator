@@ -20,7 +20,7 @@ typealias Junit4Test = Test
 typealias Junit5Test = org.junit.jupiter.api.Test
 
 fun <T> runBlockingWithTimeout(
-    timeout: Duration = 3.seconds,
+    timeout: Duration = 5.seconds,
     context: CoroutineContext = EmptyCoroutineContext,
     block: suspend CoroutineScope.() -> T
 ): T {

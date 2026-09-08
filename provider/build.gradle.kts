@@ -45,7 +45,7 @@ tasks.withType<JavaCompile> {
 kotlin {
     compilerOptions {
         jvmTarget = JvmTarget.JVM_1_8
-        freeCompilerArgs.addAll("-Xjvm-default=all", "-XXLanguage:-EnumEntries")
+        freeCompilerArgs.addAll("-Xjvm-default=all")
     }
 }
 

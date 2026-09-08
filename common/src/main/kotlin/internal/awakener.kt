@@ -5,13 +5,21 @@ package dev.reformator.stacktracedecoroutinator.common.internal
 import dev.reformator.stacktracedecoroutinator.common.intrinsics.FailureResult
 import dev.reformator.stacktracedecoroutinator.common.intrinsics.toResult
 import dev.reformator.stacktracedecoroutinator.intrinsics.BaseContinuation
-import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
 import dev.reformator.stacktracedecoroutinator.intrinsics.assert
+import dev.reformator.stacktracedecoroutinator.provider.ChecksumFailedMarker
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpec
-import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpecImpl
+import dev.reformator.stacktracedecoroutinator.provider.HasIntIdentity
+import dev.reformator.stacktracedecoroutinator.provider.SharedSpec
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessor
+import dev.reformator.stacktracedecoroutinator.provider.internal.CHECKSUM_VALID
+import dev.reformator.stacktracedecoroutinator.provider.internal.DEPTH_VALID
+import dev.reformator.stacktracedecoroutinator.provider.internal.doVerifySharedSpec
+import dev.reformator.stacktracedecoroutinator.provider.internal.intIdentity
 import dev.reformator.stacktracedecoroutinator.provider.internal.methodHandleInvoker
+import dev.reformator.stacktracedecoroutinator.provider.internal.plusKey
+import dev.reformator.stacktracedecoroutinator.provider.internal.specChainBaseContinuationVerificationMode
 import dev.reformator.stacktracedecoroutinator.provider.internal.specMethodsFactory
+import dev.reformator.stacktracedecoroutinator.runtimesettings.SpecChainBaseContinuationVerificationMode
 import java.lang.invoke.MethodHandle
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
@@ -26,17 +34,21 @@ internal fun BaseContinuation.awake(accessor: BaseContinuationAccessor, result: 
     val specMethod: MethodHandle?
     val baseContinuation: BaseContinuation?
     val completion: Continuation<Any?>
+    val resumeChecksum: Int
+    val depthChecksum: Int
     if (recoveryExplicitStacktrace && result.toResult.isFailure) {
         val stackTraceElements = buildList {
             add(getStacktraceElement())
-            buildSpecInfo(
+            buildFirstRoundSpecChain(
                 accessor = accessor,
                 stackTraceElementConsumer = { add(it) },
-                specInfoConsumer = { gotSpec, gotSpecMethod, gotBaseContinuation, gotCompletion ->
+                consumer = { gotSpec, gotSpecMethod, gotBaseContinuation, gotCompletion, gotResumeChecksum, gotDepthChecksum ->
                     spec = gotSpec
                     specMethod = gotSpecMethod
                     baseContinuation = gotBaseContinuation
                     completion = gotCompletion
+                    resumeChecksum = gotResumeChecksum
+                    depthChecksum = gotDepthChecksum
                 }
             )
         }
@@ -45,19 +57,21 @@ internal fun BaseContinuation.awake(accessor: BaseContinuationAccessor, result: 
             elements = stackTraceElements
         )
     } else {
-        buildSpecInfo(
+        buildFirstRoundSpecChain(
             accessor = accessor,
             stackTraceElementConsumer = { },
-            specInfoConsumer = { gotSpec, gotSpecMethod, gotBaseContinuation, gotCompletion ->
+            consumer = { gotSpec, gotSpecMethod, gotBaseContinuation, gotCompletion, gotResumeChecksum, gotDepthChecksum ->
                 spec = gotSpec
                 specMethod = gotSpecMethod
                 baseContinuation = gotBaseContinuation
                 completion = gotCompletion
+                resumeChecksum = gotResumeChecksum
+                depthChecksum = gotDepthChecksum
             }
         )
     }
 
-    if (result === COROUTINE_SUSPENDED) {
+    if (result === COROUTINE_SUSPENDED || result === ChecksumFailedMarker) {
         stdlibAwake(
             accessor = accessor,
             result = result
@@ -65,27 +79,27 @@ internal fun BaseContinuation.awake(accessor: BaseContinuationAccessor, result: 
         return
     }
 
-    val specResult = if (spec != null) {
-        val specResult = methodHandleInvoker.callSpecMethod(
+    val specChainResult = if (spec != null) {
+        val firstRoundSpecChainResult = methodHandleInvoker.callSpecMethod(
             handle = specMethod!!,
             spec = spec,
-            result = result
+            result = result,
+            resumeChecksum = resumeChecksum,
+            depthChecksum = depthChecksum
         )
-        if (specResult === COROUTINE_SUSPENDED) return
-        specResult
+
+        if (firstRoundSpecChainResult === ChecksumFailedMarker) {
+            performSecondRoundSpecChain(accessor, result)
+            return
+        }
+
+        if (firstRoundSpecChainResult === COROUTINE_SUSPENDED) return
+        firstRoundSpecChainResult
     } else {
         result
     }
 
-    val baseContinuationResult = if (baseContinuation != null) {
-        val baseContinuationResult = baseContinuation.callInvokeSuspend(accessor, specResult)
-        if (baseContinuationResult === COROUTINE_SUSPENDED) return
-        baseContinuationResult
-    } else {
-        specResult
-    }
-
-    completion.resumeWith(baseContinuationResult.toResult)
+    performPostSpecChainAwaking(accessor, baseContinuation, completion, specChainResult)
 }
 
 @Suppress("MayBeConstant", "RedundantSuppression")
@@ -133,33 +147,226 @@ private fun BaseContinuation.stdlibAwake(accessor: BaseContinuationAccessor, res
     baseContinuation.completion!!.resumeWith(newResult.toResult)
 }
 
-@OptIn(ExperimentalContracts::class)
-private inline fun BaseContinuation.buildSpecInfo(
+private fun performPostSpecChainAwaking(
     accessor: BaseContinuationAccessor,
-    crossinline stackTraceElementConsumer: (StackTraceElement?) -> Unit,
-    specInfoConsumer: (
+    baseContinuation: BaseContinuation?,
+    completion: Continuation<Any?>,
+    specChainResult: Any?
+) {
+    val baseContinuationResult = if (baseContinuation != null) {
+        val baseContinuationResult = baseContinuation.callInvokeSuspend(accessor, specChainResult)
+        if (baseContinuationResult === COROUTINE_SUSPENDED) return
+        baseContinuationResult
+    } else {
+        specChainResult
+    }
+    completion.resumeWith(baseContinuationResult.toResult)
+}
+
+private fun BaseContinuation.performSecondRoundSpecChain(accessor: BaseContinuationAccessor, result: Any?) {
+    buildExclusiveSpecChain(
+        accessor = accessor,
+        stackTraceElementConsumer = { },
+        consumer = { spec, specMethod, baseContinuation, completion, depthChecksum ->
+            val specChainResult = if (spec != null) {
+                val specChainResult = methodHandleInvoker.callSpecMethod(
+                    handle = specMethod!!,
+                    spec = spec,
+                    result = result,
+                    resumeChecksum = CHECKSUM_VALID,
+                    depthChecksum = depthChecksum
+                )
+                if (specChainResult === COROUTINE_SUSPENDED) return
+                specChainResult
+            } else {
+                result
+            }
+
+            performPostSpecChainAwaking(
+                accessor = accessor,
+                baseContinuation = baseContinuation,
+                completion = completion,
+                specChainResult = specChainResult
+            )
+        }
+    )
+}
+
+@OptIn(ExperimentalContracts::class)
+private inline fun BaseContinuation.buildFirstRoundSpecChain(
+    accessor: BaseContinuationAccessor,
+    stackTraceElementConsumer: (StackTraceElement?) -> Unit,
+    consumer: (
         spec: DecoroutinatorSpec?,
         specMethod: MethodHandle?,
         baseContinuation: BaseContinuation?,
-        completion: Continuation<Any?>
+        completion: Continuation<Any?>,
+        resumeChecksum: Int,
+        depthChecksum: Int
     ) -> Unit
 ) {
-    contract { callsInPlace(specInfoConsumer, InvocationKind.EXACTLY_ONCE) }
+    contract { callsInPlace(consumer, InvocationKind.EXACTLY_ONCE) }
+    when (specChainBaseContinuationVerificationMode) {
+        SpecChainBaseContinuationVerificationMode.SHARED_NO_VERIFY,
+        SpecChainBaseContinuationVerificationMode.SHARED_VERIFY_EXCLUSIVE -> buildSharedSpecChain(
+            accessor = accessor,
+            stackTraceElementConsumer = stackTraceElementConsumer,
+            consumer = consumer
+        )
+
+        SpecChainBaseContinuationVerificationMode.EXCLUSIVE -> buildExclusiveSpecChain(
+            accessor = accessor,
+            stackTraceElementConsumer = stackTraceElementConsumer,
+            consumer = { spec, specMethod, baseContinuation, completion, depthChecksum ->
+                consumer(
+                    spec,
+                    specMethod,
+                    baseContinuation,
+                    completion,
+                    CHECKSUM_VALID,
+                    depthChecksum
+                )
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalContracts::class)
+private inline fun BaseContinuation.buildExclusiveSpecChain(
+    accessor: BaseContinuationAccessor,
+    stackTraceElementConsumer: (StackTraceElement?) -> Unit,
+    consumer: (
+        spec: DecoroutinatorSpec?,
+        specMethod: MethodHandle?,
+        baseContinuation: BaseContinuation?,
+        completion: Continuation<Any?>,
+        depthChecksum: Int
+    ) -> Unit
+) {
+    contract { callsInPlace(consumer, InvocationKind.EXACTLY_ONCE) }
+    buildSpecChain(
+        stackTraceElementConsumer = stackTraceElementConsumer,
+        isSharedSpecAllowed = false,
+        buildSpec = { lineNumber, nextSpec, nextSpecHandle, nextContinuation, _ ->
+            UncheckedExclusiveSpec(
+                accessor = accessor,
+                lineNumber = lineNumber,
+                nextSpec = nextSpec,
+                nextSpecHandle = nextSpecHandle,
+                nextContinuation = nextContinuation,
+            )
+        },
+        consumer = consumer
+    )
+}
+
+@OptIn(ExperimentalContracts::class)
+private inline fun BaseContinuation.buildSharedSpecChain(
+    accessor: BaseContinuationAccessor,
+    stackTraceElementConsumer: (StackTraceElement?) -> Unit,
+    consumer: (
+        spec: DecoroutinatorSpec?,
+        specMethod: MethodHandle?,
+        baseContinuation: BaseContinuation?,
+        completion: Continuation<Any?>,
+        resumeChecksum: Int,
+        depthChecksum: Int
+    ) -> Unit
+) {
+    contract { callsInPlace(consumer, InvocationKind.EXACTLY_ONCE) }
+    var resumeChecksum = CHECKSUM_VALID
+    buildSpecChain(
+        stackTraceElementConsumer = stackTraceElementConsumer,
+        isSharedSpecAllowed = true,
+        buildSpec = buildSpec@{ lineNumber, nextSpec, nextSpecHandle, nextContinuation, sharedSpecToFill ->
+            if (sharedSpecToFill != null) {
+                val reuseSharedSpec = !doVerifySharedSpec || allowIdentityHashCodeAsIntIdentity ||
+                        nextContinuation == null || nextContinuation is HasIntIdentity
+                if (reuseSharedSpec) {
+                    sharedSpecToFill.`$decoroutinator$init`(
+                        accessor = accessor,
+                        lineNumber = lineNumber,
+                        nextSpec = nextSpec,
+                        nextSpecHandle =  nextSpecHandle,
+                        nextContinuation = nextContinuation
+                    )
+                    if (doVerifySharedSpec && nextContinuation != null) {
+                        resumeChecksum = resumeChecksum plusKey nextContinuation.intIdentity
+                    }
+                    return@buildSpec sharedSpecToFill
+                }
+            }
+
+            if (doVerifySharedSpec && nextContinuation != null) {
+                val result = CheckedExclusiveSpec(
+                    accessor = accessor,
+                    lineNumber = lineNumber,
+                    nextSpec = nextSpec,
+                    nextSpecHandle = nextSpecHandle,
+                    nextContinuation = nextContinuation
+                )
+                resumeChecksum = resumeChecksum plusKey result.resumeChecksumKey
+                return@buildSpec result
+            }
+
+            UncheckedExclusiveSpec(
+                accessor = accessor,
+                lineNumber = lineNumber,
+                nextSpec = nextSpec,
+                nextSpecHandle = nextSpecHandle,
+                nextContinuation = nextContinuation
+            )
+        },
+        consumer = { spec, specMethod, specResult, completion, depthChecksum ->
+            consumer(
+                spec,
+                specMethod,
+                specResult,
+                completion,
+                resumeChecksum,
+                depthChecksum
+            )
+        }
+    )
+}
+
+@OptIn(ExperimentalContracts::class)
+private inline fun BaseContinuation.buildSpecChain(
+    stackTraceElementConsumer: (StackTraceElement?) -> Unit,
+    isSharedSpecAllowed: Boolean,
+    buildSpec: (
+        lineNumber: Int,
+        nextSpec: DecoroutinatorSpec?,
+        nextSpecHandle: MethodHandle?,
+        nextContinuation: BaseContinuation?,
+        sharedSpecToFill: SharedSpec?,
+    ) -> DecoroutinatorSpec,
+    consumer: (
+        spec: DecoroutinatorSpec?,
+        specHandle: MethodHandle?,
+        baseContinuation: BaseContinuation?,
+        completion: Continuation<Any?>,
+        depthChecksum: Int
+    ) -> Unit
+) {
+    contract { callsInPlace(consumer, InvocationKind.EXACTLY_ONCE) }
 
     var spec: DecoroutinatorSpec? = null // chain built so far; head = most recently (outermost) built spec
-    var specMethod: MethodHandle? = null // spec method matching `spec`'s element; becomes the next spec's nextSpecHandle
+    var specHandle: MethodHandle? = null // spec method matching `spec`'s element; becomes the next spec's nextSpecHandle
     var baseContinuation: BaseContinuation? = this
     var frame: CoroutineStackFrame? = null
     var completion: Continuation<Any?>? = null // set once, when we leave the BaseContinuation chain; asserted non-null below
-    // suppression is valid because BaseContinuationImpl can be reparented onto DecoroutinatorSpecImpl by class-transformer
-    @Suppress("CAST_NEVER_SUCCEEDS") var specHolder: DecoroutinatorSpecImpl? = this as? DecoroutinatorSpecImpl
+    // suppression is valid because BaseContinuationImpl can be reparented onto SharedSpec by class-transformer
+    @Suppress("CAST_NEVER_SUCCEEDS")
+    var sharedSpec = if (isSharedSpecAllowed) this as? SharedSpec else null
+    var depthChecksum = DEPTH_VALID
 
     while (true) {
         val currentElement: StackTraceElement?
-        val currentSpecMethod: MethodHandle
+        val currentSpecHandle: MethodHandle
         val currentBaseContinuation: BaseContinuation?
         val currentFrame: CoroutineStackFrame?
-        val currentSpecHolder: DecoroutinatorSpecImpl?
+        val currentSharedSpec: SharedSpec?
 
         val baseContinuationCopy = baseContinuation
         if (baseContinuationCopy != null) {
@@ -167,7 +374,7 @@ private inline fun BaseContinuation.buildSpecInfo(
             if (completionCopy is BaseContinuation) {
                 completionCopy.getElementAndSpecMethod { gotElement, gotSpecMethod ->
                     currentElement = gotElement
-                    currentSpecMethod = gotSpecMethod
+                    currentSpecHandle = gotSpecMethod
                 }
                 currentBaseContinuation = completionCopy
                 currentFrame = null
@@ -176,56 +383,72 @@ private inline fun BaseContinuation.buildSpecInfo(
                 if (completionCopy is CoroutineStackFrame) {
                     completionCopy.getElementAndSpecMethod { gotElement, gotSpecMethod ->
                         currentElement = gotElement
-                        currentSpecMethod = gotSpecMethod
+                        currentSpecHandle = gotSpecMethod
                     }
                     currentBaseContinuation = null
                     currentFrame = completionCopy.callerFrame
                 } else break
             }
-            currentSpecHolder = completionCopy as? DecoroutinatorSpecImpl
+            currentSharedSpec = if (isSharedSpecAllowed) completionCopy as? SharedSpec else null
         } else {
             val frameCopy = frame
             if (frameCopy != null) {
                 frameCopy.getElementAndSpecMethod { gotElement, gotSpecMethod ->
                     currentElement = gotElement
-                    currentSpecMethod = gotSpecMethod
+                    currentSpecHandle = gotSpecMethod
                 }
                 currentBaseContinuation = null
                 currentFrame = frameCopy.callerFrame
-                currentSpecHolder = frameCopy as? DecoroutinatorSpecImpl
+                currentSharedSpec = if (isSharedSpecAllowed) frameCopy as? SharedSpec else null
             } else break
         }
 
         stackTraceElementConsumer(currentElement)
 
-        // currentSpecHolder is always the object getElementAndSpecMethod was just called on, above -
-        // a fresh object every iteration, so it backs at most one spec below (immediately if specHolder
+        // currentSharedSpec is always the object getElementAndSpecMethod was just called on, above -
+        // a fresh object every iteration, so it backs at most one spec below (immediately if sharedSpec
         // was null, one iteration later otherwise) and is never double-used. It need NOT equal
-        // currentBaseContinuation/currentFrame (see CLAUDE.md's `buildSpecInfo`'s `specHolder` entry).
-        @Suppress("KotlinConstantConditions")
-        spec = specHolder.let { specHolderCopy ->
-            if (specHolderCopy != null) {
-                specHolder = currentSpecHolder
-                specHolderCopy
-            } else {
-                currentSpecHolder ?: DecoroutinatorSpecImpl()
+        // currentBaseContinuation/currentFrame (see CLAUDE.md's `buildSpecChain`'s `sharedSpec` entry).
+        spec = buildSpec(
+            currentElement.normalizedLineNumber,
+            spec,
+            specHandle,
+            baseContinuation,
+            if (isSharedSpecAllowed) sharedSpec ?: currentSharedSpec else null
+        )
+        // buildSpec (see buildSharedSpecChain) may DECLINE the holder it was offered above - when
+        // resumeChecksum verification wants a real nextContinuation identity but can't get one, it builds
+        // a fresh Checked/UncheckedExclusiveSpec instead and returns that, leaving the offered holder
+        // untouched. So the offered object is only actually "spent" (must not be offered again) when
+        // `spec` IS that object; a decline means whatever was offered is still pristine and should stay
+        // available for future iterations. Three cases:
+        //  - spec === sharedSpec: the carried-over holder was consumed -> advance the carry-over to this
+        //    iteration's own object, which is now the freshest unconsumed candidate.
+        //  - sharedSpec == null && spec !== currentSharedSpec: no carry-over existed, currentSharedSpec was
+        //    offered instead (see the `?:` above) but declined -> it's still fresh, so start carrying it
+        //    forward rather than losing it.
+        //  - anything else (declined while a carry-over still existed, or nothing was offered at all):
+        //    leave `sharedSpec` exactly as it was - it either still holds an unconsumed candidate worth
+        //    re-offering, or there was never one to begin with.
+        if (isSharedSpecAllowed) {
+            if (spec === sharedSpec || (sharedSpec == null && spec !== currentSharedSpec)) {
+                sharedSpec = currentSharedSpec
             }
-        }.apply {
-            @Suppress("IfThenToElvis")
-            `$decoroutinator$init`(
-                accessor = accessor,
-                lineNumber = if (currentElement == null) UNKNOWN_LINE_NUMBER else currentElement.lineNumber,
-                nextSpec = spec,
-                nextSpecHandle = specMethod,
-                nextContinuation = baseContinuation
-            )
         }
-        specMethod = currentSpecMethod
+
+        specHandle = currentSpecHandle
         baseContinuation = currentBaseContinuation
         frame = currentFrame
+        depthChecksum++
     }
 
-    specInfoConsumer(spec, specMethod, baseContinuation, completion!!)
+    consumer(
+        spec,
+        specHandle,
+        baseContinuation,
+        completion!!,
+        depthChecksum
+    )
 }
 
 private fun boundaryStackTraceElement(time: UInt): StackTraceElement =

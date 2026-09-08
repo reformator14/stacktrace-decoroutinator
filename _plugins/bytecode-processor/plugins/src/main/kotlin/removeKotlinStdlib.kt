@@ -25,6 +25,7 @@ import org.objectweb.asm.tree.VarInsnNode
 import java.io.Closeable
 import java.util.Collections
 import java.util.Objects
+import kotlin.enums.EnumEntries
 import kotlin.jvm.internal.Intrinsics
 import kotlin.reflect.KFunction
 
@@ -34,113 +35,175 @@ object RemoveKotlinStdlibProcessor: Processor {
         directory.classes.forEach { clazz ->
             clazz.node.methods?.forEach { method ->
                 method.instructions?.forEach { instruction ->
-                    if (instruction is MethodInsnNode) {
-                        if (
-                            instruction.opcode == Opcodes.INVOKESTATIC
-                            && instruction.owner == Type.getInternalName(Intrinsics::class.java)
-                        ) {
-                            if (
-                                instruction.name in intrinsicCheckNotNullWithMessageMethodNames
-                                && instruction.desc == "(${Type.getDescriptor(Object::class.java)}${Type.getDescriptor(String::class.java)})V"
-                            ) {
-                                val prev = instruction.previous
-                                val prevPrev = prev?.previous
-                                if (prev.isPush1VarPureInstruction && prevPrev.isPush1VarPureInstruction) {
-                                    method.instructions.remove(prev)
-                                    method.instructions.remove(prevPrev)
-                                } else {
-                                    method.instructions.insert(instruction, InsnNode(Opcodes.POP2))
+                    when (instruction) {
+                        is MethodInsnNode -> {
+                            when {
+                                instruction.opcode == Opcodes.INVOKESTATIC
+                                && instruction.owner == Type.getInternalName(Intrinsics::class.java) -> {
+                                    when {
+                                        instruction.name in intrinsicCheckNotNullWithMessageMethodNames
+                                        && instruction.desc == "(${Type.getDescriptor(Object::class.java)}${Type.getDescriptor(String::class.java)})V" -> {
+                                            val prev = instruction.previous
+                                            val prevPrev = prev?.previous
+                                            if (prev.isPush1VarPureInstruction && prevPrev.isPush1VarPureInstruction) {
+                                                method.instructions.remove(prev)
+                                                method.instructions.remove(prevPrev)
+                                            } else {
+                                                method.instructions.insert(instruction, InsnNode(Opcodes.POP2))
+                                            }
+                                            method.instructions.remove(instruction)
+                                            clazz.markModified()
+                                        }
+
+                                        instruction.name in intrinsicThrowWithMessageMethodNames
+                                        && instruction.desc == "(${Type.getDescriptor(String::class.java)})${Type.VOID_TYPE.descriptor}" -> {
+                                            val prev = instruction.previous
+                                            if (prev.isPush1VarPureInstruction) {
+                                                method.instructions.remove(prev)
+                                            } else {
+                                                method.instructions.insert(instruction, InsnNode(Opcodes.POP))
+                                            }
+                                            method.instructions.remove(instruction)
+                                            clazz.markModified()
+                                        }
+
+                                        instruction.name in intrinsicCheckNotNullMethodNames
+                                        && instruction.desc == "(${Type.getDescriptor(Object::class.java)})${Type.VOID_TYPE.descriptor}" -> {
+                                            val prev = instruction.previous
+                                            if (prev.isPush1VarPureInstruction) {
+                                                method.instructions.remove(prev)
+                                            } else {
+                                                method.instructions.insert(instruction, InsnNode(Opcodes.POP))
+                                            }
+                                            method.instructions.remove(instruction)
+                                            clazz.markModified()
+                                        }
+
+                                        instruction.name in intrinsicAreEqualObjectsMethodNames
+                                        && instruction.desc == "(${Type.getDescriptor(Object::class.java)}${Type.getDescriptor(Object::class.java)})${Type.BOOLEAN_TYPE.descriptor}" -> {
+                                            instruction.owner = Type.getInternalName(Objects::class.java)
+                                            instruction.name = Objects::equals.name
+                                        }
+                                    }
                                 }
-                                method.instructions.remove(instruction)
-                                clazz.markModified()
-                            } else if (
-                                instruction.name in intrinsicThrowWithMessageMethodNames
-                                && instruction.desc == "(${Type.getDescriptor(String::class.java)})${Type.VOID_TYPE.descriptor}"
-                            ) {
-                                val prev = instruction.previous
-                                if (prev.isPush1VarPureInstruction) {
-                                    method.instructions.remove(prev)
-                                } else {
-                                    method.instructions.insert(instruction, InsnNode(Opcodes.POP))
+
+                                instruction.opcode == Opcodes.INVOKESTATIC
+                                && instruction.owner == "kotlin/io/CloseableKt"
+                                && instruction.name == "closeFinally"
+                                && instruction.desc == "(${Type.getDescriptor(Closeable::class.java)}${Type.getDescriptor(Throwable::class.java)})${Type.VOID_TYPE.descriptor}" -> {
+                                    val newMethod = clazz.node.getOrCreateCloseFinallyMethod()
+                                    instruction.owner = clazz.node.name
+                                    instruction.name = newMethod.name
+                                    clazz.markModified()
                                 }
-                                method.instructions.remove(instruction)
-                                clazz.markModified()
-                            } else if (
-                                instruction.name in intrinsicCheckNotNullMethodNames
-                                && instruction.desc == "(${Type.getDescriptor(Object::class.java)})${Type.VOID_TYPE.descriptor}"
-                            ) {
-                                val prev = instruction.previous
-                                if (prev.isPush1VarPureInstruction) {
-                                    method.instructions.remove(prev)
-                                } else {
-                                    method.instructions.insert(instruction, InsnNode(Opcodes.POP))
+
+                                instruction.opcode == Opcodes.INVOKESTATIC
+                                && emptyCollectionFactoryDescs[instruction.owner to instruction.name] == instruction.desc -> {
+                                    // kotlin.collections.{emptyMap,emptyList,emptySet} are real (non-inline) calls
+                                    // returning the same JDK collection types Collections.emptyXxx() does, under the
+                                    // exact same method name -> only the owner needs to change.
+                                    instruction.owner = Type.getInternalName(Collections::class.java)
+                                    clazz.markModified()
                                 }
-                                method.instructions.remove(instruction)
-                                clazz.markModified()
-                            } else if (
-                                instruction.name in intrinsicAreEqualObjectsMethodNames
-                                && instruction.desc == "(${Type.getDescriptor(Object::class.java)}${Type.getDescriptor(Object::class.java)})${Type.BOOLEAN_TYPE.descriptor}"
-                            ) {
-                                instruction.owner = Type.getInternalName(Objects::class.java)
-                                instruction.name = Objects::equals.name
+
+                                instruction.opcode == Opcodes.INVOKESTATIC
+                                && instruction.owner == "kotlin/collections/CollectionsKt"
+                                && instruction.name == "collectionSizeOrDefault"
+                                && instruction.desc == "(${Type.getDescriptor(Iterable::class.java)}I)I" -> {
+                                    // the non-inline helper underneath map/mapIndexed/associate*/toHashSet/etc:
+                                    // internal fun <T> Iterable<T>.collectionSizeOrDefault(default: Int): Int =
+                                    //     if (this is Collection<*>) this.size else default
+                                    val newMethod = clazz.node.getOrCreateCollectionSizeOrDefaultMethod()
+                                    instruction.owner = clazz.node.name
+                                    instruction.name = newMethod.name
+                                    clazz.markModified()
+                                }
+
+                                instruction.opcode == Opcodes.INVOKESTATIC
+                                && instruction.owner == "kotlin/enums/EnumEntriesKt"
+                                && instruction.name == "enumEntries"
+                                && instruction.desc == "([${Type.getDescriptor(java.lang.Enum::class.java)})${Type.getDescriptor(EnumEntries::class.java)}" -> {
+                                    method.instructions.remove(instruction)
+                                    clazz.markModified()
+                                }
                             }
-                        } else if (
-                            instruction.opcode == Opcodes.INVOKESTATIC
-                            && instruction.owner == "kotlin/io/CloseableKt"
-                            && instruction.name == "closeFinally"
-                            && instruction.desc == "(${Type.getDescriptor(Closeable::class.java)}${Type.getDescriptor(Throwable::class.java)})${Type.VOID_TYPE.descriptor}"
-                        ) {
-                            val newMethod = clazz.node.getOrCreateCloseFinallyMethod()
-                            instruction.owner = clazz.node.name
-                            instruction.name = newMethod.name
-                            clazz.markModified()
-                        } else if (
-                            instruction.opcode == Opcodes.INVOKESTATIC
-                            && emptyCollectionFactoryDescs[instruction.owner to instruction.name] == instruction.desc
-                        ) {
-                            // kotlin.collections.{emptyMap,emptyList,emptySet} are real (non-inline) calls
-                            // returning the same JDK collection types Collections.emptyXxx() does, under the
-                            // exact same method name -> only the owner needs to change.
-                            instruction.owner = Type.getInternalName(Collections::class.java)
-                            clazz.markModified()
-                        } else if (
-                            instruction.opcode == Opcodes.INVOKESTATIC
-                            && instruction.owner == "kotlin/collections/CollectionsKt"
-                            && instruction.name == "collectionSizeOrDefault"
-                            && instruction.desc == "(${Type.getDescriptor(Iterable::class.java)}I)I"
-                        ) {
-                            // the non-inline helper underneath map/mapIndexed/associate*/toHashSet/etc:
-                            // internal fun <T> Iterable<T>.collectionSizeOrDefault(default: Int): Int =
-                            //     if (this is Collection<*>) this.size else default
-                            val newMethod = clazz.node.getOrCreateCollectionSizeOrDefaultMethod()
-                            instruction.owner = clazz.node.name
-                            instruction.name = newMethod.name
-                            clazz.markModified()
                         }
-                    } else if (instruction is FieldInsnNode) {
-                        if (
-                            instruction.opcode == Opcodes.GETSTATIC
-                            && instruction.owner == "kotlin/_Assertions"
-                            && instruction.name == "ENABLED"
-                            && instruction.desc == Type.BOOLEAN_TYPE.descriptor
-                        ) {
-                            method.instructions.insert(instruction, InsnNode(Opcodes.ICONST_0))
-                            method.instructions.remove(instruction)
-                            clazz.markModified()
-                        } else if (
-                            instruction.opcode == Opcodes.GETSTATIC
-                            && instruction.owner == Type.getInternalName(Unit::class.java)
-                            && instruction.name == "INSTANCE"
-                            && instruction.desc == Type.getDescriptor(Unit::class.java)
-                        ) {
-                            method.instructions.insert(instruction, InsnNode(Opcodes.ACONST_NULL))
-                            method.instructions.remove(instruction)
-                            clazz.markModified()
+
+                        is FieldInsnNode -> {
+                            when {
+                                instruction.opcode == Opcodes.GETSTATIC
+                                && instruction.owner == "kotlin/_Assertions"
+                                && instruction.name == "ENABLED"
+                                && instruction.desc == Type.BOOLEAN_TYPE.descriptor -> {
+                                    method.instructions.insert(instruction, InsnNode(Opcodes.ICONST_0))
+                                    method.instructions.remove(instruction)
+                                    clazz.markModified()
+                                }
+
+                                instruction.opcode == Opcodes.GETSTATIC
+                                && instruction.owner == Type.getInternalName(Unit::class.java)
+                                && instruction.name == "INSTANCE"
+                                && instruction.desc == Type.getDescriptor(Unit::class.java) -> {
+                                    method.instructions.insert(instruction, InsnNode(Opcodes.ACONST_NULL))
+                                    method.instructions.remove(instruction)
+                                    clazz.markModified()
+                                }
+
+                                instruction.opcode == Opcodes.PUTSTATIC
+                                && instruction.owner == clazz.node.name
+                                && instruction.desc == Type.getDescriptor(EnumEntries::class.java)
+                                && method.name == "<clinit>" -> {
+                                    method.instructions.insert(instruction, InsnNode(Opcodes.POP))
+                                    method.instructions.remove(instruction)
+                                    clazz.markModified()
+                                }
+                            }
+                        }
+
+                        is InsnNode -> {
+                            when(instruction.opcode) {
+                                Opcodes.POP -> {
+                                    val prev1 = instruction.previous
+                                    val prev2 = prev1?.previous
+
+                                    when {
+                                        prev1.isPush1VarPureInstruction -> {
+                                            method.instructions.remove(instruction)
+                                            method.instructions.remove(prev1)
+                                            clazz.markModified()
+                                        }
+
+                                        prev1.isNoopPureInstruction && prev2.isPush1VarPureInstruction -> {
+                                            method.instructions.remove(instruction)
+                                            method.instructions.remove(prev1)
+                                            method.instructions.remove(prev2)
+                                            clazz.markModified()
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
+
+            val updatedFields = clazz.node.fields?.filter { field ->
+                field.desc != Type.getDescriptor(EnumEntries::class.java)
+            }
+            if (updatedFields != null && updatedFields.size != clazz.node.fields.size) {
+                clazz.node.fields = updatedFields
+                clazz.markModified()
+            }
+
+            val updatedMethods = clazz.node.methods?.filter { method ->
+                !method.desc.endsWith(")${Type.getDescriptor(EnumEntries::class.java)}")
+            }
+            if (updatedMethods != null && updatedMethods.size != clazz.node.methods.size) {
+                clazz.node.methods = updatedMethods
+                clazz.markModified()
+            }
         }
+
         directory.module?.let { module ->
             if (module.node.requires?.removeIf { it.module == KOTLIN_STDLIB_MODULE } == true) {
                 module.markModified()
@@ -193,6 +256,11 @@ private val AbstractInsnNode?.isPush1VarPureInstruction: Boolean
     get() = (this is InsnNode && opcode == Opcodes.DUP)
         || (this is VarInsnNode && opcode == Opcodes.ALOAD)
         || (this is LdcInsnNode && opcode == Opcodes.LDC && cst is String)
+        || (this is FieldInsnNode && opcode == Opcodes.GETSTATIC && Type.getType(desc).size == 1)
+
+private val AbstractInsnNode?.isNoopPureInstruction: Boolean
+    get() = (this is InsnNode && opcode == Opcodes.NOP)
+        || (this is TypeInsnNode && opcode == Opcodes.CHECKCAST)
 
 private fun ClassNode.getOrCreateCloseFinallyMethod(): MethodNode {
     val name = "\$kotlin-stdlib\$closeFinally"
