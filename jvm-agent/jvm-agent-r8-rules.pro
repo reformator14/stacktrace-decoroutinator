@@ -3,7 +3,7 @@
 # against a codebase this reflection/MethodHandle/bytecode-generation-heavy.
 -dontobfuscate
 -dontoptimize
--keepattributes *Annotation*,InnerClasses,EnclosingMethod,Signature,SourceFile,LineNumberTable
+-keepattributes *Annotation*,InnerClasses,EnclosingMethod,Signature,SourceFile,LineNumberTable,LocalVariable*
 
 # Everything this project owns, kept whole - it's a small fraction of the jar's total size, and
 # nothing in it should be touched (name-sensitive: @MethodNameConstant-baked strings,
