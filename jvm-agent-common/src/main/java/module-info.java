@@ -1,4 +1,5 @@
 import dev.reformator.stacktracedecoroutinator.jvmagentcommon.internal.AgentBaseContinuationAccessorProvider;
+import dev.reformator.stacktracedecoroutinator.jvmagentcommon.internal.AgentBaseContinuationAccessorProviderRegularAccessorJarHolder;
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessorProvider;
 
 module dev.reformator.stacktracedecoroutinator.jvmagentcommon {
@@ -13,6 +14,8 @@ module dev.reformator.stacktracedecoroutinator.jvmagentcommon {
 
     exports dev.reformator.stacktracedecoroutinator.jvmagentcommon.internal to
             dev.reformator.stacktracedecoroutinator.jvm;
+
+    uses AgentBaseContinuationAccessorProviderRegularAccessorJarHolder;
 
     provides BaseContinuationAccessorProvider with AgentBaseContinuationAccessorProvider;
 }

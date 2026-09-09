@@ -2,9 +2,8 @@
 
 package dev.reformator.stacktracedecoroutinator.jvmagentcommon.internal
 
-import dev.reformator.bytecodeprocessor.intrinsics.LoadConstant
-import dev.reformator.bytecodeprocessor.intrinsics.fail
 import dev.reformator.stacktracedecoroutinator.intrinsics.BaseContinuation
+import dev.reformator.stacktracedecoroutinator.intrinsics.loadService
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessor
 import dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessorProvider
 import java.lang.invoke.MethodHandles
@@ -12,12 +11,21 @@ import java.lang.invoke.MethodType
 import java.util.Base64
 import java.util.zip.ZipInputStream
 
+interface AgentBaseContinuationAccessorProviderRegularAccessorJarHolder {
+    val regularAccessorJarBase64: String
+    val regularAccessorClassName: String
+}
+
+private val regularJarHolder = loadService<AgentBaseContinuationAccessorProviderRegularAccessorJarHolder>()
+
 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
 internal class AgentBaseContinuationAccessorProvider: BaseContinuationAccessorProvider {
     override fun createAccessor(lookup: MethodHandles.Lookup): BaseContinuationAccessor {
-        try {
-            return loadRegularAccessor(lookup)
-        } catch (_: Throwable) { }
+        if (regularJarHolder != null) {
+            try {
+                return regularJarHolder.loadRegularAccessor(lookup)
+            } catch (_: Throwable) { }
+        }
 
         // No compile-time reference to the real kotlin.coroutines.jvm.internal.BaseContinuationImpl
         // type here (deliberately, so this stays correct even if this module's own kotlin.* usage
@@ -52,15 +60,17 @@ internal class AgentBaseContinuationAccessorProvider: BaseContinuationAccessorPr
     }
 }
 
-private fun loadRegularAccessor(lookup: MethodHandles.Lookup): BaseContinuationAccessor {
+private fun AgentBaseContinuationAccessorProviderRegularAccessorJarHolder.loadRegularAccessor(
+    lookup: MethodHandles.Lookup
+): BaseContinuationAccessor {
     var baseContinuationAccessorClass: Class<*>? = null
-    ZipInputStream(Base64.getDecoder().decode(baseContinuationAccessorJarBase64).inputStream()).use { input ->
+    ZipInputStream(Base64.getDecoder().decode(regularAccessorJarBase64).inputStream()).use { input ->
         while (true) {
             val entry = input.nextEntry ?: break
             if (entry.name.endsWith(".class")) {
                 val body = input.readBytes()
                 lookup.defineClass(body).let { definedClass ->
-                    if (definedClass.name == baseContinuationAccessorImplClassName) {
+                    if (definedClass.name == regularAccessorClassName) {
                         baseContinuationAccessorClass = definedClass
                     }
                 }
@@ -69,9 +79,3 @@ private fun loadRegularAccessor(lookup: MethodHandles.Lookup): BaseContinuationA
     }
     return baseContinuationAccessorClass!!.getDeclaredConstructor().newInstance() as BaseContinuationAccessor
 }
-
-private val baseContinuationAccessorJarBase64: String
-    @LoadConstant("baseContinuationAccessorJarBase64") get() { fail() }
-
-private val baseContinuationAccessorImplClassName: String
-    @LoadConstant("baseContinuationAccessorImplClassName") get() { fail() }

@@ -41,7 +41,6 @@ dependencies {
 bytecodeProcessor {
     dependentProjects = listOf(
         project(":stacktrace-decoroutinator-provider"),
-        project(":gradle-plugin:base-continuation-accessor"),
         project(":jvm-agent-common:suspend-class-stub")
     )
     processors = listOf(
@@ -52,13 +51,10 @@ bytecodeProcessor {
 }
 
 val fillConstantProcessorTask = tasks.register("fillConstantProcessor") {
-    val baseContinuationAccessorJarTask =
-        project(":gradle-plugin:base-continuation-accessor").tasks.named<Jar>("jar")
     val suspendClassStubCompileTask =
         project(":jvm-agent-common:suspend-class-stub").tasks.named<KotlinJvmCompile>("compileKotlin")
-    dependsOn(baseContinuationAccessorJarTask, suspendClassStubCompileTask)
+    dependsOn(suspendClassStubCompileTask)
     doLast {
-        val baseContinuationAccessorJarBody = baseContinuationAccessorJarTask.get().archiveFile.get().asFile.readBytes()
         bytecodeProcessor {
             initContext {
                 val base64Encoder = Base64.getEncoder()
@@ -73,8 +69,6 @@ val fillConstantProcessorTask = tasks.register("fillConstantProcessor") {
                     dir.file("${classNameComponents.last()}.class").asFile.readBytes()
                 }
                 LoadConstantProcessor.addValues(this, mapOf(
-                    "baseContinuationAccessorJarBase64"
-                            to base64Encoder.encodeToString(baseContinuationAccessorJarBody),
                     "jvmAgentCommonSuspendClassBodyBase64"
                             to base64Encoder.encodeToString(jvmAgentCommonSuspendClassBody)
                 ))

@@ -1,4 +1,7 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import dev.reformator.bytecodeprocessor.api.BytecodeProcessorContextImpl
+import dev.reformator.bytecodeprocessor.api.applyBytecodeProcessors
+import dev.reformator.bytecodeprocessor.plugins.ChangeClassNameProcessor
 import dev.reformator.bytecodeprocessor.plugins.GetOwnerClassProcessor
 import dev.reformator.bytecodeprocessor.plugins.LoadConstantProcessor
 import dev.reformator.bytecodeprocessor.plugins.MakeStaticProcessor
@@ -6,7 +9,11 @@ import org.gradle.kotlin.dsl.named
 import org.jetbrains.dokka.gradle.AbstractDokkaTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.io.ByteArrayOutputStream
 import java.util.Base64
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 
 plugins {
     kotlin("jvm")
@@ -35,10 +42,12 @@ dependencies {
 }
 
 bytecodeProcessor {
+    dependentProjects = listOf(project(":gradle-plugin:base-continuation-accessor"))
     processors = listOf(
         LoadConstantProcessor,
         MakeStaticProcessor,
-        GetOwnerClassProcessor
+        GetOwnerClassProcessor,
+        ChangeClassNameProcessor
     )
 }
 
@@ -62,7 +71,9 @@ val buildRenamedCommonJar = tasks.register<ShadowJar>("buildRenamedCommonJar") {
 }
 
 val fillConstantProcessorTask = tasks.register("fillConstantProcessor") {
-    dependsOn(buildRenamedCommonJar)
+    val baseContinuationAccessorJarTask =
+        project(":gradle-plugin:base-continuation-accessor").tasks.named<Jar>("jar")
+    dependsOn(buildRenamedCommonJar, baseContinuationAccessorJarTask)
     doLast {
         val base64 = Base64.getEncoder().encodeToString(buildRenamedCommonJar.get().archiveFile.get().asFile.readBytes())
         val chunks = base64.chunked(commonResidualJarBase64ChunkSize)
@@ -71,12 +82,57 @@ val fillConstantProcessorTask = tasks.register("fillConstantProcessor") {
                 "$commonResidualJarBase64ChunkSize chars, but only $commonResidualJarBase64ChunkCount chunk " +
                 "constants are declared in dispatching-provider.kt - add more."
         }
+        // The "regular" base-continuation-accessor class is compiled by the wholly separate
+        // gradle-plugin:base-continuation-accessor module, whose jar predates shadowJar's own
+        // relocate("dev.reformator.stacktracedecoroutinator", ...) below - it still references
+        // provider's *unrelocated* BaseContinuationAccessor/BaseContinuationAccessorProvider
+        // interface names, which no longer exist under those names once this jar is shaded. Extract
+        // it, rewrite just those two references onto this jar's own jvmagentjar namespace via
+        // ChangeClassNameProcessor (the same processor Shadow's relocate would have applied if this
+        // class were compiled as part of this module instead of embedded as a base64 blob), and
+        // re-zip before encoding - the class's own name (kotlin.coroutines.jvm.internal.*) is left
+        // untouched, matching regularAccessorClassName/loadRegularAccessor's exact-name lookup.
+        val baseContinuationAccessorExtractedDir =
+            layout.buildDirectory.dir("baseContinuationAccessorRenamed").get().asFile
+        baseContinuationAccessorExtractedDir.deleteRecursively()
+        baseContinuationAccessorExtractedDir.mkdirs()
+        ZipInputStream(baseContinuationAccessorJarTask.get().archiveFile.get().asFile.inputStream()).use { zipIn ->
+            while (true) {
+                val entry = zipIn.nextEntry ?: break
+                if (!entry.isDirectory) {
+                    val outFile = baseContinuationAccessorExtractedDir.resolve(entry.name)
+                    outFile.parentFile.mkdirs()
+                    outFile.outputStream().use { zipIn.copyTo(it) }
+                }
+            }
+        }
+        val renameContext = BytecodeProcessorContextImpl()
+        ChangeClassNameProcessor.add(renameContext, mapOf(
+            "dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessor" to
+                    "dev.reformator.stacktracedecoroutinator.jvmagentjar.provider.internal.BaseContinuationAccessor",
+            "dev.reformator.stacktracedecoroutinator.provider.internal.BaseContinuationAccessorProvider" to
+                    "dev.reformator.stacktracedecoroutinator.jvmagentjar.provider.internal.BaseContinuationAccessorProvider"
+        ))
+        baseContinuationAccessorExtractedDir.applyBytecodeProcessors(listOf(ChangeClassNameProcessor), renameContext)
+        val baseContinuationAccessorJarBody = ByteArrayOutputStream().also { byteStream ->
+            ZipOutputStream(byteStream).use { zipOut ->
+                baseContinuationAccessorExtractedDir.walkTopDown().filter { it.isFile }.forEach { file ->
+                    zipOut.putNextEntry(ZipEntry(file.relativeTo(baseContinuationAccessorExtractedDir).invariantSeparatorsPath))
+                    file.inputStream().use { it.copyTo(zipOut) }
+                    zipOut.closeEntry()
+                }
+            }
+        }.toByteArray()
         bytecodeProcessor {
             initContext {
                 LoadConstantProcessor.addValues(this, buildMap {
                     repeat(commonResidualJarBase64ChunkCount) { index ->
                         put("commonResidualJarBase64Chunk$index", chunks.getOrElse(index) { "" })
                     }
+                    put(
+                        "baseContinuationAccessorJarBase64",
+                        Base64.getEncoder().encodeToString(baseContinuationAccessorJarBody)
+                    )
                 })
             }
         }
