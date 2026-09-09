@@ -18,16 +18,43 @@ import java.util.ServiceLoader
 inline fun <reified T: Any> loadServices(action: (T) -> Unit) {
     val type = T::class.java
     val seenClasses = java.util.HashSet<Class<*>>()
-    processServiceIterator(ServiceLoader.load(type).iterator(), seenClasses, action)
-    processServiceIterator(ServiceLoader.load(type, type.classLoader).iterator(), seenClasses, action)
+    processServiceIterator(
+        iterProducer = { ServiceLoader.load(type).iterator() },
+        seenClasses = seenClasses,
+        action = action
+    )
+    processServiceIterator(
+        iterProducer = { ServiceLoader.load(type, T::class.java.classLoader).iterator() },
+        seenClasses = seenClasses,
+        action = action
+    )
 }
 
 @PublishedApi
 internal inline fun <T: Any> processServiceIterator(
-    iter: Iterator<T>,
+    iterProducer: () -> Iterator<T>,
     seenClasses: MutableSet<Class<*>>,
     action: (T) -> Unit
 ) {
+    // iterProducer is a lambda, not an already-evaluated Iterator<T>, specifically so the
+    // ServiceLoader.load(...).iterator() call itself happens *inside* this try - on the JVM that
+    // call is a guaranteed no-throw lazy constructor (all real work is deferred to hasNext()/next(),
+    // already guarded below), but Android's core-library-desugared ServiceLoader backport
+    // (desugar_jdk_libs, needed below the API level where the two-arg load(Class, ClassLoader)
+    // overload is natively available) has a real bug: it can throw ServiceConfigurationError,
+    // wrapping a NoSuchMethodError on ClassLoader.getClassLoadingLock, synchronously from
+    // .iterator() itself. Since this whole function is inlined into some file's top-level `val`
+    // initializer (e.g. provider's _baseContinuationAccessorProvider), an uncaught throw here blows
+    // up that file's <clinit> - and once a class fails to initialize, the JVM permanently marks it
+    // unusable, so every other class that references it afterward also fails with
+    // NoClassDefFoundError, not just this one lookup. Confirmed by temporarily removing this guard
+    // and running the Android connectedAndroidTest suite: a single ServiceConfigurationError here
+    // cascaded into ~30 unrelated test failures.
+    val iter = try {
+        iterProducer()
+    } catch (_: Throwable) {
+        return
+    }
     while (true) {
         try {
             if (!iter.hasNext()) {
