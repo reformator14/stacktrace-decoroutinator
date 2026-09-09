@@ -128,6 +128,9 @@ internal val Project.libsKtorIoJvm: Dependencies
     get() = libs.reflectGet("ktor").reflectGet("io")
         .reflectGet("jvm").toDependencies
 
+internal val Project.libsKtorUtils: Dependencies
+    get() = libs.reflectGet("ktor").reflectGet("utils").toDependencies
+
 internal val Project.libsByteBuddyAgent: Dependencies
     get() = libs.reflectGet("byte").reflectGet("buddy")
         .reflectGet("agent").toDependencies

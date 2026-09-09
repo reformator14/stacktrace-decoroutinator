@@ -128,12 +128,13 @@ val String.binaryName: String
 inline fun resume(
     result: Any?,
     resumeChecksum: Int,
-    depthChecksum: Int,
     resumeCookie: Any?,
     callInvokeSuspendIfResultIsNotCoroutineSuspended: (baseContinuation: Any, result: Any?) -> Any?
 ): Any? =
     when {
-        result === ChecksumFailedMarker || resumeChecksum != CHECKSUM_VALID || depthChecksum != DEPTH_VALID -> {
+        // don't check depth checksum, because the contract of BaseContinuationImpl#resumeWith is still executed, even if
+        // depth checksum is invalid. Depth checksum is needed to handle cycles.
+        result === ChecksumFailedMarker || resumeChecksum != CHECKSUM_VALID -> {
             ChecksumFailedMarker
         }
         resumeCookie != null -> {

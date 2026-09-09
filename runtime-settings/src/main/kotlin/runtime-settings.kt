@@ -7,7 +7,7 @@ import dev.reformator.stacktracedecoroutinator.runtimesettings.internal.defaultV
 enum class SpecChainBaseContinuationVerificationMode {
     EXCLUSIVE,
     SHARED_NO_VERIFY,
-    SHARED_VERIFY_EXCLUSIVE
+    SHARED_VERIFY
 }
 
 interface DecoroutinatorRuntimeSettingsProvider {

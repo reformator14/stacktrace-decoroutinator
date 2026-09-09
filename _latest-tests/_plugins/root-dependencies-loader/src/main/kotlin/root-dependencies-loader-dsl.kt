@@ -21,6 +21,7 @@ import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloade
 import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloader.libsKotlinGradlePluginApi
 import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloader.libsKotlinLoggingJvm
 import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloader.libsKtorIoJvm
+import dev.reformator.stacktracedecoroutinator.latesttests.rootdependenciesloader.libsKtorUtils
 import org.gradle.api.Project
 import org.gradle.api.artifacts.dsl.DependencyHandler
 
@@ -70,6 +71,7 @@ val Project.bytecodeProcessorGradlePlugin: DependenciesConfiguration
 val Project.decoroutinatorProvider: DependenciesConfiguration
     get() = buildDependenciesConfiguration {
         addApi(getRootDependenciesBuildLibsClassesJar("provider"))
+        addRuntime(decoroutinatorRuntimeSettings)
     }
 
 val Project.decoroutinatorRuntimeSettings: DependenciesConfiguration
@@ -103,6 +105,7 @@ val Project.decoroutinatorTests: DependenciesConfiguration
                 "module" to "kotlinx-coroutines-jdk8"
             ))
         })
+        addRuntime(libsKtorUtils)
         addRuntime(decoroutinatorTestsDuplicateEntityJar)
     }
 
@@ -128,7 +131,7 @@ val Project.decoroutinatorClassTransformer: DependenciesConfiguration
         addApi(getRootDependenciesBuildLibsClassesJar("class-transformer"))
         addRuntime(libsAsmUtils)
         addRuntime(libsKotlinMetadataJvm)
-        addRuntime(decoroutinatorProvider)
+        addApi(decoroutinatorProvider)
         addRuntime(decoroutinatorSpecMethodBuilder)
     }
 

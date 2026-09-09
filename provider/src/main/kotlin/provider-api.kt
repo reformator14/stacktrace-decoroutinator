@@ -102,7 +102,7 @@ open class SharedSpec: DecoroutinatorSpec {
         depthChecksum: Int,
         resumeCookie: Any?
     ): Any? =
-        resume(result, resumeChecksum, depthChecksum, resumeCookie) { baseContinuation, resultCopy ->
+        resume(result, resumeChecksum, resumeCookie) { baseContinuation, resultCopy ->
             provider.callInvokeSuspendIfResultIsNotCoroutineSuspended(
                 baseContinuation = baseContinuation,
                 accessor = `$decoroutinator$accessor`!!,

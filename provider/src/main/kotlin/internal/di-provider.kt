@@ -130,7 +130,7 @@ private fun loadSpecChainBaseContinuationVerificationMode(): Any =
     getRuntimeSettingsValue({ it.specChainBaseContinuationVerificationMode }) {
         SpecChainBaseContinuationVerificationMode.valueOf(System.getProperty(
             "dev.reformator.stacktracedecoroutinator.specChainBaseContinuationVerificationMode",
-            SpecChainBaseContinuationVerificationMode.SHARED_VERIFY_EXCLUSIVE.name
+            SpecChainBaseContinuationVerificationMode.SHARED_VERIFY.name
         ))
     }
 
@@ -139,7 +139,7 @@ val specChainBaseContinuationVerificationMode: SpecChainBaseContinuationVerifica
 
 val doVerifySharedSpec =
     enabled
-    && specChainBaseContinuationVerificationMode == SpecChainBaseContinuationVerificationMode.SHARED_VERIFY_EXCLUSIVE
+    && specChainBaseContinuationVerificationMode == SpecChainBaseContinuationVerificationMode.SHARED_VERIFY
 
 private fun supportsMethodHandle(): Boolean {
     return try {

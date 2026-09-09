@@ -24,7 +24,29 @@ repositories {
 dependencies {
     compileOnly(bytecodeProcessorIntrinsics)
 
+    // Root's own tests/build.gradle.kts only needs common at compile time (compileOnly), so
+    // decoroutinatorTests correctly doesn't carry it - but unlike root, this module is also the
+    // sole thing standing between common's real classes and android/gradle-plugin-tests' androidTest
+    // runtime classpath: that module disables every automatic dependency-injection path the
+    // stacktraceDecoroutinator Gradle plugin offers (addJvmRuntimeDependency/addAndroidRuntimeDependency
+    // = false, all three *DependencyConfigurations.include = emptySet()) and relies entirely on
+    // androidTestImplementation(project(":tests")) instead. A project dependency never leaks a
+    // compileOnly dep to its consumers (compile or runtime), so narrowing this to compileOnly to
+    // match root would silently break android/gradle-plugin-tests on-device. Keep as implementation.
     implementation(decoroutinatorCommon)
+
+    // Unlike every other _latest-tests subproject, this module recompiles root's tests source
+    // itself (copyTestSourcesTask, from root's tests/src/main) rather than just consuming root's
+    // prebuilt tests jar as an opaque dependency - so it needs these on its own compile classpath
+    // too, same as root's own tests/build.gradle.kts does. Relying on decoroutinatorTests alone
+    // would NOT be enough even after it correctly mirrors root's dependencies: the
+    // DependencyHandler.api/implementation(DependenciesConfiguration) wrappers below always apply a
+    // configuration's `runtime` bucket as runtimeOnly at the consumer, never compile-visible,
+    // regardless of which wrapper the consumer itself uses - and every implementation/runtimeOnly
+    // root dependency lands in that `runtime` bucket by convention (see root-dependencies-loader-dsl.kt).
+    // libs.ktor.io.jvm is the one exception: root itself only needs it at runtime (runtimeOnly), so
+    // decoroutinatorTests's own addRuntime(...) - runtimeOnly here too - is already sufficient.
+    implementation(libs.ktor.utils)
     implementation(libs.jupiter.api)
     implementation(libs.junit4)
     implementation(libs.coroutines.core.latest)

@@ -208,7 +208,7 @@ private inline fun BaseContinuation.buildFirstRoundSpecChain(
     contract { callsInPlace(consumer, InvocationKind.EXACTLY_ONCE) }
     when (specChainBaseContinuationVerificationMode) {
         SpecChainBaseContinuationVerificationMode.SHARED_NO_VERIFY,
-        SpecChainBaseContinuationVerificationMode.SHARED_VERIFY_EXCLUSIVE -> buildSharedSpecChain(
+        SpecChainBaseContinuationVerificationMode.SHARED_VERIFY -> buildSharedSpecChain(
             accessor = accessor,
             stackTraceElementConsumer = stackTraceElementConsumer,
             consumer = consumer

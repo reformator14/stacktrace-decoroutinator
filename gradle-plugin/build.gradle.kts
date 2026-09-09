@@ -59,7 +59,6 @@ dependencies {
     compileOnly(project(":intrinsics"))
 
     implementation(project(":stacktrace-decoroutinator-class-transformer"))
-    implementation(project(":stacktrace-decoroutinator-runtime-settings"))
     implementation(project(":stacktrace-decoroutinator-provider"))
     implementation(libs.kotlin.logging.jvm)
     implementation(libs.kotlin.gradle.plugin.api)

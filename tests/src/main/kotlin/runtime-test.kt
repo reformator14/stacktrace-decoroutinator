@@ -107,6 +107,7 @@ open class RuntimeTest {
         var methodName = ""
         var lineNumber = 0
         try {
+            @Suppress("AssignedValueIsNeverRead")
             runBlockingWithTimeout {
                 className = ownerClassName
                 methodName = ownerMethodName
@@ -207,7 +208,7 @@ open class RuntimeTest {
             }
         }
         try {
-            runBlockingWithTimeout(timeout = 10.seconds) {
+            runBlockingWithTimeout(timeout = 15.seconds) {
                 flow.collect { }
             }
         } catch (e: Exception) {

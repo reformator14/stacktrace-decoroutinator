@@ -71,7 +71,7 @@ internal abstract class AbstractExclusiveSpec(
         resumeCookie: Any?
     ): Any? {
         assert { resumeCookie === null }
-        return resume(result, resumeChecksum, depthChecksum, nextContinuation) { baseContinuation, resultCopy ->
+        return resume(result, resumeChecksum, nextContinuation) { baseContinuation, resultCopy ->
             assert { baseContinuation === nextContinuation }
             if (resultCopy != COROUTINE_SUSPENDED) {
                 nextContinuation!!.callInvokeSuspend(accessor, resultCopy)
