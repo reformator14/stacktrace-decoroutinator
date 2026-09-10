@@ -118,7 +118,7 @@ abstract class BaseSpecMethodsFactory: SpecMethodsFactory {
     }
 }
 
-internal object SpecMethodsFactoryImpl: SpecMethodsFactory {
+object SpecMethodsFactoryImpl: SpecMethodsFactory {
     private val classSpecsByName: MutableMap<String, ClassSpec> = HashMap()
     private val classSpecsByNameUpdateLock = ReentrantLock()
 

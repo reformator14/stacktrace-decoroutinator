@@ -18,6 +18,7 @@ repositories {
 dependencies {
     compileOnly(libs.bytecode.processor.intrinsics)
     compileOnly(project(":stacktrace-decoroutinator-common"))
+    compileOnly(project(":stacktrace-decoroutinator-provider"))
 
     runtimeOnly(libs.ktor.io.jvm) {
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-jdk8")
@@ -34,7 +35,8 @@ bytecodeProcessor {
     processors = listOf(
         GetCurrentFileNameProcessor,
         GetOwnerClassProcessor,
-        LoadConstantProcessor
+        LoadConstantProcessor,
+        DeleteClassProcessor
     )
 }
 

@@ -23,7 +23,9 @@ module dev.reformator.stacktracedecoroutinator.provider {
             dev.reformator.stacktracedecoroutinator.generator.tests,
             dev.reformator.stacktracedecoroutinator.specmethodbuilder,
             dev.reformator.stacktracedecoroutinator.classtransformer,
-            dev.reformator.stacktracedecoroutinator.naivebasecontinuationaccessor;
+            dev.reformator.stacktracedecoroutinator.naivebasecontinuationaccessor,
+            dev.reformator.stacktracedecoroutinator.tests,
+            dev.reformator.stacktracedecoroutinator.latesttests.tests;
 
     uses DecoroutinatorProvider;
     uses SpecMethodsFactory;

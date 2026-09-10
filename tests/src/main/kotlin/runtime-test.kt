@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.future.await
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Assumptions.assumeTrue
 import java.net.URI
 import java.net.URLClassLoader
 import java.util.*
@@ -62,6 +61,70 @@ open class RuntimeTest {
         assumeTrue(isDecoroutinatorCommonApiAvailable)
         val status = DecoroutinatorCommonApi.getStatus(true) { it() }
         assertTrue(status.successful, status.description)
+    }
+
+    // Regression test for https://github.com/reformator14/stacktrace-decoroutinator/issues/87:
+    // Class.getDeclaredMethods() eagerly resolves every declared method's full signature, including
+    // ones whose types are genuinely absent at runtime (there: a CameraX method referencing an
+    // Android class only present on API 33+, while the method itself was dead code below that level,
+    // guarded by a runtime check CameraX's own call sites make) - this used to crash
+    // registerTransformedClass with an uncaught NoClassDefFoundError before the class got a chance to
+    // do anything. HasMissingDeclaredMethodSignatureType.neverCalled()'s return type is deleted from
+    // this module's own compiled output by DeleteClassProcessor (tests/build.gradle.kts), so this
+    // reproduces the exact same condition for real - a symbolic reference exists in the compiled
+    // bytecode, but the referenced class file genuinely doesn't - without needing a real Android
+    // device or any custom classloader trickery. Android's own gradle-plugin-tests/android-legacy
+    // modules R8-minify this module's compiled code (isMinifyEnabled = true), which needs the
+    // markReachableForR8/preventR8FromInlining calls below plus a matching -dontwarn rule in each
+    // module's own proguard-rules.pro (see both functions' own doc comments in test-utils.kt for why).
+    @Junit4Test @Junit5Test
+    fun registerTransformedClassSkipsNoClassDefFoundError() = runBlockingWithTimeout {
+        // Constructing this - not calling check() - is what actually exercises the #87 regression:
+        // <clinit> fires here, running the injected registerTransformedClass(lookup) call, which must
+        // not let NoClassDefFoundError escape regardless of whether runtime generation is available.
+        val instance = HasMissingDeclaredMethodSignatureType()
+        // Keeps neverCalled() - and so its unresolvable return type - reachable under R8 minification
+        // without ever actually invoking it: a real call would itself throw, since the type genuinely
+        // doesn't exist. See markReachableForR8's own doc comment (test-utils.kt) for the full story.
+        markReachableForR8 {
+            instance.neverCalled()
+        }
+        // Only the stack-trace-correctness verification below needs a real generator on the
+        // classpath (the class's own registration failed, so recovering its frame at all depends on
+        // the lazy runtime-generation fallback) - skip just that part, not the crash-check above, in
+        // any environment where SpecMethodsFactoryImpl is the only implementation available.
+        assumeTrue(isRuntimeGenerationOfSpecMethodsEnabled)
+        instance.check()
+    }
+
+    private class HasMissingDeclaredMethodSignatureType {
+        // Never actually called for real - only its declared signature matters (see this test's own
+        // doc comment above). The body has to survive R8 inlining too, not just shrinking - see
+        // preventR8FromInlining's own doc comment (test-utils.kt) for why it's wrapped like this
+        // instead of a plain `= fail()`.
+        fun neverCalled(): MissingDeclaredMethodSignatureType =
+            preventR8FromInlining({ neverCalled() }) { fail() }
+
+        // check()'s own frame trivially reflects wherever it's currently executing once resumed - no
+        // recovery needed for that. What needs recovering is *this* frame (the call site into a
+        // further suspension), mirroring InterfaceWithDefaultMethod.startCheck() above. The trailing
+        // tailCallDeoptimize() call is load-bearing, not decorative: suspendAndCheck(...) is otherwise
+        // this function's last statement, a tail call the Kotlin compiler would optimize away by
+        // reusing the caller's own continuation instead of allocating one for check() - which would
+        // leave no frame here at all to recover, in every pipeline (this regression test isn't about
+        // tail-call recovery, which is its own separate, dedicated mechanism - see
+        // TailCallDeoptimizeTest.InterfaceWithDefaultImplMethod - and isn't available in every install
+        // method this test itself needs to run under, e.g. _tests/*/generator-jvm-tests).
+        suspend fun check() {
+            val lineNumber = currentLineNumber + 1
+            suspendAndCheck(StackTraceElement(
+                ownerClassName,
+                ownerMethodName,
+                currentFileName,
+                lineNumber
+            ))
+            tailCallDeoptimize()
+        }
     }
 
     @Junit4Test @Junit5Test
@@ -780,3 +843,6 @@ open class CustomClassLoaderTailCallDeoptimizedTest {
 
 private val customLoaderJarUri: String
     @LoadConstant("customLoaderJarUri") get() { fail() }
+
+@DeleteClass
+private class MissingDeclaredMethodSignatureType

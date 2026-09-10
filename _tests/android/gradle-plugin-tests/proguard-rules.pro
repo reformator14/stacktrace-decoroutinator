@@ -19,3 +19,5 @@
     <init>();
 }
 -keep class androidx.test.runner.AndroidJUnitRunner { *; }
+
+-dontwarn dev.reformator.stacktracedecoroutinator.tests.MissingDeclaredMethodSignatureType

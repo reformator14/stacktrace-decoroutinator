@@ -13,6 +13,7 @@ import dev.reformator.stacktracedecoroutinator.tests.aar.suspendFunFromAarFileNa
 import dev.reformator.stacktracedecoroutinator.tests.aar.suspendFunFromAarLineNumber
 import dev.reformator.stacktracedecoroutinator.tests.aar.suspendFunFromAarMethodName
 import dev.reformator.stacktracedecoroutinator.tests.aar.suspendFunFromAarOwnerClassName
+import dev.reformator.stacktracedecoroutinator.tests.assumeTrue
 import dev.reformator.stacktracedecoroutinator.tests.checkStacktrace
 import dev.reformator.stacktracedecoroutinator.tests.readRetraceMappings
 import dev.reformator.stacktracedecoroutinator.tests.runBlockingWithTimeout
@@ -20,7 +21,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.debug.DebugProbes
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.yield
-import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.jupiter.api.Assertions.assertFalse

@@ -5,8 +5,8 @@ package dev.reformator.stacktracedecoroutinator.jvm.tests
 import dev.reformator.stacktracedecoroutinator.intrinsics.BASE_CONTINUATION_CLASS_NAME
 import dev.reformator.stacktracedecoroutinator.jvm.DecoroutinatorJvmApi
 import dev.reformator.stacktracedecoroutinator.jvm.internal.isTransformed
-import org.junit.jupiter.api.Assumptions.assumeFalse
-import org.junit.jupiter.api.Assumptions.assumeTrue
+import dev.reformator.stacktracedecoroutinator.tests.assumeFalse
+import dev.reformator.stacktracedecoroutinator.tests.assumeTrue
 import org.junit.platform.launcher.LauncherSession
 import org.junit.platform.launcher.LauncherSessionListener
 import kotlin.test.BeforeTest

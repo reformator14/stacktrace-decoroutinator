@@ -35,6 +35,16 @@ dependencies {
     // match root would silently break android/gradle-plugin-tests on-device. Keep as implementation.
     implementation(decoroutinatorCommon)
 
+    // Root's own tests/build.gradle.kts needs this at compile time too (compileOnly(project(":stacktrace-decoroutinator-provider"))),
+    // for the same reason: tests/src/main/kotlin references provider.internal.specMethodsFactory/
+    // SpecMethodsFactoryImpl directly, and tests/src/main/java/module-info.java (copied verbatim by
+    // copyTestSourcesTask below) declares `requires static dev.reformator.stacktracedecoroutinator.provider;`
+    // - decoroutinatorCommon's own addRuntime(decoroutinatorProvider) only puts provider on the
+    // runtime classpath, never compile-visible, so without this the module graph can't resolve that
+    // requires clause at all ("Module dev.reformator.stacktracedecoroutinator.provider cannot be
+    // found in the module graph").
+    compileOnly(decoroutinatorProvider)
+
     // Unlike every other _latest-tests subproject, this module recompiles root's tests source
     // itself (copyTestSourcesTask, from root's tests/src/main) rather than just consuming root's
     // prebuilt tests jar as an opaque dependency - so it needs these on its own compile classpath

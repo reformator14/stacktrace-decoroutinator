@@ -12,8 +12,8 @@ import dev.reformator.stacktracedecoroutinator.tests.CustomClassLoaderTest
 import dev.reformator.stacktracedecoroutinator.tests.PerformanceTest
 import dev.reformator.stacktracedecoroutinator.tests.RuntimeTest
 import dev.reformator.stacktracedecoroutinator.tests.TailCallDeoptimizeTest
-import org.junit.jupiter.api.Assumptions.assumeFalse
-import org.junit.jupiter.api.Assumptions.assumeTrue
+import dev.reformator.stacktracedecoroutinator.tests.assumeFalse
+import dev.reformator.stacktracedecoroutinator.tests.assumeTrue
 import org.junit.platform.launcher.LauncherSession
 import org.junit.platform.launcher.LauncherSessionListener
 import kotlin.test.BeforeTest

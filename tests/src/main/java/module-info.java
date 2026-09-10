@@ -1,5 +1,6 @@
 module dev.reformator.stacktracedecoroutinator.tests {
     requires static dev.reformator.stacktracedecoroutinator.common;
+    requires static dev.reformator.stacktracedecoroutinator.provider;
 
     requires kotlinx.coroutines.core;
     requires org.junit.jupiter.api;
