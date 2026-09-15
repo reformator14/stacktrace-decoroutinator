@@ -117,10 +117,24 @@ val nullElementSpecCache: SpecCache
 @Suppress("ObjectPropertyName")
 private val _specChainBaseContinuationVerificationMode =
     if (enabled) {
-        // TODO It's insane, but if I change the return type of the function
-        //  'loadSpecChainBaseContinuationVerificationMode' to SpecChainBaseContinuationVerificationMode,
-        //  D8 in the _tests project starts warning
-        //  "WARNING: R8: The method `void <...>.Di_providerKt.<clinit>()` does not type check and will be assumed to be unreachable.
+        // Workaround for a real R8 bug, not a style choice: if
+        // 'loadSpecChainBaseContinuationVerificationMode' is declared to return
+        // SpecChainBaseContinuationVerificationMode directly (instead of Any, cast here), R8 warns
+        // "WARNING: R8: The method `void <...>.Di_providerKt.<clinit>()` does not type check and
+        // will be assumed to be unreachable" - and actually replaces this whole <clinit> with a
+        // stub that unconditionally throws, silently breaking every class in this file at
+        // class-init time. Root-caused to R8's repackaging optimizer (RepackagingConstraintGraph):
+        // a package-private-virtual-method-override-preservation check was missing an
+        // isVirtualMethod() guard, so it also ran against non-virtual (static) method resolution
+        // spanning a package boundary - matching this exact shape, where
+        // SpecChainBaseContinuationVerificationMode lives in a different module (runtime-settings)
+        // than this file (provider). Fixed upstream in R8 9.1.28-dev (commit 2b6832ee80726122a137
+        // f4da63add9a317c39a0f, "Fix inadequate repackaging in presence of cross-package
+        // <clinit>s"), first in a published release at 9.1.31 - see
+        // https://issuetracker.google.com/issues/479862365 and
+        // https://r8.googlesource.com/r8/+/2b6832ee80726122a137f4da63add9a317c39a0f. Still needed
+        // here because current stable AGP (8.12.0) embeds R8 8.12.14, which predates the fix - can
+        // be removed once the minimum supported AGP/R8 embeds 9.1.31 or newer.
         loadSpecChainBaseContinuationVerificationMode() as SpecChainBaseContinuationVerificationMode
     } else {
         null
