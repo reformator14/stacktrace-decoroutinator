@@ -5,6 +5,7 @@
 package dev.reformator.stacktracedecoroutinator.gradleplugin
 
 import dev.reformator.stacktracedecoroutinator.intrinsics.PROVIDER_MODULE_NAME
+import dev.reformator.stacktracedecoroutinator.intrinsics.TAIL_CALL_ASYNC_STACK_TRACE_ENTRY_KT_CLASS_NAME
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpec
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpecMethod
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorTransformed
@@ -646,6 +647,7 @@ private fun Project.setGeneratingProguardFiles(legacyAndroidCompatibility: Boole
             }
             -keep,allowobfuscation interface ${DecoroutinatorSpec::class.java.name} { *; }
             -keep @${AndroidKeep::class.java.name} class * { *; }
+            -dontwarn $TAIL_CALL_ASYNC_STACK_TRACE_ENTRY_KT_CLASS_NAME
 
         """.trimIndent()
         val legacyProguardRules = proguardRules + """

@@ -1,7 +1,7 @@
 [versions]
 kotlin-build = "1.9.0"
 #noinspection UnusedVersionCatalogEntry
-kotlin-latest = "2.4.20"
+kotlin-latest = "2.5.0-Beta1"
 #noinspection AndroidGradlePluginVersion
 agp-build = "8.12.0"
 #noinspection UnusedVersionCatalogEntry
@@ -30,7 +30,7 @@ androidx-test-monitor = { group = "androidx.test", name = "monitor", version = "
 kotlin-logging-jvm = { group = "io.github.oshai", name = "kotlin-logging-jvm", version = "7.0.0" }
 #noinspection GradleDependency
 kotlin-gradle-plugin-api = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin-api", version = "1.7.0" }
-byte-buddy-agent = { group = "net.bytebuddy", name = "byte-buddy-agent", version = "1.18.13" }
+byte-buddy-agent = { group = "net.bytebuddy", name = "byte-buddy-agent", version = "1.18.14" }
 #noinspection NewerVersionAvailable
 ktor-io-jvm = { group = "io.ktor", name = "ktor-io-jvm", version = "2.0.1" }
 #noinspection NewerVersionAvailable
@@ -83,5 +83,6 @@ bytecode-processor = { id = "dev.reformator.bytecode-processor" }
 force-variant-java-version = { id = "dev.reformator.force-variant-java-version" }
 delete-signature-checksums = { id = "dev.reformator.delete-signature-checksums" }
 decoroutinator-transform-base-continuation = { id = "dev.reformator.decoroutinator-transform-base-continuation" }
+enable-wrap-continuation = { id = "dev.reformator.enable-wrap-continuation" }
 decoroutinator = { id = "dev.reformator.stacktracedecoroutinator" }
 root-dependencies-loader = { id = "dev.reformator.root-dependencies-loader" }

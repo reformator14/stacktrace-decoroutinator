@@ -9,7 +9,17 @@ import java.lang.invoke.MethodHandles
 interface DecoroutinatorProvider {
     fun awakeBaseContinuation(accessor: BaseContinuationAccessor, baseContinuation: Any, result: Any?)
 
-    fun tailCallDeoptimize(completion: Any, cache: SpecCache?): Any
+    fun tailCallDeoptimize(completion: Any, cache: SpecCache): Any
+
+    fun wrapContinuationAndTailCallDeoptimize(
+        declaringClass: String,
+        methodName: String,
+        fileName: String?,
+        lineNumber: Int,
+        spilledVariables: Array<Any?>,
+        continuation: Any,
+        cache: SpecCache?
+    ): Any
 
     fun getElementFactoryStacktraceElement(baseContinuation: Any): StackTraceElement?
 
@@ -56,8 +66,19 @@ private class NoopProvider: DecoroutinatorProvider {
         error("not supported")
     }
 
-    override fun tailCallDeoptimize(completion: Any, cache: SpecCache?): Any =
+    override fun tailCallDeoptimize(completion: Any, cache: SpecCache): Any =
         completion
+
+    override fun wrapContinuationAndTailCallDeoptimize(
+        declaringClass: String,
+        methodName: String,
+        fileName: String?,
+        lineNumber: Int,
+        spilledVariables: Array<Any?>,
+        continuation: Any,
+        cache: SpecCache?
+    ): Any =
+        continuation
 
     override fun getElementFactoryStacktraceElement(baseContinuation: Any): StackTraceElement =
         error("not supported")

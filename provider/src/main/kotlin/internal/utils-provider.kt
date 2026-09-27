@@ -86,6 +86,13 @@ class CompactMap<K, V>: java.util.AbstractMap<K, V>() {
 val StackTraceElement.hasLineNumber: Boolean
     get() = lineNumber >= 0
 
+@Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+val StackTraceElement.normalizedClassName: String
+    get() {
+        val className = className as java.lang.String
+        return className.substring(className.indexOf('/'.code) + 1)
+    }
+
 val specLineNumberMethodName: String = DecoroutinatorSpec::class.java.methods
     .find { it.returnType == Int::class.javaPrimitiveType && it.parameterCount == 0 }!!
     .name

@@ -16,8 +16,10 @@ import dev.reformator.stacktracedecoroutinator.intrinsics.CONTINUATION_INTERFACE
 import dev.reformator.stacktracedecoroutinator.intrinsics.KOTLIN_DEBUG_METADATA_ANNOTATION_NAME
 import dev.reformator.stacktracedecoroutinator.intrinsics.KOTLIN_METADATA_ANNOTATION_NAME
 import dev.reformator.stacktracedecoroutinator.intrinsics.LABEL_FIELD_NAME
+import dev.reformator.stacktracedecoroutinator.intrinsics.TAIL_CALL_ASYNC_STACK_TRACE_ENTRY_KT_CLASS_NAME
 import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
 import dev.reformator.stacktracedecoroutinator.intrinsics.assert
+import dev.reformator.stacktracedecoroutinator.intrinsics.wrapContinuation
 import dev.reformator.stacktracedecoroutinator.provider.BaseContinuationExtractor
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorSpecMethod
 import dev.reformator.stacktracedecoroutinator.provider.DecoroutinatorTransformed
@@ -188,7 +190,8 @@ private val manualContinuationsInternalClassNames =
 
 private val lazilyCachedContinuationsInternalClassNames =
     sequenceOf(
-        "kotlinx.coroutines.debug.internal.DebugProbesImpl\$CoroutineOwner"
+        "kotlinx.coroutines.debug.internal.DebugProbesImpl\$CoroutineOwner",
+        "kotlin.coroutines.jvm.internal.TailCallBaseContinuationImpl"
     ).map { it.internalName }.toHashSet()
 
 private val sharedSpecsInternalClassNames =
@@ -1000,42 +1003,76 @@ private fun tryTransformSuspendMethod(
         methodLineNumbers.add(lineNumber)
     }
 
-    method.instructions.insert(loadCompletionInstruction, InsnList().apply {
-        if (allowChangingClassLayout) {
-            add(FieldInsnNode(
-                Opcodes.GETSTATIC,
-                clazz.name,
-                cacheFieldName,
-                Type.getDescriptor(SpecCache::class.java)
-            ))
-        } else {
-            add(TypeInsnNode(Opcodes.NEW, Type.getInternalName(SpecCache::class.java)))
-            add(InsnNode(Opcodes.DUP))
-            add(LdcInsnNode(clazz.name.binaryName))
-            add(LdcInsnNode(method.name))
-            add(if (clazz.sourceFile == null) InsnNode(Opcodes.ACONST_NULL) else LdcInsnNode(clazz.sourceFile))
-            add(LdcInsnNode(lineNumber))
-            add(MethodInsnNode(
-                Opcodes.INVOKESPECIAL,
-                Type.getInternalName(SpecCache::class.java),
-                "<init>",
-                "(${Type.getDescriptor(String::class.java)}${Type.getDescriptor(String::class.java)}${Type.getDescriptor(String::class.java)}${Type.INT_TYPE.descriptor})${Type.VOID_TYPE.descriptor}"
-            ))
-        }
-        add(MethodInsnNode(
-            Opcodes.INVOKESTATIC,
-            Type.getInternalName(providerApiClass),
-            tailCallDeoptimizeMethodName,
-            "("
-                    + Type.getDescriptor(Object::class.java)
-                    + Type.getDescriptor(SpecCache::class.java)
-                    + ")${Type.getDescriptor(Object::class.java)}"
-        ))
+    val stringDescriptor = Type.getDescriptor(String::class.java)
+    val objectDescriptor = Type.getDescriptor(Object::class.java)
+    val specCacheDescriptor = Type.getDescriptor(SpecCache::class.java)
+
+    fun InsnList.addLoadCacheField() {
+        add(FieldInsnNode(Opcodes.GETSTATIC, clazz.name, cacheFieldName, specCacheDescriptor))
+    }
+
+    fun InsnList.addInvokeProviderApi(methodName: String, descriptor: String) {
+        add(MethodInsnNode(Opcodes.INVOKESTATIC, Type.getInternalName(providerApiClass), methodName, descriptor))
         add(TypeInsnNode(Opcodes.CHECKCAST, continuationInternalName))
-    })
+    }
+
+    val wrapContinuationInstruction = method.instructions.asSequence()
+        .filterIsInstance<MethodInsnNode>()
+        .singleOrNull { it.isWrapContinuation }
+
+    if (wrapContinuationInstruction != null) {
+        val wrapContinuationParametersDescriptor = stringDescriptor + stringDescriptor + stringDescriptor +
+            Type.INT_TYPE.descriptor + Type.getDescriptor(Array<Any?>::class.java) + objectDescriptor
+        method.instructions.insertBefore(wrapContinuationInstruction, InsnList().apply {
+            if (allowChangingClassLayout) {
+                addLoadCacheField()
+                addInvokeProviderApi(
+                    methodName = wrapContinuationAndTailCallDeoptimizeMethodName,
+                    descriptor = "($wrapContinuationParametersDescriptor$specCacheDescriptor)$objectDescriptor"
+                )
+            } else {
+                addInvokeProviderApi(
+                    methodName = wrapContinuationAndTailCallDeoptimizeInlineMethodName,
+                    descriptor = "($wrapContinuationParametersDescriptor)$objectDescriptor"
+                )
+            }
+        })
+        method.instructions.remove(wrapContinuationInstruction)
+    } else {
+        method.instructions.insert(loadCompletionInstruction, InsnList().apply {
+            if (allowChangingClassLayout) {
+                addLoadCacheField()
+                addInvokeProviderApi(
+                    methodName = tailCallDeoptimizeMethodName,
+                    descriptor = "($objectDescriptor$specCacheDescriptor)$objectDescriptor"
+                )
+            } else {
+                add(LdcInsnNode(clazz.name.binaryName))
+                add(LdcInsnNode(method.name))
+                add(if (clazz.sourceFile == null) InsnNode(Opcodes.ACONST_NULL) else LdcInsnNode(clazz.sourceFile))
+                add(LdcInsnNode(lineNumber))
+                addInvokeProviderApi(
+                    methodName = tailCallDeoptimizeInlineMethodName,
+                    descriptor = "($objectDescriptor$stringDescriptor$stringDescriptor$stringDescriptor" +
+                        "${Type.INT_TYPE.descriptor})$objectDescriptor"
+                )
+            }
+        })
+    }
 
     return true
 }
+
+private val wrapContinuationDescriptor =
+    "(${Type.getDescriptor(String::class.java)}${Type.getDescriptor(String::class.java)}" +
+        "${Type.getDescriptor(String::class.java)}${Type.INT_TYPE.descriptor}" +
+        "${Type.getDescriptor(Array<Any?>::class.java)}$continuationDescriptor)$continuationDescriptor"
+
+private val MethodInsnNode.isWrapContinuation: Boolean
+    get() = opcode == Opcodes.INVOKESTATIC &&
+        owner == TAIL_CALL_ASYNC_STACK_TRACE_ENTRY_KT_CLASS_NAME.internalName &&
+        name == ::wrapContinuation.name &&
+        desc == wrapContinuationDescriptor
 
 private val MethodNode.isStatic: Boolean
     get() = access and Opcodes.ACC_STATIC != 0
@@ -1151,6 +1188,15 @@ private val isTailCallDeoptimizationEnabledMethodName: String
 
 private val tailCallDeoptimizeMethodName: String
     @LoadConstant("tailCallDeoptimizeMethodName") get() = fail()
+
+private val tailCallDeoptimizeInlineMethodName: String
+    @LoadConstant("tailCallDeoptimizeInlineMethodName") get() = fail()
+
+private val wrapContinuationAndTailCallDeoptimizeMethodName: String
+    @LoadConstant("wrapContinuationAndTailCallDeoptimizeMethodName") get() = fail()
+
+private val wrapContinuationAndTailCallDeoptimizeInlineMethodName: String
+    @LoadConstant("wrapContinuationAndTailCallDeoptimizeInlineMethodName") get() = fail()
 
 private val manualContinuationGetCacheFieldMethodName: String
     @LoadConstant("manualContinuationGetCacheFieldMethodName") get() = fail()

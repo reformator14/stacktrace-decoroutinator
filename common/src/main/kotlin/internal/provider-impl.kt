@@ -5,6 +5,7 @@ package dev.reformator.stacktracedecoroutinator.common.internal
 import dev.reformator.stacktracedecoroutinator.provider.internal.fillUnknownElementsWithClassName
 import dev.reformator.stacktracedecoroutinator.intrinsics.BaseContinuation
 import dev.reformator.stacktracedecoroutinator.intrinsics.UNKNOWN_LINE_NUMBER
+import dev.reformator.stacktracedecoroutinator.intrinsics.wrapContinuation
 import dev.reformator.stacktracedecoroutinator.provider.BaseContinuationExtractor
 import dev.reformator.stacktracedecoroutinator.provider.ContinuationCached
 import dev.reformator.stacktracedecoroutinator.provider.SpecCache
@@ -51,10 +52,7 @@ internal class Provider: DecoroutinatorProvider {
     }
 
     @Suppress("UNCHECKED_CAST")
-    override fun tailCallDeoptimize(completion: Any, cache: SpecCache?): Any {
-        if (cache == null) {
-            return completion
-        }
+    override fun tailCallDeoptimize(completion: Any, cache: SpecCache): Any {
         if (completion is BaseContinuation) {
             val label =
                 if (completion is BaseContinuationExtractor) {
@@ -65,6 +63,31 @@ internal class Provider: DecoroutinatorProvider {
             if (label != NONE_LABEL && label and Int.MIN_VALUE != 0) return completion
         }
         return TailCallDeoptimizedContinuation(completion as Continuation<Any?>, cache)
+    }
+
+    override fun wrapContinuationAndTailCallDeoptimize(
+        declaringClass: String,
+        methodName: String,
+        fileName: String?,
+        lineNumber: Int,
+        spilledVariables: Array<Any?>,
+        continuation: Any,
+        cache: SpecCache?
+    ): Any {
+        @Suppress("UNCHECKED_CAST")
+        val wrappedContinuation = wrapContinuation(
+            declaringClass = declaringClass,
+            methodName = methodName,
+            fileName = fileName,
+            lineNumber = lineNumber,
+            spilledVariables = spilledVariables,
+            continuation = continuation as Continuation<Any?>
+        )
+        return when {
+            wrappedContinuation !== continuation -> wrappedContinuation
+            cache != null -> TailCallDeoptimizedContinuation(continuation, cache)
+            else -> continuation
+        }
     }
 
     override fun getElementFactoryStacktraceElement(baseContinuation: Any): StackTraceElement? {

@@ -17,14 +17,17 @@ pluginManagement {
 
     includeBuild("_plugins/root-dependencies-loader")
     includeBuild("_plugins/build-dependencies")
+    includeBuild("_plugins/enable-wrap-continuation")
 }
 
 includeBuild("_plugins/root-dependencies-loader")
 includeBuild("_plugins/build-dependencies")
+includeBuild("_plugins/enable-wrap-continuation")
 
 include(
     "jvm:dynamic-agent-tests",
     "jvm:gradle-plugin-tests",
+    "jvm:wrap-continuation-tests",
     "android:gradle-plugin-tests",
 
     "tests",

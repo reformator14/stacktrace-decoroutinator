@@ -20,7 +20,7 @@ abstract class BaseSpecMethodsFactory: SpecMethodsFactory {
     override fun getSpecMethodHandle(element: StackTraceElement): MethodHandle? {
         SpecMethodsFactoryImpl.getSpecMethodHandle(element)?.let { return it }
 
-        val classSpec = getClassSpec(element.className)
+        val classSpec = getClassSpec(element.normalizedClassName)
 
         fun getMethodHandle(): MethodHandle? {
             val methodsByName = classSpec[element.fileName] ?: return null
@@ -50,7 +50,7 @@ abstract class BaseSpecMethodsFactory: SpecMethodsFactory {
 
             classSpec.revision++
             val factoriesByMethod = generateSpecMethodHandles(
-                className = element.className,
+                className = element.normalizedClassName,
                 classRevision = classSpec.revision,
                 fileName = element.fileName,
                 lineNumbersByMethod = lineNumbersByMethod
@@ -139,7 +139,7 @@ object SpecMethodsFactoryImpl: SpecMethodsFactory {
         )
 
     override fun getSpecMethodHandle(element: StackTraceElement): MethodHandle? {
-        val classSpec = getClassSpec(element.className) ?: return null
+        val classSpec = getClassSpec(element.normalizedClassName) ?: return null
         if (classSpec.fileName != element.fileName) return null
         val methodSpec = classSpec.methodsByName[element.methodName] ?: return null
         if (element.hasLineNumber && element.lineNumber !in methodSpec.lineNumbers) return null

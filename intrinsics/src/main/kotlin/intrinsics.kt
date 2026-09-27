@@ -3,6 +3,7 @@
 package dev.reformator.stacktracedecoroutinator.intrinsics
 
 import dev.reformator.bytecodeprocessor.intrinsics.ChangeClassName
+import dev.reformator.bytecodeprocessor.intrinsics.ChangeInvocationsOwner
 import dev.reformator.bytecodeprocessor.intrinsics.MethodNameConstant
 import dev.reformator.bytecodeprocessor.intrinsics.fail
 import kotlin.coroutines.Continuation
@@ -15,6 +16,7 @@ const val LABEL_FIELD_NAME = "label"
 const val CONTINUATION_INTERFACE_NAME = "kotlin.coroutines.Continuation"
 const val KOTLIN_METADATA_ANNOTATION_NAME = "kotlin.Metadata"
 const val KOTLIN_DEBUG_METADATA_ANNOTATION_NAME = "kotlin.coroutines.jvm.internal.DebugMetadata"
+const val TAIL_CALL_ASYNC_STACK_TRACE_ENTRY_KT_CLASS_NAME = "kotlin.coroutines.jvm.internal.TailCallAsyncStackTraceEntryKt"
 
 @ChangeClassName(toName = BASE_CONTINUATION_CLASS_NAME)
 abstract class BaseContinuation: Continuation<Any?>, CoroutineStackFrame {
@@ -59,6 +61,19 @@ annotation class DebugMetadata(
     @Suppress("unused")
     val className: String = ""
 )
+
+// Since Kotlin 2.5 (JVM `@PublishedApi internal`, so public static in bytecode). The erased descriptor must match
+// stdlib's exactly: `T : Continuation<Any?>, T : CoroutineStackFrame` erases to `Continuation`.
+@Suppress("UNUSED_PARAMETER")
+@ChangeInvocationsOwner(toName = TAIL_CALL_ASYNC_STACK_TRACE_ENTRY_KT_CLASS_NAME)
+fun wrapContinuation(
+    declaringClass: String,
+    methodName: String,
+    fileName: String?,
+    lineNumber: Int,
+    spilledVariables: Array<Any?>,
+    continuation: Continuation<*>
+): Continuation<*> { fail() }
 
 inline fun ifAssertionEnabled(check: () -> Unit) {
     if (_Assertions.ENABLED) {

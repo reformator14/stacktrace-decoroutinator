@@ -79,8 +79,27 @@ internal class DispatchingProvider: DecoroutinatorProvider {
         entryFor(baseContinuation).awakeBaseContinuation(accessor, baseContinuation, result)
     }
 
-    override fun tailCallDeoptimize(completion: Any, cache: SpecCache?): Any =
+    override fun tailCallDeoptimize(completion: Any, cache: SpecCache): Any =
         entryFor(completion).tailCallDeoptimize(completion, cache)
+
+    override fun wrapContinuationAndTailCallDeoptimize(
+        declaringClass: String,
+        methodName: String,
+        fileName: String?,
+        lineNumber: Int,
+        spilledVariables: Array<Any?>,
+        continuation: Any,
+        cache: SpecCache?
+    ): Any =
+        entryFor(continuation).wrapContinuationAndTailCallDeoptimize(
+            declaringClass = declaringClass,
+            methodName = methodName,
+            fileName = fileName,
+            lineNumber = lineNumber,
+            spilledVariables = spilledVariables,
+            continuation = continuation,
+            cache = cache
+        )
 
     override fun getElementFactoryStacktraceElement(baseContinuation: Any): StackTraceElement? =
         entryFor(baseContinuation).getElementFactoryStacktraceElement(baseContinuation)

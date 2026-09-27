@@ -1,4 +1,5 @@
 import dev.reformator.bytecodeprocessor.plugins.ChangeClassNameProcessor
+import dev.reformator.bytecodeprocessor.plugins.ChangeInvocationsOwnerProcessor
 import dev.reformator.bytecodeprocessor.plugins.LoadConstantProcessor
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -36,7 +37,8 @@ sourceSets {
 bytecodeProcessor {
     processors = listOf(
         ChangeClassNameProcessor,
-        LoadConstantProcessor
+        LoadConstantProcessor,
+        ChangeInvocationsOwnerProcessor
     )
     skipUpdate = true
 }

@@ -179,6 +179,11 @@ val Project.decoroutinatorGradlePlugin: DependenciesConfiguration
         addRuntime(libsAsmUtils)
     }
 
+val Project.decoroutinatorIntrinsics: DependenciesConfiguration
+    get() = buildDependenciesConfiguration {
+        addApi(getRootDependenciesBuildLibsClassesJar("intrinsics"))
+    }
+
 fun DependencyHandler.compileOnly(dependencies: DependenciesConfiguration) {
     dependencies.api.applyTo(this, "compileOnly")
 }
@@ -201,6 +206,10 @@ fun DependencyHandler.api(dependencies: DependenciesConfiguration) {
 fun DependencyHandler.testImplementation(dependencies: DependenciesConfiguration) {
     dependencies.api.applyTo(this, "testImplementation")
     dependencies.runtime.applyTo(this, "testRuntimeOnly")
+}
+
+fun DependencyHandler.testCompileOnly(dependencies: DependenciesConfiguration) {
+    dependencies.api.applyTo(this, "testCompileOnly")
 }
 
 fun DependencyHandler.testRuntimeOnly(dependencies: DependenciesConfiguration) {

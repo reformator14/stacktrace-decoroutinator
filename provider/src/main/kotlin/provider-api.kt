@@ -256,7 +256,62 @@ val isTailCallDeoptimizationEnabled: Boolean
 @Suppress("unused")
 @MethodNameConstant("tailCallDeoptimizeMethodName")
 fun tailCallDeoptimize(completion: Any, cache: SpecCache?): Any =
-    provider.tailCallDeoptimize(completion, cache)
+    if (cache == null) completion else provider.tailCallDeoptimize(completion, cache)
+
+@Suppress("unused")
+@MethodNameConstant("tailCallDeoptimizeInlineMethodName")
+fun tailCallDeoptimize(completion: Any, className: String, methodName: String, fileName: String?, lineNumber: Int): Any =
+    if (cachedTailCallDeoptimize) {
+        provider.tailCallDeoptimize(completion, SpecCache(className, methodName, fileName, lineNumber))
+    } else {
+        completion
+    }
+
+@Suppress("unused")
+@MethodNameConstant("wrapContinuationAndTailCallDeoptimizeMethodName")
+fun wrapContinuationAndTailCallDeoptimize(
+    declaringClass: String,
+    methodName: String,
+    fileName: String?,
+    lineNumber: Int,
+    spilledVariables: Array<Any?>,
+    continuation: Any,
+    cache: SpecCache?
+): Any =
+    provider.wrapContinuationAndTailCallDeoptimize(
+        declaringClass = declaringClass,
+        methodName = methodName,
+        fileName = fileName,
+        lineNumber = lineNumber,
+        spilledVariables = spilledVariables,
+        continuation = continuation,
+        cache = cache
+    )
+
+@Suppress("unused")
+@MethodNameConstant("wrapContinuationAndTailCallDeoptimizeInlineMethodName")
+fun wrapContinuationAndTailCallDeoptimize(
+    declaringClass: String,
+    methodName: String,
+    fileName: String?,
+    lineNumber: Int,
+    spilledVariables: Array<Any?>,
+    continuation: Any
+): Any =
+    provider.wrapContinuationAndTailCallDeoptimize(
+        declaringClass = declaringClass,
+        methodName = methodName,
+        fileName = fileName,
+        lineNumber = lineNumber,
+        spilledVariables = spilledVariables,
+        continuation = continuation,
+        cache =
+            if (cachedTailCallDeoptimize) {
+                SpecCache(declaringClass, methodName, fileName, lineNumber)
+            } else {
+                null
+            }
+    )
 
 @Suppress("unused")
 val isUsingElementFactoryForBaseContinuationEnabled: Boolean
