@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application) version libs.versions.agp.latest apply false
+    alias(libs.plugins.android.kotlin.multiplatform.library) version libs.versions.agp.latest apply false
     alias(libs.plugins.kotlin.jvm) version libs.versions.kotlin.latest apply false
+    alias(libs.plugins.kotlin.multiplatform) version libs.versions.kotlin.latest apply false
 }
 
 buildscript {

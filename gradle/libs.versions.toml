@@ -76,9 +76,11 @@ gr8 = { id = "com.gradleup.gr8", version.ref = "plugin-gr8" }
 dokka = { id = "org.jetbrains.dokka" }
 gradle-publish = { id = "com.gradle.plugin-publish" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform" }
 kotlin-android = { id = "org.jetbrains.kotlin.android" }
 android-application = { id = "com.android.application" }
 android-library = { id = "com.android.library" }
+android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library" }
 bytecode-processor = { id = "dev.reformator.bytecode-processor" }
 force-variant-java-version = { id = "dev.reformator.force-variant-java-version" }
 delete-signature-checksums = { id = "dev.reformator.delete-signature-checksums" }

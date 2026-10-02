@@ -18,6 +18,10 @@ import org.gradle.api.UnknownDomainObjectException
 import org.gradle.api.artifacts.type.ArtifactTypeDefinition
 import org.gradle.api.tasks.compile.AbstractCompile
 import org.gradle.kotlin.dsl.*
+import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
+import org.jetbrains.kotlin.gradle.plugin.KotlinCompilationToRunnableFiles
+import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
+import org.jetbrains.kotlin.gradle.plugin.KotlinTargetsContainer
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 private val log = KotlinLogging.logger { }
@@ -83,6 +87,37 @@ private val Project.isAndroid: Boolean
 private val Project.isKmp: Boolean
     get() = pluginManager.hasPlugin("org.jetbrains.kotlin.multiplatform")
 
+// Compilations of the KMP project's JVM targets (whatever they are named, e.g. `jvm()` or `jvm("desktop")`)
+private class KmpJvmCompilations(
+    val main: List<KotlinCompilation<*>>,
+    val test: List<KotlinCompilation<*>>
+) {
+    val all: List<KotlinCompilation<*>>
+        get() = main + test
+}
+
+private val Project.kmpJvmCompilations: KmpJvmCompilations
+    get() {
+        val compilations = (extensions.getByName("kotlin") as KotlinTargetsContainer).targets
+            .filter { it.platformType == KotlinPlatformType.jvm }
+            .flatMap { it.compilations }
+        val (main, test) = compilations.partition { it.name == KotlinCompilation.MAIN_COMPILATION_NAME }
+        return KmpJvmCompilations(main = main, test = test)
+    }
+
+private val List<KotlinCompilation<*>>.implementationConfigurations: Set<String>
+    get() = mapTo(mutableSetOf()) { Regex.escape(it.defaultSourceSet.implementationConfigurationName) }
+
+private val List<KotlinCompilation<*>>.runtimeClasspaths: Set<String>
+    get() = filterIsInstance<KotlinCompilationToRunnableFiles<*>>()
+        .mapTo(mutableSetOf()) { Regex.escape(it.runtimeDependencyConfigurationName) }
+
+private val List<KotlinCompilation<*>>.compileClasspaths: Set<String>
+    get() = mapTo(mutableSetOf()) { Regex.escape(it.compileDependencyConfigurationName) }
+
+private val List<KotlinCompilation<*>>.compileTasks: Set<String>
+    get() = mapTo(mutableSetOf()) { Regex.escape(it.compileKotlinTaskName) }
+
 private val Project.androidMinSdk: Int?
     get() {
         try {
@@ -123,12 +158,12 @@ private fun DecoroutinatorPluginExtension.setupLowLevelDependencyConfig(project:
         else -> emptySet()
     }
     val jvmTestConfigs = when {
-        isKmp -> setOf("desktopTestImplementation", "androidUnitTestImplementation")
+        isKmp -> setOf("androidUnitTestImplementation") + project.kmpJvmCompilations.test.implementationConfigurations
         isAndroid -> setOf(".*UnitTestImplementation", "unitTestImplementation")
         else -> setOf("testImplementation")
     }
     val jvmMainConfigs = when {
-        isKmp -> setOf("desktopMainImplementation", "androidUnitTestImplementation")
+        isKmp -> setOf("androidUnitTestImplementation") + project.kmpJvmCompilations.main.implementationConfigurations
         isAndroid -> setOf(".*UnitTestImplementation", "unitTestImplementation")
         else -> setOf("implementation")
     }
@@ -193,11 +228,9 @@ private fun DecoroutinatorPluginExtension.setupLowLevelRuntimeTransformedClasses
     }
     val jvmConfigurations = when {
         isKmp -> {
-            if (jvmTestsOnly) {
-                setOf(".*UnitTestRuntimeClasspath", "desktopTestRuntimeClasspath")
-            } else {
-                setOf(".*UnitTestRuntimeClasspath", "desktopRuntimeClasspath", "desktopMainRuntimeClasspath")
-            }
+            val compilations = project.kmpJvmCompilations
+            setOf(".*UnitTestRuntimeClasspath") +
+                if (jvmTestsOnly) compilations.test.runtimeClasspaths else compilations.all.runtimeClasspaths
         }
         isAndroid -> setOf(".*UnitTestRuntimeClasspath", "unitTestRuntimeClasspath")
         else -> {
@@ -277,11 +310,9 @@ private fun DecoroutinatorPluginExtension.setupLowLevelCompileTransformedClasses
     }
     val jvmConfigurations = when {
         isKmp -> {
-            if (jvmTestsOnly) {
-                setOf("android.*UnitTestCompileClasspath", "desktopTestCompileClasspath")
-            } else {
-                setOf("android.*UnitTestCompileClasspath", "desktopCompileClasspath")
-            }
+            val compilations = project.kmpJvmCompilations
+            setOf("android.*UnitTestCompileClasspath") +
+                if (jvmTestsOnly) compilations.test.compileClasspaths else compilations.all.compileClasspaths
         }
         isAndroid -> setOf(".*UnitTestCompileClasspath", "unitTestCompileClasspath")
         else -> {
@@ -322,8 +353,8 @@ private fun DecoroutinatorPluginExtension.setupLowLevelTasksConfig(project: Proj
             else -> emptySet()
         }
         val jvmTasks = when {
-            isKmp && jvmTestsOnly -> setOf(".*DesktopTest.*")
-            isKmp -> setOf(".*Desktop.*")
+            isKmp && jvmTestsOnly -> project.kmpJvmCompilations.test.compileTasks
+            isKmp -> project.kmpJvmCompilations.all.compileTasks
             !isAndroid && jvmTestsOnly -> setOf(".*Test.*")
             !isAndroid -> setOf(".*")
             else -> emptySet()

@@ -188,9 +188,13 @@ fun DependencyHandler.compileOnly(dependencies: DependenciesConfiguration) {
     dependencies.api.applyTo(this, "compileOnly")
 }
 
+fun DependencyHandler.runtimeOnly(configurationName: String, dependencies: DependenciesConfiguration) {
+    dependencies.api.applyTo(this, configurationName)
+    dependencies.runtime.applyTo(this, configurationName)
+}
+
 fun DependencyHandler.runtimeOnly(dependencies: DependenciesConfiguration) {
-    dependencies.api.applyTo(this, "runtimeOnly")
-    dependencies.runtime.applyTo(this, "runtimeOnly")
+    runtimeOnly("runtimeOnly", dependencies)
 }
 
 fun DependencyHandler.implementation(dependencies: DependenciesConfiguration) {
@@ -213,11 +217,9 @@ fun DependencyHandler.testCompileOnly(dependencies: DependenciesConfiguration) {
 }
 
 fun DependencyHandler.testRuntimeOnly(dependencies: DependenciesConfiguration) {
-    dependencies.api.applyTo(this, "testRuntimeOnly")
-    dependencies.runtime.applyTo(this, "testRuntimeOnly")
+    runtimeOnly("testRuntimeOnly", dependencies)
 }
 
 fun DependencyHandler.androidTestRuntimeOnly(dependencies: DependenciesConfiguration) {
-    dependencies.api.applyTo(this, "androidTestRuntimeOnly")
-    dependencies.runtime.applyTo(this, "androidTestRuntimeOnly")
+    runtimeOnly("androidTestRuntimeOnly", dependencies)
 }

@@ -28,6 +28,8 @@ include(
     "jvm:dynamic-agent-tests",
     "jvm:gradle-plugin-tests",
     "jvm:wrap-continuation-tests",
+    "kmp:gradle-plugin-tests",
+    "kmp:android-gradle-plugin-tests",
     "android:gradle-plugin-tests",
 
     "tests",
